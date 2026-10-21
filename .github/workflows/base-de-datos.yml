@@ -22,8 +22,12 @@ jobs:
 
       - name: Comprobar configuración
         run: |
-          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_DB_PASSWORD" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
-            echo "::warning title=Base de datos::Faltan SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD o SUPABASE_PROJECT_REF en GitHub."
+          FALTAN=""
+          [ -z "$SUPABASE_ACCESS_TOKEN" ] && FALTAN="$FALTAN secreto SUPABASE_ACCESS_TOKEN,"
+          [ -z "$SUPABASE_DB_PASSWORD" ] && FALTAN="$FALTAN secreto SUPABASE_DB_PASSWORD,"
+          [ -z "$SUPABASE_PROJECT_REF" ] && FALTAN="$FALTAN variable SUPABASE_PROJECT_REF,"
+          if [ -n "$FALTAN" ]; then
+            echo "::warning title=Base de datos::Faltan en GitHub:$FALTAN"
             echo "LISTO=no" >> "$GITHUB_ENV"
           else
             echo "LISTO=si" >> "$GITHUB_ENV"
