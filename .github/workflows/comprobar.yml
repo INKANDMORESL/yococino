@@ -1,0 +1,82 @@
+name: Comprobar app
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: movil
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependencias
+        run: npm install --no-audit --no-fund
+
+      - name: Comprobar versiones compatibles con Expo
+        run: npx expo install --check
+
+      - name: Comprobar el código (TypeScript)
+        run: npx tsc --noEmit
+
+      - name: Generar la versión web de prueba
+        run: npx expo export --platform web
+
+      - name: Guardar la versión web
+        uses: actions/upload-artifact@v4
+        with:
+          name: yococino-web
+          path: movil/dist
+          retention-days: 14
+
+  vista-previa:
+    # Publica la app para abrirla en el móvil con Expo Go.
+    # Solo funciona cuando el secreto EXPO_TOKEN está creado en GitHub.
+    needs: comprobar
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: movil
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.EXPO_TOKEN != ''
+
+      - uses: actions/setup-node@v4
+        if: env.EXPO_TOKEN != ''
+        with:
+          node-version: 22
+
+      - name: Instalar dependencias
+        if: env.EXPO_TOKEN != ''
+        run: npm install --no-audit --no-fund
+
+      - name: Enlazar con el proyecto de Expo
+        if: env.EXPO_TOKEN != ''
+        run: npx --yes eas-cli@latest init --non-interactive --force
+
+      - name: Configurar actualizaciones
+        if: env.EXPO_TOKEN != ''
+        run: npx --yes eas-cli@latest update:configure --platform all --non-interactive
+
+      - name: Publicar vista previa
+        if: env.EXPO_TOKEN != ''
+        run: npx --yes eas-cli@latest update --branch vista-previa --message "${{ github.event.head_commit.message }}" --non-interactive
+
+      - name: Aviso si falta el secreto
+        if: env.EXPO_TOKEN == ''
+        working-directory: .
+        run: echo "Falta el secreto EXPO_TOKEN; la vista previa en el móvil no se ha publicado."

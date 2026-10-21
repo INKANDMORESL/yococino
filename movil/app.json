@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Yococino",
+    "slug": "yococino",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "yococino",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FBFAF6",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.yococino"
+    },
+    "android": {
+      "package": "app.yococino"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": ["expo-router"]
+  }
+}
