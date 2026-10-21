@@ -76,6 +76,14 @@ jobs:
         if: env.EXPO_TOKEN != ''
         run: npx --yes eas-cli@latest update --branch vista-previa --message "${{ github.event.head_commit.message }}" --non-interactive
 
+      - name: Publicar versión web
+        if: env.EXPO_TOKEN != ''
+        run: |
+          npx expo export --platform web
+          npx --yes eas-cli@latest deploy --prod --non-interactive --json > deploy.json || (cat deploy.json; exit 1)
+          URL=$(node -e "const d=require('./deploy.json'); console.log(d.production?.url || d.deployment?.url || d.url || JSON.stringify(d))")
+          echo "::notice title=Web de Yococino::$URL"
+
       - name: Aviso si falta el secreto
         if: env.EXPO_TOKEN == ''
         working-directory: .
