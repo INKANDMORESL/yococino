@@ -28,7 +28,13 @@ jobs:
           node-version: 22
 
       - name: Instalar dependencias
-        run: npm install --no-audit --no-fund
+        run: |
+          for intento in 1 2 3; do
+            npm install --no-audit --no-fund > instalar.txt 2>&1 && exit 0
+            sleep 15
+          done
+          echo "::error title=Instalar dependencias::$(grep -iE 'npm (error|ERR)' instalar.txt | head -n 8 | tr '\n' ' ' | cut -c1-900)"
+          exit 1
 
       - name: Comprobar versiones compatibles con Expo
         run: npx expo install --check
@@ -68,7 +74,13 @@ jobs:
 
       - name: Instalar dependencias
         if: env.EXPO_TOKEN != ''
-        run: npm install --no-audit --no-fund
+        run: |
+          for intento in 1 2 3; do
+            npm install --no-audit --no-fund > instalar.txt 2>&1 && exit 0
+            sleep 15
+          done
+          echo "::error title=Instalar dependencias::$(grep -iE 'npm (error|ERR)' instalar.txt | head -n 8 | tr '\n' ' ' | cut -c1-900)"
+          exit 1
 
       - name: Enlazar con el proyecto de Expo
         if: env.EXPO_TOKEN != ''
