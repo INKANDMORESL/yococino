@@ -8,6 +8,12 @@ on:
 permissions:
   contents: read
 
+# Datos públicos de Supabase que se incluyen dentro de la app al compilar.
+# Se configuran en GitHub: Settings > Secrets and variables > Actions > Variables.
+env:
+  EXPO_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+  EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+
 jobs:
   comprobar:
     runs-on: ubuntu-latest

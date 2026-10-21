@@ -1,0 +1,2 @@
+# Configuración mínima para que GitHub aplique las migraciones con la CLI de Supabase.
+project_id = "yococino"

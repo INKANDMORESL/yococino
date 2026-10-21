@@ -1,7 +1,7 @@
 // Estado de la encuesta compartido entre pantallas.
 // Por ahora vive en memoria; en la fase 2 se guardará en Supabase.
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
-import { encuestaVacia, type Encuesta } from './encuesta';
+import { encuestaVacia, type Encuesta } from './modelo';
 
 interface EncuestaStore {
   encuesta: Encuesta;

@@ -6,7 +6,7 @@
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   nombre text,
-  fecha_nacimiento date,
+  edad smallint check (edad between 18 and 110),
   sexo text check (sexo in ('mujer', 'hombre', 'otro')),
   altura_cm numeric(5,1) check (altura_cm between 120 and 230),
   peso_inicial_kg numeric(5,1) check (peso_inicial_kg between 30 and 300),
