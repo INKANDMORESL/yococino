@@ -1,6 +1,6 @@
 // Encuesta inicial: un paso cada vez, con transición animada entre pasos.
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ComponentRef } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, BarraProgreso, Boton, useSacudida } from '../src/components';
@@ -13,7 +13,7 @@ export default function EncuestaPantalla() {
   const { encuesta, cambiar } = useEncuesta();
   const [paso, setPaso] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const { x, sacudir } = useSacudida();
 
   const total = PASOS.length;
