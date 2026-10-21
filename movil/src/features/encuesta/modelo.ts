@@ -7,8 +7,14 @@ export type Actividad = 'nada' | 'poca' | 'media' | 'alta';
 export type Nivel = 'facil' | 'medio' | 'elaborado';
 export type FranjaPeques = '1-3' | '4-8' | '9-13' | '14-17';
 
+export interface Fecha {
+  dia: string;
+  mes: string;
+  ano: string;
+}
+
 export interface Encuesta {
-  edad: string;
+  nacimiento: Fecha;
   sexo: Sexo | null;
   altura: string; // cm
   peso: string; // kg
@@ -26,7 +32,7 @@ export interface Encuesta {
 }
 
 export const encuestaVacia: Encuesta = {
-  edad: '',
+  nacimiento: { dia: '', mes: '', ano: '' },
   sexo: null,
   altura: '',
   peso: '',
@@ -98,6 +104,35 @@ export const numero = (v: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+// Convierte día/mes/año en fecha real. Devuelve null si la fecha no existe (por ejemplo, 31/02).
+export const fechaDe = (f: Fecha): Date | null => {
+  const d = parseInt(f.dia, 10);
+  const m = parseInt(f.mes, 10);
+  const a = parseInt(f.ano, 10);
+  if (!d || !m || !a || f.ano.length !== 4) return null;
+  const fecha = new Date(a, m - 1, d);
+  if (fecha.getFullYear() !== a || fecha.getMonth() !== m - 1 || fecha.getDate() !== d) return null;
+  return fecha;
+};
+
+// Fecha en formato AAAA-MM-DD, el que usa la base de datos.
+export const fechaISO = (f: Fecha): string | null => {
+  const fecha = fechaDe(f);
+  if (!fecha) return null;
+  const dos = (n: number) => String(n).padStart(2, '0');
+  return `${fecha.getFullYear()}-${dos(fecha.getMonth() + 1)}-${dos(fecha.getDate())}`;
+};
+
+// Años cumplidos a día de hoy.
+export const edadDe = (f: Fecha, hoy: Date = new Date()): number | null => {
+  const n = fechaDe(f);
+  if (!n) return null;
+  let edad = hoy.getFullYear() - n.getFullYear();
+  const aunNoCumple = hoy.getMonth() < n.getMonth() || (hoy.getMonth() === n.getMonth() && hoy.getDate() < n.getDate());
+  if (aunNoCumple) edad -= 1;
+  return edad;
+};
+
 // Peso mínimo saludable para la altura (IMC 18,5). Por debajo, la app no acepta el objetivo.
 export const pesoMinimoSaludable = (alturaCm: number): number => {
   const m = alturaCm / 100;
@@ -111,7 +146,7 @@ export type Resultado =
 
 // Decide si la app puede generar un menú o debe recomendar un profesional.
 export const evaluar = (e: Encuesta): Resultado => {
-  const edad = numero(e.edad);
+  const edad = edadDe(e.nacimiento);
   if (edad !== null && edad < 18) return { tipo: 'menor' };
   if (e.condiciones.length > 0) return { tipo: 'profesional', motivos: e.condiciones };
   return { tipo: 'ok' };
@@ -120,10 +155,11 @@ export const evaluar = (e: Encuesta): Resultado => {
 // Errores de cada paso. Un paso sin errores deja avanzar.
 export const erroresPaso = (paso: number, e: Encuesta): string | null => {
   if (paso === 0) {
-    const edad = numero(e.edad);
+    const edad = edadDe(e.nacimiento);
     const altura = numero(e.altura);
     const peso = numero(e.peso);
-    if (edad === null || edad < 10 || edad > 110) return 'Escribe tu edad en años.';
+    if (edad === null) return 'Revisa tu fecha de nacimiento: día, mes y año con 4 cifras (por ejemplo, 15 / 03 / 1988).';
+    if (edad < 0 || edad > 110) return 'Revisa el año de tu fecha de nacimiento.';
     if (!e.sexo) return 'Elige una opción de sexo. Se usa para calcular tus raciones.';
     if (altura === null || altura < 120 || altura > 230) return 'Escribe tu altura en centímetros, por ejemplo 175.';
     if (peso === null || peso < 30 || peso > 300) return 'Escribe tu peso en kilos, por ejemplo 82,5.';

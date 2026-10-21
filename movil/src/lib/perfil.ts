@@ -2,7 +2,7 @@
 // Si el usuario aún no ha confirmado su email, la encuesta espera guardada en el móvil
 // y se sube automáticamente la primera vez que entra.
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { numero, type Encuesta } from '../features/encuesta/modelo';
+import { fechaISO, numero, type Encuesta } from '../features/encuesta/modelo';
 import { supabase } from './supabase';
 
 const CLAVE = 'yococino:encuesta-pendiente';
@@ -13,7 +13,7 @@ export async function dejarEncuestaPendiente(e: Encuesta, consentimientoSalud: b
 
 export function aPerfil(e: Encuesta, consentimientoAt: string | null) {
   return {
-    edad: numero(e.edad),
+    fecha_nacimiento: fechaISO(e.nacimiento),
     sexo: e.sexo,
     altura_cm: numero(e.altura),
     peso_inicial_kg: numero(e.peso),

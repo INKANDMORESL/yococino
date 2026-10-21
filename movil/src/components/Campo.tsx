@@ -1,15 +1,24 @@
-import { useState } from 'react';
+import { useState, type ComponentRef, type Ref } from 'react';
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { colors, radius, space, type } from '../theme';
 
 // Campo de texto con etiqueta y unidad opcional (kg, cm, años).
-export function Campo({ etiqueta, sufijo, grande = true, ...props }: TextInputProps & { etiqueta: string; sufijo?: string; grande?: boolean }) {
+export type CampoRef = ComponentRef<typeof TextInput>;
+
+export function Campo({
+  etiqueta,
+  sufijo,
+  grande = true,
+  ref,
+  ...props
+}: TextInputProps & { etiqueta: string; sufijo?: string; grande?: boolean; ref?: Ref<CampoRef> }) {
   const [foco, setFoco] = useState(false);
   return (
     <View style={{ flex: 1 }}>
       <Text style={[type.label, s.etiqueta]}>{etiqueta}</Text>
       <View style={[s.caja, foco && s.foco]}>
         <TextInput
+          ref={ref}
           placeholderTextColor={colors.muted}
           accessibilityLabel={etiqueta}
           style={[s.input, !grande && s.inputNormal]}
