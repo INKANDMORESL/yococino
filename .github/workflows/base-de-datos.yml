@@ -41,6 +41,13 @@ jobs:
       - name: Aplicar migraciones
         if: env.LISTO == 'si'
         run: |
-          supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
-          supabase db push --password "$SUPABASE_DB_PASSWORD"
+          set -o pipefail
+          informar() {
+            # Resume el error en una línea visible desde la API de GitHub (los secretos salen ocultos).
+            RESUMEN=$(grep -v '^\s*$' salida.txt | tail -n 6 | tr '\n' ' ' | cut -c1-900)
+            echo "::error title=Base de datos ($1)::$RESUMEN"
+            exit 1
+          }
+          supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD" 2>&1 | tee salida.txt || informar "enlazar"
+          supabase db push --password "$SUPABASE_DB_PASSWORD" 2>&1 | tee salida.txt || informar "migrar"
           echo "::notice title=Base de datos::Migraciones aplicadas en Supabase."
