@@ -1,12 +1,24 @@
 // Una comida del día: tipo, plato, tiempo y casilla de "hecha".
 import { router } from 'expo-router';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLatido } from '../../components/Animaciones';
 import { colors, radius, shadow, space } from '../../theme';
 import { kcalTexto } from './cantidades';
 import { TIPOS, type Comida } from './tipos';
 
-export function TarjetaComida({ comida, onMarcar, siguiente }: { comida: Comida; onMarcar: () => void; siguiente?: boolean }) {
+export function TarjetaComida({
+  comida,
+  onMarcar,
+  onCambiar,
+  cambiando = false,
+  siguiente,
+}: {
+  comida: Comida;
+  onMarcar: () => void;
+  onCambiar?: () => void;
+  cambiando?: boolean;
+  siguiente?: boolean;
+}) {
   const t = TIPOS[comida.tipo_comida] ?? TIPOS.otro;
   const escala = useLatido(comida.hecha);
   const abrir = () => {
@@ -31,6 +43,18 @@ export function TarjetaComida({ comida, onMarcar, siguiente }: { comida: Comida;
           {detalles ? <Text style={s.detalles}>{detalles}</Text> : null}
         </View>
       </Pressable>
+      {onCambiar && !comida.hecha ? (
+        <Pressable
+          onPress={onCambiar}
+          disabled={cambiando}
+          accessibilityRole="button"
+          accessibilityLabel="Cambiar este plato"
+          hitSlop={8}
+          style={s.cambiar}
+        >
+          {cambiando ? <ActivityIndicator size="small" color={colors.olive} /> : <Text style={s.cambiarTexto}>⇄</Text>}
+        </Pressable>
+      ) : null}
       <Animated.View style={{ transform: [{ scale: escala }] }}>
         <Pressable
           onPress={onMarcar}
@@ -59,4 +83,6 @@ const s = StyleSheet.create({
   check: { width: 38, height: 38, borderRadius: 19, borderWidth: 2, borderColor: '#DAD7CC', alignItems: 'center', justifyContent: 'center' },
   checkHecho: { backgroundColor: colors.olive, borderColor: colors.olive },
   checkTexto: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  cambiar: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.leafSoft, alignItems: 'center', justifyContent: 'center' },
+  cambiarTexto: { fontSize: 17, fontWeight: '700', color: colors.olive },
 });

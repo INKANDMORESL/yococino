@@ -5,7 +5,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Saltar, Tarjeta } from '../../src/components';
 import { ResumenPeso } from '../../src/features/progreso/ResumenPeso';
-import { ErrorMenu, cargarComidas, marcarHecha, perfilBasico, prepararMenu } from '../../src/features/menu/api';
+import { ErrorMenu, cambiarPlato, cargarComidas, marcarHecha, perfilBasico, prepararMenu } from '../../src/features/menu/api';
 import { fechaLarga, hoyISO, nombreDia, sumarDias } from '../../src/features/menu/fechas';
 import { PreparandoMenu } from '../../src/features/menu/PreparandoMenu';
 import { SelectorDias } from '../../src/features/menu/SelectorDias';
@@ -13,7 +13,7 @@ import { TarjetaComida } from '../../src/features/menu/TarjetaComida';
 import type { Comida } from '../../src/features/menu/tipos';
 import { useAuth } from '../../src/lib/auth';
 import { guardarEncuestaPendiente } from '../../src/lib/perfil';
-import { colors, space, type } from '../../src/theme';
+import { colors, radius, space, type } from '../../src/theme';
 
 const DIAS = 30;
 const HORA_COMIDA: Record<string, number> = { desayuno: 8, media_manana: 11, almuerzo: 14, merienda: 17, cena: 21 };
@@ -40,6 +40,8 @@ export default function Inicio() {
   const [error, setError] = useState<string | null>(null);
   const [refrescando, setRefrescando] = useState(false);
   const [nombre, setNombre] = useState<string | null>(null);
+  const [cambiando, setCambiando] = useState<number | null>(null);
+  const [avisoCambio, setAvisoCambio] = useState<string | null>(null);
   const activo = useRef(true);
   const enMarcha = useRef(false);
 
@@ -152,6 +154,22 @@ export default function Inicio() {
     }
   };
 
+  const cambiar = async (c: Comida) => {
+    if (cambiando) return;
+    setCambiando(c.id);
+    setError(null);
+    setAvisoCambio(null);
+    try {
+      const r = await cambiarPlato(c.id);
+      await recargar();
+      setAvisoCambio(`Cambiado por: ${r.nombre}.`);
+    } catch (e) {
+      setError(e instanceof ErrorMenu ? e.message : 'No hemos podido cambiar el plato.');
+    } finally {
+      setCambiando(null);
+    }
+  };
+
   const refrescar = async () => {
     setRefrescando(true);
     try {
@@ -234,11 +252,30 @@ export default function Inicio() {
             <View key={elegido} style={{ gap: space.md }}>
               {delDia.map((c, i) => (
                 <Aparecer key={c.id} retraso={i * 60} desde={12}>
-                  <TarjetaComida comida={c} siguiente={c.id === siguienteId} onMarcar={() => marcar(c)} />
+                  <TarjetaComida
+                    comida={c}
+                    siguiente={c.id === siguienteId}
+                    onMarcar={() => marcar(c)}
+                    onCambiar={c.fecha >= hoy ? () => cambiar(c) : undefined}
+                    cambiando={cambiando === c.id}
+                  />
                 </Aparecer>
               ))}
             </View>
           )}
+
+          {avisoCambio ? <Aviso tono="hoja" texto={avisoCambio} /> : null}
+
+          {estado.tipo === 'listo' ? (
+            <Pressable onPress={() => router.push('/cocinar')} accessibilityRole="button" style={s.nevera}>
+              <Text style={{ fontSize: 30 }}>🧺</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.neveraTitulo}>Cocina con lo que tienes</Text>
+                <Text style={s.neveraTexto}>Dinos qué hay en tu nevera y te damos una receta</Text>
+              </View>
+              <Text style={s.neveraFlecha}>›</Text>
+            </Pressable>
+          ) : null}
 
           {estado.tipo === 'listo' ? (
             <View style={{ marginTop: space.lg, gap: space.sm }}>
@@ -269,4 +306,8 @@ const s = StyleSheet.create({
   aviso: { textAlign: 'center', marginTop: space.lg },
   salir: { alignSelf: 'center', padding: space.md },
   salirTexto: { color: colors.muted, fontWeight: '600', fontSize: 15 },
+  nevera: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.md, padding: space.lg, borderRadius: radius.lg, backgroundColor: colors.ink },
+  neveraTitulo: { fontSize: 17, fontWeight: '700', color: '#fff' },
+  neveraTexto: { fontSize: 14, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+  neveraFlecha: { fontSize: 26, color: colors.lemon },
 });

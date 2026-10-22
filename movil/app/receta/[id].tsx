@@ -5,8 +5,9 @@ import { ActivityIndicator, Animated, Platform, Pressable, ScrollView, StyleShee
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Saltar } from '../../src/components';
 import { useLatido } from '../../src/components/Animaciones';
-import { ErrorMenu, cargarComidas, cargarReceta, marcarHecha } from '../../src/features/menu/api';
-import { anadirNoMeGusta, cambiarFavorita, esFavorita } from '../../src/features/perfil/api';
+import { ErrorMenu, cambiarPlato, cargarComidas, cargarReceta, marcarHecha } from '../../src/features/menu/api';
+import { Peques } from '../../src/features/menu/Peques';
+import { anadirNoMeGusta, cambiarFavorita, esFavorita, pequesEnCasa } from '../../src/features/perfil/api';
 import { useAuth } from '../../src/lib/auth';
 import { cantidadTexto } from '../../src/features/menu/cantidades';
 import { useModoCocinar } from '../../src/features/menu/modoCocinar';
@@ -68,6 +69,8 @@ export default function RecetaPantalla() {
   const [temporizadores, setTemporizadores] = useState<Map<number, Temporizador>>(new Map());
   const [ahora, setAhora] = useState(Date.now());
   const cocinar = useModoCocinar();
+  const [peques, setPeques] = useState<{ hay: boolean; franjas: string[] }>({ hay: false, franjas: [] });
+  const [cambiando, setCambiando] = useState<'catalogo' | 'nueva' | null>(null);
   const avisados = useRef<Set<number>>(new Set());
 
   // Mientras haya algún temporizador en marcha, se actualiza cada segundo.
@@ -126,6 +129,7 @@ export default function RecetaPantalla() {
         if (!vivo) return;
         setReceta(r);
         esFavorita(r.id).then((f) => vivo && setFavorita(f)).catch(() => {});
+        pequesEnCasa().then((p) => vivo && setPeques(p)).catch(() => {});
         if (comidaParam) {
           const hoy = hoyISO();
           const lista = await cargarComidas(sumarDias(hoy, -1), sumarDias(hoy, 31));
@@ -185,6 +189,19 @@ export default function RecetaPantalla() {
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se ha podido guardar.');
+    }
+  };
+
+  const cambiar = async (nueva: boolean) => {
+    if (!comida || cambiando) return;
+    setCambiando(nueva ? 'nueva' : 'catalogo');
+    setError(null);
+    try {
+      const r = await cambiarPlato(comida.id, nueva);
+      router.replace({ pathname: '/receta/[id]', params: { id: String(r.receta_id), comida: String(comida.id) } });
+    } catch (e) {
+      setError(e instanceof ErrorMenu ? e.message : 'No hemos podido cambiar el plato.');
+      setCambiando(null);
     }
   };
 
@@ -395,6 +412,25 @@ export default function RecetaPantalla() {
             </View>
           ) : null}
 
+          {peques.hay ? (
+            <View style={{ marginTop: space.xl }}>
+              <Peques recetaId={receta.id} franjas={peques.franjas} />
+            </View>
+          ) : null}
+
+          {comida && comida.fecha >= hoyISO() ? (
+            <View>
+              <Text style={s.seccion}>¿No te apetece?</Text>
+              <Text style={[type.small, { marginBottom: space.md }]}>Lo cambiamos por otro plato que encaje con tu plan y tus alergias.</Text>
+              <View style={{ gap: space.sm }}>
+                <Boton texto="Cambiar por otro plato" variante="suave" cargando={cambiando === 'catalogo'} onPress={() => cambiar(false)} />
+                <Pressable onPress={() => cambiar(true)} accessibilityRole="button" disabled={!!cambiando} style={s.enlace}>
+                  <Text style={s.enlaceTexto}>{cambiando === 'nueva' ? 'Creando un plato nuevo… (unos 30 segundos)' : 'Prefiero algo totalmente nuevo'}</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+
           <View style={[s.nota, { backgroundColor: colors.leafSoft, marginTop: space.xl }]}>
             <Text style={[type.small, { color: colors.ink2 }]}>
               {receta.alergenos?.length
@@ -481,6 +517,8 @@ const s = StyleSheet.create({
   relojBoton: { backgroundColor: colors.surface, borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: 12 },
   relojBotonTexto: { fontWeight: '700', fontSize: 14, color: colors.ink },
   corazon: { fontSize: 22, color: colors.ink },
+  enlace: { alignSelf: 'center', padding: space.md },
+  enlaceTexto: { color: colors.olive, fontWeight: '700', fontSize: 15, textAlign: 'center' },
   cocinar: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.lg, padding: space.lg, borderRadius: radius.lg, backgroundColor: colors.surface, ...shadow },
   cocinarActivo: { backgroundColor: colors.olive },
   cocinarEmoji: { fontSize: 26 },

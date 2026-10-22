@@ -108,6 +108,13 @@ export async function anadirNoMeGusta(userId: string, alimento: string): Promise
   return afectadas.length;
 }
 
+// Peques en casa (solo si la persona lo dijo en la encuesta) y sus franjas de edad.
+export async function pequesEnCasa(): Promise<{ hay: boolean; franjas: string[] }> {
+  const { data } = await supabase.from('profiles').select('num_peques, franjas_peques').maybeSingle();
+  const franjas = ((data?.franjas_peques as string[] | null) ?? []).filter(Boolean);
+  return { hay: (Number(data?.num_peques) || 0) > 0 || franjas.length > 0, franjas };
+}
+
 export async function esFavorita(recetaId: number): Promise<boolean> {
   const { data } = await supabase.from('favoritas').select('receta_id').eq('receta_id', recetaId).maybeSingle();
   return !!data;
