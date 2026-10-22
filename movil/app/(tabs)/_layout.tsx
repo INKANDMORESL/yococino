@@ -2,7 +2,7 @@
 // Barra propia: flotante, redondeada, solo texto, con una píldora que se desliza hasta la pestaña activa.
 import { Redirect, Tabs, router, type Href } from 'expo-router';
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/lib/auth';
 import { colors, radius } from '../../src/theme';
@@ -17,7 +17,7 @@ function Barra({ state, descriptors }: PropsBarra) {
   const hueco = ancho > 0 ? (ancho - RELLENO * 2) / n : 0;
 
   useEffect(() => {
-    Animated.spring(pos, { toValue: state.index, useNativeDriver: true, speed: 18, bounciness: 6 }).start();
+    Animated.timing(pos, { toValue: state.index, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [state.index, pos]);
 
   return (

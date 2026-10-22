@@ -26,8 +26,8 @@ export default function Compra() {
 
   const dias = RANGOS.find((r) => r.clave === rango)?.dias ?? 3;
 
+  // "Preparando tu lista…" solo la primera vez; después se actualiza sin vaciar la pantalla.
   const cargar = useCallback(async () => {
-    setCargando(true);
     setError(null);
     try {
       const hoy = hoyISO();
@@ -41,9 +41,11 @@ export default function Compra() {
     }
   }, [dias]);
 
+  // Se carga un poco después de entrar para que el cambio de pestaña vaya fluido.
   useFocusEffect(
     useCallback(() => {
-      cargar();
+      const t = setTimeout(cargar, 260);
+      return () => clearTimeout(t);
     }, [cargar]),
   );
 

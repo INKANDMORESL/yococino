@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Saltar, Tarjeta } from '../../src/components';
+import { ResumenPeso } from '../../src/features/progreso/ResumenPeso';
 import { ErrorMenu, cargarComidas, marcarHecha, perfilBasico, prepararMenu } from '../../src/features/menu/api';
 import { fechaLarga, hoyISO, nombreDia, sumarDias } from '../../src/features/menu/fechas';
 import { PreparandoMenu } from '../../src/features/menu/PreparandoMenu';
@@ -238,6 +239,13 @@ export default function Inicio() {
               ))}
             </View>
           )}
+
+          {estado.tipo === 'listo' ? (
+            <View style={{ marginTop: space.lg, gap: space.sm }}>
+              <Text style={type.title}>Mi progreso</Text>
+              <ResumenPeso />
+            </View>
+          ) : null}
 
           <Text style={[type.small, s.aviso]}>
             Menú orientativo: no sustituye el consejo de un profesional sanitario. Revisa siempre el etiquetado de los productos.
