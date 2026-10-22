@@ -24,7 +24,7 @@ jobs:
           deno-version: v2.x
       - name: Comprobar tipos de las funciones
         run: |
-          deno check supabase/functions/preparar-menu/index.ts > salida.txt 2>&1 && { cat salida.txt; exit 0; }
+          deno check supabase/functions/*/index.ts > salida.txt 2>&1 && { cat salida.txt; exit 0; }
           cat salida.txt
           grep -E 'ERROR|error:|at file' salida.txt | sed 's#file:///home/runner/work/yococino/yococino/##' | head -n 20 | while IFS= read -r l; do echo "::error title=Deno::$l"; done
           exit 1

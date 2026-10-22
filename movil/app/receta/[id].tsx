@@ -6,6 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Saltar } from '../../src/components';
 import { useLatido } from '../../src/components/Animaciones';
 import { ErrorMenu, cargarComidas, cargarReceta, marcarHecha } from '../../src/features/menu/api';
+import { anadirNoMeGusta, cambiarFavorita, esFavorita } from '../../src/features/perfil/api';
+import { useAuth } from '../../src/lib/auth';
 import { cantidadTexto } from '../../src/features/menu/cantidades';
 import { hoyISO, sumarDias } from '../../src/features/menu/fechas';
 import { NIVEL, NOMBRE_ALERGENO, TIPOS, type Comida, type Receta } from '../../src/features/menu/tipos';
@@ -27,6 +29,10 @@ export default function RecetaPantalla() {
   const [error, setError] = useState<string | null>(null);
   const [ingHechos, setIngHechos] = useState<Set<number>>(new Set());
   const [pasosHechos, setPasosHechos] = useState<Set<number>>(new Set());
+  const [favorita, setFavorita] = useState(false);
+  const [noGusta, setNoGusta] = useState<Set<string>>(new Set());
+  const [aviso, setAviso] = useState<string | null>(null);
+  const { sesion } = useAuth();
 
   useEffect(() => {
     let vivo = true;
@@ -35,6 +41,7 @@ export default function RecetaPantalla() {
         const r = await cargarReceta(Number(id));
         if (!vivo) return;
         setReceta(r);
+        esFavorita(r.id).then((f) => vivo && setFavorita(f)).catch(() => {});
         if (comidaParam) {
           const hoy = hoyISO();
           const lista = await cargarComidas(sumarDias(hoy, -1), sumarDias(hoy, 31));
@@ -68,6 +75,33 @@ export default function RecetaPantalla() {
     if (nuevo.has(i)) nuevo.delete(i);
     else nuevo.add(i);
     set(nuevo);
+  };
+
+  const alternarFavorita = async () => {
+    if (!sesion || !receta) return;
+    const nueva = !favorita;
+    setFavorita(nueva);
+    try {
+      await cambiarFavorita(sesion.user.id, receta.id, nueva);
+    } catch (e) {
+      setFavorita(!nueva);
+      setError(e instanceof Error ? e.message : 'No se ha podido guardar.');
+    }
+  };
+
+  const noMeGusta = async (alimento: string) => {
+    if (!sesion || noGusta.has(alimento)) return;
+    setNoGusta(new Set(noGusta).add(alimento));
+    try {
+      const quitados = await anadirNoMeGusta(sesion.user.id, alimento);
+      setAviso(
+        quitados
+          ? `Apuntado: ${alimento} no volverá a aparecer. Hemos rehecho ${quitados === 1 ? '1 comida' : `${quitados} comidas`} de los próximos días.`
+          : `Apuntado: ${alimento} no aparecerá en tus próximos menús.`,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se ha podido guardar.');
+    }
   };
 
   const marcarComida = async () => {
@@ -110,6 +144,14 @@ export default function RecetaPantalla() {
           <SafeAreaView edges={['top']} style={s.barra}>
             <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Volver" style={s.volver}>
               <Text style={s.flecha}>‹</Text>
+            </Pressable>
+            <Pressable
+              onPress={alternarFavorita}
+              accessibilityRole="button"
+              accessibilityLabel={favorita ? 'Quitar de favoritas' : 'Guardar en favoritas'}
+              style={s.volver}
+            >
+              <Text style={[s.corazon, favorita && { color: colors.rose }]}>{favorita ? '♥' : '♡'}</Text>
             </Pressable>
           </SafeAreaView>
           <Saltar>
@@ -233,6 +275,30 @@ export default function RecetaPantalla() {
               Revisa siempre el etiquetado de los productos: pueden contener trazas.
             </Text>
           </View>
+          <View>
+            <Text style={s.seccion}>¿Algo no te gusta?</Text>
+            <Text style={[type.small, { marginBottom: space.md }]}>Tócalo y no volverá a aparecer en tus menús.</Text>
+            <View style={s.chips}>
+              {receta.ingredientes
+                .filter((i) => i.unidad !== 'al gusto')
+                .map((i) => {
+                  const nombre = i.nombre.charAt(0).toUpperCase() + i.nombre.slice(1);
+                  const marcado = noGusta.has(nombre);
+                  return (
+                    <Pressable
+                      key={`ng-${i.nombre}`}
+                      onPress={() => noMeGusta(nombre)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`No me gusta: ${nombre}`}
+                      style={[s.chip, marcado && { backgroundColor: colors.roseSoft, borderColor: colors.rose }]}
+                    >
+                      <Text style={s.chipTexto}>{marcado ? `🙅 ${nombre}` : nombre}</Text>
+                    </Pressable>
+                  );
+                })}
+            </View>
+          </View>
+          {aviso ? <Aviso tono="hoja" texto={aviso} /> : null}
           {error ? <Aviso tono="rosa" texto={error} /> : null}
         </View>
       </ScrollView>
@@ -250,7 +316,8 @@ const s = StyleSheet.create({
   pantalla: { flex: 1, backgroundColor: colors.bg },
   centro: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: space.xl, gap: space.lg },
   portada: { height: 260, alignItems: 'center', justifyContent: 'center' },
-  barra: { position: 'absolute', top: 0, left: 0, right: 0, padding: space.lg },
+  barra: { position: 'absolute', top: 0, left: 0, right: 0, padding: space.lg, flexDirection: 'row', justifyContent: 'space-between' },
+  corazon: { fontSize: 22, color: colors.ink },
   volver: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow },
   flecha: { fontSize: 28, lineHeight: 30, color: colors.ink, marginTop: -2 },
   emoji: { fontSize: 96 },

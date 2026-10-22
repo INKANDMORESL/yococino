@@ -19,7 +19,7 @@ export default function Layout() {
             }}
           >
             <Stack.Screen name="index" options={{ animation: 'fade' }} />
-            <Stack.Screen name="inicio" options={{ animation: 'fade', gestureEnabled: false }} />
+            <Stack.Screen name="(tabs)" options={{ animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="auth" options={{ animation: 'fade' }} />
           </Stack>
         </EncuestaProvider>

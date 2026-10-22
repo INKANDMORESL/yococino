@@ -4,3 +4,6 @@ project_id = "yococino"
 [functions.preparar-menu]
 # La plataforma comprueba que quien llama ha iniciado sesión; la función lo vuelve a comprobar.
 verify_jwt = true
+
+[functions.borrar-cuenta]
+verify_jwt = true
