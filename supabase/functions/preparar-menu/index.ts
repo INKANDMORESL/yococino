@@ -103,7 +103,7 @@ function crearClientes(req: Request) {
 
 // ---------- Tipos ----------
 
-type Cliente = ReturnType<typeof createClient>;
+type Cliente = ReturnType<typeof crearClientes>['admin'];
 
 interface Perfil {
   id: string;
