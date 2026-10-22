@@ -55,7 +55,7 @@ jobs:
               echo "::warning title=IONOS $6::Faltan los datos de acceso en GitHub. Descarga 'webs-yococino' de esta ejecución y súbela con FileZilla."
               return 0
             fi
-            local proto="${PROTOCOLO:-sftp}"
+            local proto; proto="$(echo "${PROTOCOLO:-sftp}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
             local ajustes="set net:max-retries 3; set net:timeout 30;"
             if [ "$proto" = "sftp" ]; then ajustes="$ajustes set sftp:auto-confirm yes;"; else ajustes="$ajustes set ftp:ssl-allow yes; set ssl:verify-certificate no;"; fi
             local host="${2#*://}"; host="${host%%/*}"; host="$(echo "$host" | tr -d '[:space:]')"
