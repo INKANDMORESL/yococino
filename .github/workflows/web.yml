@@ -1,8 +1,12 @@
-# Publica la web pública (yococino.app) y el panel de gestión (admin.yococino.app) en IONOS por SFTP.
-# Necesita en GitHub → Settings → Secrets and variables → Actions:
-#   Secrets:   IONOS_SFTP_HOST, IONOS_SFTP_USUARIO, IONOS_SFTP_CONTRASENA
-#   Variables: IONOS_CARPETA_WEB (p. ej. /yococino) e IONOS_CARPETA_PANEL (p. ej. /yococino-admin)
-# Si aún no están, se deja un .zip de cada web en el resumen de la ejecución para subirlo con FileZilla.
+# Publica la web pública (yococino.app) y el panel de gestión (admin.yococino.app) en IONOS.
+# Usa DOS accesos distintos (cada uno limitado a su carpeta), para no tocar otros proyectos del alojamiento.
+# En GitHub → Settings → Secrets and variables → Actions:
+#   Secrets web:    IONOS_WEB_HOST, IONOS_WEB_USUARIO, IONOS_WEB_CONTRASENA
+#   Secrets panel:  IONOS_PANEL_HOST, IONOS_PANEL_USUARIO, IONOS_PANEL_CONTRASENA
+#   Variables (opcionales): IONOS_PROTOCOLO (sftp o ftp; por defecto sftp),
+#                           IONOS_WEB_CARPETA e IONOS_PANEL_CARPETA (por defecto, la carpeta inicial del acceso).
+# Nunca se borra nada en el servidor: solo se suben y reemplazan los archivos de Yococino.
+# Si aún no están los datos, se deja un .zip con las dos webs para subirlas con FileZilla.
 name: Web y panel
 
 on:
@@ -35,18 +39,27 @@ jobs:
 
       - name: Subir a IONOS
         env:
-          HOST: ${{ secrets.IONOS_SFTP_HOST }}
-          USUARIO: ${{ secrets.IONOS_SFTP_USUARIO }}
-          CONTRASENA: ${{ secrets.IONOS_SFTP_CONTRASENA }}
-          CARPETA_WEB: ${{ vars.IONOS_CARPETA_WEB }}
-          CARPETA_PANEL: ${{ vars.IONOS_CARPETA_PANEL }}
+          PROTOCOLO: ${{ vars.IONOS_PROTOCOLO }}
+          WEB_HOST: ${{ secrets.IONOS_WEB_HOST }}
+          WEB_USUARIO: ${{ secrets.IONOS_WEB_USUARIO }}
+          WEB_CONTRASENA: ${{ secrets.IONOS_WEB_CONTRASENA }}
+          WEB_CARPETA: ${{ vars.IONOS_WEB_CARPETA }}
+          PANEL_HOST: ${{ secrets.IONOS_PANEL_HOST }}
+          PANEL_USUARIO: ${{ secrets.IONOS_PANEL_USUARIO }}
+          PANEL_CONTRASENA: ${{ secrets.IONOS_PANEL_CONTRASENA }}
+          PANEL_CARPETA: ${{ vars.IONOS_PANEL_CARPETA }}
         run: |
-          if [ -z "$HOST" ] || [ -z "$USUARIO" ] || [ -z "$CONTRASENA" ] || [ -z "$CARPETA_WEB" ] || [ -z "$CARPETA_PANEL" ]; then
-            echo "::warning title=IONOS::Aún no están los datos de IONOS en GitHub. Descarga 'webs-yococino' de esta ejecución y súbelo con FileZilla."
-            exit 0
-          fi
           sudo apt-get install -y lftp > /dev/null
-          lftp -u "$USUARIO","$CONTRASENA" "sftp://$HOST" -e "set sftp:auto-confirm yes; set net:max-retries 3; \
-            mirror -R --delete --verbose=1 web $CARPETA_WEB; \
-            mirror -R --delete --verbose=1 panel $CARPETA_PANEL; bye"
-          echo "::notice title=IONOS::Web y panel publicados."
+          subir() { # origen host usuario contraseña carpeta nombre
+            if [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
+              echo "::warning title=IONOS $6::Faltan los datos de acceso en GitHub. Descarga 'webs-yococino' de esta ejecución y súbela con FileZilla."
+              return 0
+            fi
+            local proto="${PROTOCOLO:-sftp}"
+            local ajustes="set net:max-retries 3; set net:timeout 30;"
+            if [ "$proto" = "sftp" ]; then ajustes="$ajustes set sftp:auto-confirm yes;"; else ajustes="$ajustes set ftp:ssl-allow yes; set ssl:verify-certificate no;"; fi
+            lftp -u "$3","$4" "$proto://$2" -e "$ajustes mirror -R --verbose=1 $1 ${5:-.}; bye"
+            echo "::notice title=IONOS $6::Publicada."
+          }
+          subir web "$WEB_HOST" "$WEB_USUARIO" "$WEB_CONTRASENA" "$WEB_CARPETA" web
+          subir panel "$PANEL_HOST" "$PANEL_USUARIO" "$PANEL_CONTRASENA" "$PANEL_CARPETA" panel
