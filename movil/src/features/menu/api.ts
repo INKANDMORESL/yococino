@@ -129,8 +129,22 @@ export const sembrarRecetas = (cantidad: number) =>
   );
 
 // Crea una receta con lo que hay en casa.
-export const cocinarCon = (ingredientes: string[], tipo: string) =>
-  llamar<{ receta_id: number; nombre: string; descartados: string[] }>('cocinar-con', { ingredientes, tipo }, 'No hemos podido crear la receta.');
+export interface SugerenciaCocinar {
+  id: number;
+  nombre: string;
+  minutos: number | null;
+  kcal: number | null;
+  imagen: string | null;
+  coinciden: string[];
+  faltan: string[];
+}
+// Primero devuelve recetas que ya existen con esos ingredientes (sugerencias); con `nueva`, crea una receta nueva.
+export const cocinarCon = (ingredientes: string[], tipo: string, nueva = false) =>
+  llamar<{ receta_id?: number; nombre?: string; descartados: string[]; sugerencias?: SugerenciaCocinar[] }>(
+    'cocinar-con',
+    { ingredientes, tipo, nueva },
+    'No hemos podido crear la receta.',
+  );
 
 export interface VersionPeques {
   resumen: string;

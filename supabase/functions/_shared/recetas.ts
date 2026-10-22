@@ -26,6 +26,10 @@ export async function cupoRecetas(admin: Cliente): Promise<{ tope: number; usada
 }
 
 export const MODELO_RECETA = Deno.env.get('MODELO_RECETA') || 'claude-sonnet-5-5';
+// Desayunos, medias mañanas y meriendas son sencillos: modelo barato. Si su receta no pasa la revisión, se repite con el bueno.
+export const MODELO_RECETA_SENCILLA = Deno.env.get('MODELO_RECETA_SENCILLA') || 'claude-haiku-5-5';
+const TOMAS_SENCILLAS = ['desayuno', 'media_manana', 'merienda'];
+export const modeloReceta = (tipo: string, intento = 0) => (intento === 0 && TOMAS_SENCILLAS.includes(tipo) ? MODELO_RECETA_SENCILLA : MODELO_RECETA);
 
 export type Nivel = 'facil' | 'medio' | 'elaborado';
 export const MINUTOS_NIVEL: Record<Nivel, number> = { facil: 20, medio: 40, elaborado: 75 };
@@ -164,8 +168,9 @@ Reglas:
 - El aceite, medido: 1 cda son 10 ml de aceite de oliva virgen extra.
 - La ración debe rondar ${KCAL_RACION_ESTANDAR[tipo]} kcal, propia de un ${NOMBRE_TIPO[tipo]}.
 - Nivel ${nivel}: como máximo ${MINUTOS_NIVEL[nivel]} minutos en total.
-- Pasos: entre 2 y 8, cortos, en imperativo, uno por acción. En tomas sencillas bastan 2 o 3.
-- Entre 1 y 3 consejos prácticos y entre 1 y 3 sustituciones saludables con la misma función.
+- Pasos: entre 2 y 7, cortos, en imperativo, uno por acción. En tomas sencillas bastan 2 o 3.
+- 1 o 2 consejos prácticos y 1 o 2 sustituciones saludables con la misma función. Frases cortas.
+- Descripción: una sola frase corta.
 - Nutrición por ración, estimada con criterio.
 - Alérgenos: marca TODOS los de la lista de la UE presentes en cualquier ingrediente, incluidos pan, salsas, caldos y productos elaborados.
 - Esta receta debe ser apta por completo para alguien que no puede tomar: ${describirRestricciones(restr)}. Usa sustitutos aptos (por ejemplo, pan sin gluten o yogur sin lactosa) y, si el plato cambia, dilo en el nombre ("sin gluten").
@@ -174,7 +179,7 @@ Reglas:
   }`;
 }
 
-export async function guardarReceta(admin: Cliente, r: RecetaIA, tipo: TipoComida, restr: Restricciones): Promise<RecetaGuardada> {
+export async function guardarReceta(admin: Cliente, r: RecetaIA, tipo: TipoComida, restr: Restricciones, modelo = MODELO_RECETA): Promise<RecetaGuardada> {
   const base = texto(r.nombre, 80);
   const sufijo = (r.etiquetas ?? []).map((e) => texto(e, 30)).find((e) => normalizar(e).startsWith('sin ')) ?? 'variante';
   const ingredientes = r.ingredientes
@@ -208,13 +213,13 @@ export async function guardarReceta(admin: Cliente, r: RecetaIA, tipo: TipoComid
         minutos: Math.max(1, Math.min(240, Math.round(Number(r.minutos) || 15))),
         raciones: 1,
         pasos: listaTextos(r.pasos, 10, 400),
-        consejos: listaTextos(r.consejos, 3, 300),
-        sustituciones: listaTextos(r.sustituciones, 3, 300),
+        consejos: listaTextos(r.consejos, 2, 300),
+        sustituciones: listaTextos(r.sustituciones, 2, 300),
         nutricion,
         kcal: nutricion.kcal === null ? null : Math.round(nutricion.kcal),
         alergenos: (r.alergenos ?? []).filter((a) => (ALERGENOS_UE as readonly string[]).includes(a)),
         etiquetas: listaTextos(r.etiquetas, 6, 30),
-        modelo: MODELO_RECETA,
+        modelo,
       })
       .select('id')
       .single();
@@ -249,6 +254,19 @@ export async function recetaPorNombre(admin: Cliente, nombreNorm: string): Promi
   return (data as RecetaGuardada | null) ?? null;
 }
 
+export const mensajeReceta = (plato: string, descripcion: string, tipo: TipoComida, extra = '') =>
+  `Plato: ${plato}\nDescripción: ${descripcion || '—'}\nTipo de comida: ${NOMBRE_TIPO[tipo]}${extra ? `\n\n${extra}` : ''}`;
+
+// Revisión de una receta de la IA (para lotes, donde no se puede repetir): null si está bien, o el motivo.
+export function problemaReceta(r: RecetaIA | null, restr: Restricciones): string | null {
+  if (!r || !Array.isArray(r.ingredientes) || r.ingredientes.length === 0 || !Array.isArray(r.pasos) || !texto(r.nombre, 80)) return 'incompleta';
+  const motivos = motivosNoApta(
+    { nombre: r.nombre, alergenos: r.alergenos ?? [], ingredientes: r.ingredientes.map((i) => ({ nombre: i.nombre, nota: i.nota ?? null })) },
+    restr,
+  );
+  return motivos.length ? motivos.join('; ') : null;
+}
+
 // Crea una receta nueva con la IA. Si no supera la revisión de alergias, se reintenta una vez
 // explicando el motivo. Si vuelve a fallar, devuelve null y ese día no se guarda.
 export async function crearReceta(
@@ -262,12 +280,13 @@ export async function crearReceta(
   mes: number | null = null,
 ): Promise<RecetaGuardada | null> {
   if ((await cupoRecetas(admin)).quedan <= 0) throw new ErrorCupo();
-  let mensaje = `Plato: ${plato}\nDescripción: ${descripcion || '—'}\nTipo de comida: ${NOMBRE_TIPO[tipo]}${extra ? `\n\n${extra}` : ''}`;
+  let mensaje = mensajeReceta(plato, descripcion, tipo, extra);
   for (let intento = 0; intento < 2; intento++) {
     let r: RecetaIA;
+    const modelo = modeloReceta(tipo, intento);
     try {
       r = await pedirJSON<RecetaIA>({
-        modelo: MODELO_RECETA,
+        modelo,
         sistema: sistemaReceta(tipo, nivel, restr, mes),
         mensaje,
         esquema: ESQUEMA_RECETA,
@@ -291,7 +310,7 @@ export async function crearReceta(
       mensaje += `\n\nLa propuesta anterior usaba fruta fuera de temporada (${fueraTemporada.join(', ')}). Cámbiala por fruta de temporada: ${frutasDelMes(mes as number).join(', ')}.`;
       continue;
     }
-    if (motivos.length === 0) return await guardarReceta(admin, r, tipo, restr);
+    if (motivos.length === 0) return await guardarReceta(admin, r, tipo, restr, modelo);
     mensaje += `\n\nLa propuesta anterior NO era apta (${motivos.join('; ')}). Crea una versión que lo evite por completo.`;
   }
   return null;

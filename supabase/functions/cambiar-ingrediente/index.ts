@@ -6,7 +6,8 @@ import { motivosNoApta, restriccionesDe } from '../_shared/alergenos.ts';
 import { crearClientes, fallo, hoyEspana, responder, servir } from '../_shared/http.ts';
 import { comidasDelDia, factorRacion, KCAL_RACION_ESTANDAR, type TipoComida } from '../_shared/nutricion.ts';
 import { energiaDe, perfilSeguro, permitirExtra } from '../_shared/perfil.ts';
-import { crearReceta, type Nivel } from '../_shared/recetas.ts';
+import { COLUMNAS_RECETA, crearReceta, esApta, type Nivel, type RecetaGuardada } from '../_shared/recetas.ts';
+import { planDe, respuestaSuscripcion } from '../_shared/plan.ts';
 import { mesDe } from '../_shared/temporada.ts';
 import { normalizar } from '../_shared/texto.ts';
 
@@ -72,20 +73,39 @@ async function cambiar(req: Request): Promise<Response> {
     if (data && data.fecha >= hoy) comida = data;
   }
 
-  const bloqueo = await permitirExtra(admin, user.id, 'ingrediente', MAX_USOS_DIA);
-  if (bloqueo) return bloqueo;
-
   const tipo = receta.tipo_comida as TipoComida;
-  const lineas = ingredientes.map((i) => `- ${i.cantidad ?? ''} ${i.unidad ?? ''} ${i.nombre}${i.nota ? ` (${i.nota})` : ''}`.replace(/\s+/g, ' ')).join('\n');
-  const pasos = ((receta.pasos ?? []) as string[]).map((p, n) => `${n + 1}. ${p}`).join('\n');
-  const nueva = await crearReceta(
-    admin,
-    `${receta.nombre}, con ${por} en lugar de ${original.nombre}`,
-    receta.descripcion ?? '',
-    tipo,
-    nivel,
-    restr,
-    `Es una adaptación de esta receta.
+  if ((await planDe(admin, user.id)).estado === 'caducada') return respuestaSuscripcion();
+
+  // ¿Alguien ya pidió este mismo cambio en esta receta? Se reutiliza sin gastar IA (si es apta para esta persona).
+  const claveOriginal = normalizar(original.nombre);
+  const clavePor = normalizar(por);
+  let nueva: RecetaGuardada | null = null;
+  const { data: variante } = await admin
+    .from('variantes_receta')
+    .select('nueva_id')
+    .eq('receta_id', receta.id)
+    .eq('original', claveOriginal)
+    .eq('por', clavePor)
+    .maybeSingle();
+  if (variante) {
+    const { data: hecha } = await admin.from('recetas').select(`${COLUMNAS_RECETA}, oculta`).eq('id', variante.nueva_id).maybeSingle();
+    if (hecha && !hecha.oculta && esApta(hecha as unknown as RecetaGuardada, restr)) nueva = hecha as unknown as RecetaGuardada;
+  }
+
+  if (!nueva) {
+    const bloqueo = await permitirExtra(admin, user.id, 'ingrediente', MAX_USOS_DIA);
+    if (bloqueo) return bloqueo;
+
+    const lineas = ingredientes.map((i) => `- ${i.cantidad ?? ''} ${i.unidad ?? ''} ${i.nombre}${i.nota ? ` (${i.nota})` : ''}`.replace(/\s+/g, ' ')).join('\n');
+    const pasos = ((receta.pasos ?? []) as string[]).map((p, n) => `${n + 1}. ${p}`).join('\n');
+    nueva = await crearReceta(
+      admin,
+      `${receta.nombre}, con ${por} en lugar de ${original.nombre}`,
+      receta.descripcion ?? '',
+      tipo,
+      nivel,
+      restr,
+      `Es una adaptación de esta receta.
 Ingredientes originales:
 ${lineas}
 
@@ -93,9 +113,13 @@ Pasos originales:
 ${pasos}
 
 Cambia «${original.nombre}» por «${por}». Ajusta todo lo necesario para que quede bien con el ingrediente nuevo: su cantidad, el tiempo y la forma de cocción, el orden de los pasos, los consejos, los alérgenos y la nutrición. Mantén el resto de la receta igual. Pon al plato un nombre corto que refleje el cambio.`,
-    mesDe(comida?.fecha ?? hoy),
-  );
-  if (!nueva) return fallo(502, 'ia', 'No hemos podido adaptar la receta con ese ingrediente. Prueba con otro.', 'sin receta apta');
+      mesDe(comida?.fecha ?? hoy),
+    );
+    if (!nueva) return fallo(502, 'ia', 'No hemos podido adaptar la receta con ese ingrediente. Prueba con otro.', 'sin receta apta');
+    await admin
+      .from('variantes_receta')
+      .upsert({ receta_id: receta.id, original: claveOriginal, por: clavePor, nueva_id: nueva.id }, { onConflict: 'receta_id,original,por' });
+  }
 
   if (comida) {
     const tipoComida = comida.tipo_comida;
