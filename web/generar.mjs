@@ -48,7 +48,7 @@ const pie = (raiz) => `
   <footer>
     <div class="contenedor">
       <div>© ${new Date().getFullYear()} Yococino. Menús orientativos: no sustituyen el consejo de un profesional sanitario.</div>
-      <div><a href="${raiz}recetas/">Recetas</a><a href="${raiz}privacidad.html">Privacidad</a><a href="${raiz}condiciones.html">Condiciones</a><a href="mailto:info@yococino.app">Contacto</a></div>
+      <div><a href="${raiz}recetas/">Recetas</a><a href="${raiz}privacidad.html">Privacidad</a><a href="${raiz}condiciones.html">Condiciones</a><a href="${raiz}aviso-legal.html">Aviso legal</a><a href="mailto:info@yococino.app">Contacto</a></div>
     </div>
   </footer>`;
 
@@ -259,6 +259,7 @@ async function principal() {
     ...articulos.map((a) => ({ loc: `${DOMINIO}/recetas/${a.slug}.html`, fecha: a.publicada_el, prioridad: '0.7' })),
     { loc: `${DOMINIO}/privacidad.html`, prioridad: '0.2' },
     { loc: `${DOMINIO}/condiciones.html`, prioridad: '0.2' },
+    { loc: `${DOMINIO}/aviso-legal.html`, prioridad: '0.1' },
   ];
   writeFileSync(
     join(SALIDA, 'sitemap.xml'),
