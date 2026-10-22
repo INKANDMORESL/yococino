@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase';
-import type { ComidaConIngredientes } from './lista';
+import type { ComidaConIngredientes, Comensales } from './lista';
 
 export async function cargarIngredientes(desde: string, hasta: string): Promise<ComidaConIngredientes[]> {
   const { data, error } = await supabase
@@ -9,6 +9,19 @@ export async function cargarIngredientes(desde: string, hasta: string): Promise<
     .lte('fecha', hasta);
   if (error) throw new Error('No hemos podido cargar la lista de la compra.');
   return (data ?? []) as unknown as ComidaConIngredientes[];
+}
+
+export async function cargarComensales(): Promise<Comensales> {
+  const { data } = await supabase.from('profiles').select('compra_adultos, compra_peques, num_peques').maybeSingle();
+  return {
+    adultos: Number(data?.compra_adultos) || 1,
+    peques: data?.compra_peques ?? (Number(data?.num_peques) || 0),
+  };
+}
+
+export async function guardarComensales(userId: string, c: Comensales) {
+  const { error } = await supabase.from('profiles').update({ compra_adultos: c.adultos, compra_peques: c.peques }).eq('id', userId);
+  if (error) throw new Error('No se ha podido guardar. Revisa tu conexión.');
 }
 
 export async function cargarMarcas(): Promise<Set<string>> {

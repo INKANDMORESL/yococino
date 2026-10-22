@@ -33,7 +33,16 @@ export interface Articulo {
 
 const UNIDADES_SUMABLES = new Set(['g', 'ml', 'ud', 'cda', 'cdta', 'pizca']);
 
-export function agruparCompra(comidas: ComidaConIngredientes[]): Articulo[] {
+// Raciones de la casa: la tuya (ajustada a tu plan con el factor), una ración normal por cada otro adulto
+// y algo más de media por cada peque (orientativo: los peques comen según su hambre).
+export const RACION_PEQUE = 0.6;
+export interface Comensales {
+  adultos: number;
+  peques: number;
+}
+
+export function agruparCompra(comidas: ComidaConIngredientes[], casa: Comensales = { adultos: 1, peques: 0 }): Articulo[] {
+  const otros = Math.max(0, casa.adultos - 1) + Math.max(0, casa.peques) * RACION_PEQUE;
   const mapa = new Map<string, Articulo>();
   for (const c of comidas) {
     for (const i of c.receta?.ingredientes ?? []) {
@@ -41,7 +50,7 @@ export function agruparCompra(comidas: ComidaConIngredientes[]): Articulo[] {
       if (!nombre) continue;
       const unidad = i.unidad && UNIDADES_SUMABLES.has(i.unidad) ? i.unidad : 'al gusto';
       const clave = `${nombre}|${unidad}`;
-      const cantidad = unidad === 'al gusto' || i.cantidad === null ? null : i.cantidad * (c.factor || 1);
+      const cantidad = unidad === 'al gusto' || i.cantidad === null ? null : i.cantidad * ((c.factor || 1) + otros);
       const previo = mapa.get(clave);
       if (previo) {
         previo.platos += 1;

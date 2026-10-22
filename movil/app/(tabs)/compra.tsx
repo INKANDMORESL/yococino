@@ -1,11 +1,11 @@
 // Lista de la compra a partir del menú: hoy, próximos 3 días o la semana.
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, BarraProgreso, Chip, Tarjeta } from '../../src/components';
-import { borrarMarcas, cargarIngredientes, cargarMarcas, guardarMarca } from '../../src/features/compra/api';
-import { SECCIONES, agruparCompra, cantidadCompra, type Articulo } from '../../src/features/compra/lista';
+import { borrarMarcas, cargarComensales, cargarIngredientes, cargarMarcas, guardarComensales, guardarMarca } from '../../src/features/compra/api';
+import { SECCIONES, agruparCompra, cantidadCompra, type Articulo, type ComidaConIngredientes, type Comensales } from '../../src/features/compra/lista';
 import { hoyISO, sumarDias } from '../../src/features/menu/fechas';
 import { useAuth } from '../../src/lib/auth';
 import { colors, radius, shadow, space, type } from '../../src/theme';
@@ -16,10 +16,42 @@ const RANGOS = [
   { clave: 'semana', texto: 'Esta semana', dias: 7 },
 ] as const;
 
+function Contador({ texto, valor, min, max, cambiar }: { texto: string; valor: number; min: number; max: number; cambiar: (v: number) => void }) {
+  return (
+    <View style={s.contador}>
+      <Text style={[type.body, { flex: 1, color: colors.ink }]}>{texto}</Text>
+      <Pressable
+        onPress={() => valor > min && cambiar(valor - 1)}
+        disabled={valor <= min}
+        accessibilityRole="button"
+        accessibilityLabel={`Quitar uno: ${texto}`}
+        style={[s.boton, valor <= min && { opacity: 0.35 }]}
+      >
+        <Text style={s.botonTexto}>−</Text>
+      </Pressable>
+      <Text style={s.valor} accessibilityLiveRegion="polite">
+        {valor}
+      </Text>
+      <Pressable
+        onPress={() => valor < max && cambiar(valor + 1)}
+        disabled={valor >= max}
+        accessibilityRole="button"
+        accessibilityLabel={`Añadir uno: ${texto}`}
+        style={[s.boton, valor >= max && { opacity: 0.35 }]}
+      >
+        <Text style={s.botonTexto}>+</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function Compra() {
   const { sesion } = useAuth();
   const [rango, setRango] = useState<(typeof RANGOS)[number]['clave']>('3d');
-  const [articulos, setArticulos] = useState<Articulo[]>([]);
+  const [comidas, setComidas] = useState<ComidaConIngredientes[]>([]);
+  const [casa, setCasa] = useState<Comensales | null>(null);
+  const casaCargada = useRef(false);
+  const articulos: Articulo[] = useMemo(() => agruparCompra(comidas, casa ?? undefined), [comidas, casa]);
   const [marcas, setMarcas] = useState<Set<string>>(new Set());
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,9 +63,14 @@ export default function Compra() {
     setError(null);
     try {
       const hoy = hoyISO();
-      const [comidas, m] = await Promise.all([cargarIngredientes(hoy, sumarDias(hoy, dias - 1)), cargarMarcas()]);
-      setArticulos(agruparCompra(comidas));
+      const [lista, m] = await Promise.all([cargarIngredientes(hoy, sumarDias(hoy, dias - 1)), cargarMarcas()]);
+      setComidas(lista);
       setMarcas(m);
+      // Los comensales se leen una sola vez; luego los cambia la propia pantalla.
+      if (!casaCargada.current) {
+        casaCargada.current = true;
+        setCasa(await cargarComensales().catch(() => ({ adultos: 1, peques: 0 })));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No hemos podido cargar la lista.');
     } finally {
@@ -70,6 +107,12 @@ export default function Compra() {
     }
   };
 
+  // Cambiar cuántos coméis: se recalcula al momento y se guarda para la próxima vez.
+  const cambiarCasa = (nueva: Comensales) => {
+    setCasa(nueva);
+    if (sesion) guardarComensales(sesion.user.id, nueva).catch((e) => setError(e instanceof Error ? e.message : 'No se ha podido guardar.'));
+  };
+
   const vaciar = async () => {
     const previas = marcas;
     setMarcas(new Set());
@@ -94,6 +137,15 @@ export default function Compra() {
             <Chip key={r.clave} texto={r.texto} elegido={rango === r.clave} onPress={() => setRango(r.clave)} />
           ))}
         </View>
+
+        {casa ? (
+          <Tarjeta style={{ gap: space.md }}>
+            <Text style={type.heading}>¿Cuántos coméis en casa?</Text>
+            <Contador texto="Adultos (contándote a ti)" valor={casa.adultos} min={1} max={10} cambiar={(v) => cambiarCasa({ ...casa, adultos: v })} />
+            <Contador texto="Peques" valor={casa.peques} min={0} max={10} cambiar={(v) => cambiarCasa({ ...casa, peques: v })} />
+            <Text style={type.small}>Tu ración va ajustada a tu plan. Para los demás adultos, ración normal; para cada peque, algo más de media.</Text>
+          </Tarjeta>
+        ) : null}
 
         {error ? <Aviso tono="rosa" texto={error} /> : null}
 
@@ -161,6 +213,10 @@ export default function Compra() {
 }
 
 const s = StyleSheet.create({
+  contador: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  boton: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.leaf, alignItems: 'center', justifyContent: 'center' },
+  botonTexto: { fontSize: 22, fontWeight: '700', color: colors.oliveInk, lineHeight: 24 },
+  valor: { fontSize: 20, fontWeight: '800', color: colors.ink, minWidth: 28, textAlign: 'center' },
   pantalla: { flex: 1, backgroundColor: colors.bg },
   contenido: { padding: space.xl, gap: space.lg, paddingBottom: space.xxl },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
