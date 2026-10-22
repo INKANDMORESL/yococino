@@ -58,8 +58,18 @@ jobs:
             local proto="${PROTOCOLO:-sftp}"
             local ajustes="set net:max-retries 3; set net:timeout 30;"
             if [ "$proto" = "sftp" ]; then ajustes="$ajustes set sftp:auto-confirm yes;"; else ajustes="$ajustes set ftp:ssl-allow yes; set ssl:verify-certificate no;"; fi
-            lftp -u "$3","$4" "$proto://$2" -e "$ajustes mirror -R --verbose=1 $1 ${5:-.}; bye"
-            echo "::notice title=IONOS $6::Publicada."
+            local host="${2#*://}"; host="${host%%/*}"; host="$(echo "$host" | tr -d '[:space:]')"
+            # La contraseña va por variable de entorno (así no da problemas si lleva comas o símbolos).
+            if LFTP_PASSWORD="$4" lftp --env-password -u "$(echo "$3" | tr -d '[:space:]')" "$proto://$host" \
+                 -e "$ajustes mirror -R --verbose=1 $1 ${5:-.}; bye" > salida-$6.txt 2>&1; then
+              echo "::notice title=IONOS $6::Publicada."
+            else
+              cat salida-$6.txt
+              tail -n 6 salida-$6.txt | while IFS= read -r l; do echo "::error title=IONOS $6::$l"; done
+              FALLO=1
+            fi
           }
+          FALLO=0
           subir web "$WEB_HOST" "$WEB_USUARIO" "$WEB_CONTRASENA" "$WEB_CARPETA" web
           subir panel "$PANEL_HOST" "$PANEL_USUARIO" "$PANEL_CONTRASENA" "$PANEL_CARPETA" panel
+          exit $FALLO
