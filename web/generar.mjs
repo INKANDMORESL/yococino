@@ -190,7 +190,8 @@ function paginaListado(articulos) {
 
 function portada(plantilla, destacadas) {
   let html = plantilla;
-  const p = destacadas[0];
+  // En el móvil de la portada pone «Próxima comida, a las 14:00»: mejor una comida o cena.
+  const p = destacadas.find((r) => ['comida', 'cena'].includes(r.tipo)) ?? destacadas[0];
   if (p) {
     html = html.replace(/<!--FOTO_PORTADA-->[\s\S]*?<!--\/FOTO_PORTADA-->/, `<div class="foto"><img src="${esc(p.imagen_mini || p.imagen)}" alt="${esc(p.nombre)}"></div>`);
     html = html.replace(/<!--NOMBRE_PORTADA-->[\s\S]*?<!--\/NOMBRE_PORTADA-->/, esc(p.nombre));
