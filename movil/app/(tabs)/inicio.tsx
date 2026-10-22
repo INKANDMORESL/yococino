@@ -16,7 +16,6 @@ import type { Comida } from '../../src/features/menu/tipos';
 import { useAuth } from '../../src/lib/auth';
 import { guardarEncuestaPendiente } from '../../src/lib/perfil';
 import { guardarCache, leerCache } from '../../src/lib/cache';
-import { tutorialVisto } from '../../src/lib/tutorial';
 import { AvisoPlan } from '../../src/features/plan/AvisoPlan';
 import { fueraDelPlan, usePlan } from '../../src/features/plan/plan';
 import { colors, radius, space, type } from '../../src/theme';
@@ -128,7 +127,6 @@ export default function Inicio() {
         setNombre((perfil.nombre || meta?.full_name || meta?.name || '').trim().split(' ')[0] || null);
         const lista = await recargar();
         setEstado({ tipo: 'listo' });
-        if (!(await tutorialVisto())) router.push('/tutorial');
         const conMenu = new Set(lista.map((c) => c.fecha));
         const p = planRef.current;
         if (p?.estado !== 'caducada' && dias.some((d) => !fueraDelPlan(p, d) && !conMenu.has(d))) completarMes();

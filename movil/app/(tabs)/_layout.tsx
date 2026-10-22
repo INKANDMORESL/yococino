@@ -7,6 +7,7 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { useAuth } from '../../src/lib/auth';
+import { tutorialVisto } from '../../src/lib/tutorial';
 import { colors } from '../../src/theme';
 
 type PropsBarra = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
@@ -101,6 +102,19 @@ function Barra({ state, descriptors }: PropsBarra) {
 
 export default function Pestanas() {
   const { sesion, cargando } = useAuth();
+
+  // Paso a paso de la primera vez: en cuanto hay sesión, si en este dispositivo aún no se ha visto.
+  const comprobado = useRef(false);
+  useEffect(() => {
+    if (!sesion || comprobado.current) return;
+    comprobado.current = true;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    tutorialVisto().then((visto) => {
+      if (!visto) t = setTimeout(() => router.push('/tutorial'), 400);
+    });
+    return () => clearTimeout(t);
+  }, [sesion]);
+
   if (!cargando && !sesion) return <Redirect href="/" />;
 
   return (
