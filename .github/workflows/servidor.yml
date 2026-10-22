@@ -55,7 +55,9 @@ jobs:
           fi
 
       - name: Aplicar migraciones nuevas
+        id: migraciones
         if: env.LISTO == 'si'
+        continue-on-error: true
         run: |
           API="https://api.supabase.com/v1/projects/$REF/database/migrations"
           CODIGO=$(curl -sS -o historial.json -w '%{http_code}' -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "$API")
@@ -100,3 +102,9 @@ jobs:
             exit 1
           }
           echo "::notice title=Funciones::Funciones publicadas en Supabase."
+
+      - name: Resultado
+        if: env.LISTO == 'si' && steps.migraciones.outcome == 'failure'
+        run: |
+          echo "::error title=Servidor::Las funciones se han intentado publicar, pero las migraciones fallaron (ver arriba)."
+          exit 1
