@@ -92,6 +92,7 @@ export function servir(nombre: string, manejar: (req: Request) => Promise<Respon
       console.error(`${nombre}: IA no configurada:`, e.message);
       return fallo(503, 'ia_no_configurada', 'Esta función aún no está activada. Vuelve a intentarlo más tarde.');
     }
+    if (e instanceof Error && e.name === 'ErrorCupo') return fallo(429, 'cupo', e.message);
     if (e instanceof ErrorIA) return fallo(502, 'ia', textoFallo, e.message);
     // Solo el mensaje técnico: nunca datos de la persona.
     console.error(`${nombre}:`, mensajeTecnico(e));

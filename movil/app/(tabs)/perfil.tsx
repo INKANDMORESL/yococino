@@ -13,6 +13,8 @@ import { PasoObjetivo } from '../../src/features/encuesta/pasos/PasoObjetivo';
 import { PasoSalud } from '../../src/features/encuesta/pasos/PasoSalud';
 import { TIPOS, type TipoComida } from '../../src/features/menu/tipos';
 import { aEncuesta, borrarCuenta, cargarFavoritas, cargarPerfil, guardarPreferencias } from '../../src/features/perfil/api';
+import { esAdmin } from '../../src/features/menu/api';
+import { SembrarRecetas } from '../../src/features/perfil/SembrarRecetas';
 import { useAuth } from '../../src/lib/auth';
 import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../../src/theme';
@@ -52,6 +54,7 @@ export default function Perfil() {
   const [guardando, setGuardando] = useState(false);
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
   const [borrando, setBorrando] = useState(false);
+  const [admin, setAdmin] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -65,6 +68,7 @@ export default function Perfil() {
             setE(enc);
           }
           setFavoritas(favs);
+          esAdmin().then(setAdmin).catch(() => {});
         } catch (err) {
           setError(err instanceof Error ? err.message : 'No hemos podido cargar tu perfil.');
         }
@@ -207,6 +211,13 @@ export default function Perfil() {
             </Tarjeta>
           )}
         </Aparecer>
+
+        {admin ? (
+          <View>
+            <Text style={s.titulo}>Herramientas del dueño</Text>
+            <SembrarRecetas />
+          </View>
+        ) : null}
 
         <Aparecer retraso={180}>
           <Text style={s.titulo}>Cuenta</Text>

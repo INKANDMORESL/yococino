@@ -7,6 +7,24 @@ import { KCAL_RACION_ESTANDAR, type TipoComida } from './nutricion.ts';
 import { frutasDelMes, frutasFueraDeTemporada } from './temporada.ts';
 import { normalizar } from './texto.ts';
 
+// Límite global de recetas nuevas al mes (ver migración cupo_recetas): si se llega, no se crean más.
+export class ErrorCupo extends Error {
+  constructor() {
+    super('Este mes ya hemos creado todas las recetas nuevas previstas. Mientras tanto, usamos las que ya tenemos.');
+    this.name = 'ErrorCupo';
+  }
+}
+
+// Cuántas recetas nuevas quedan este mes entre todos los clientes.
+export async function cupoRecetas(admin: Cliente): Promise<{ tope: number; usadas: number; quedan: number }> {
+  const { data, error } = await admin.rpc('cupo_recetas');
+  if (error) throw error;
+  const fila = (Array.isArray(data) ? data[0] : data) as { tope: number; usadas: number } | null;
+  const tope = Number(fila?.tope) || 0;
+  const usadas = Number(fila?.usadas) || 0;
+  return { tope, usadas, quedan: Math.max(0, tope - usadas) };
+}
+
 export const MODELO_RECETA = Deno.env.get('MODELO_RECETA') || 'claude-sonnet-5-5';
 
 export type Nivel = 'facil' | 'medio' | 'elaborado';
@@ -117,21 +135,21 @@ const numeroPositivo = (v: unknown) => (typeof v === 'number' && Number.isFinite
 // ---------- Recetas ----------
 
 // Con `mes`, se dejan fuera las recetas con fruta fresca fuera de temporada.
-export async function cargarCatalogo(admin: Cliente, tipos: TipoComida[], nivel: Nivel, restr: Restricciones, mes: number | null = null) {
+export async function cargarCatalogo(admin: Cliente, tipos: TipoComida[], nivel: Nivel, restr: Restricciones, mes: number | null = null, porTipoMax = 30) {
   const { data, error } = await admin
     .from('recetas')
     .select(COLUMNAS_RECETA)
     .in('tipo_comida', tipos)
     .in('nivel', NIVELES_PERMITIDOS[nivel])
     .order('created_at', { ascending: false })
-    .limit(400);
+    .limit(800);
   if (error) throw error;
   const porTipo = new Map<TipoComida, RecetaGuardada[]>();
   for (const r of (data ?? []) as RecetaGuardada[]) {
     if (!esApta(r, restr)) continue;
     if (mes && frutasFueraDeTemporada([r.nombre, ...(r.ingredientes ?? []).map((i) => i.nombre)], mes).length) continue;
     const lista = porTipo.get(r.tipo_comida) ?? [];
-    if (lista.length < 30) lista.push(r);
+    if (lista.length < porTipoMax) lista.push(r);
     porTipo.set(r.tipo_comida, lista);
   }
   return [...porTipo.values()].flat();
@@ -242,6 +260,7 @@ export async function crearReceta(
   extra = '',
   mes: number | null = null,
 ): Promise<RecetaGuardada | null> {
+  if ((await cupoRecetas(admin)).quedan <= 0) throw new ErrorCupo();
   let mensaje = `Plato: ${plato}\nDescripción: ${descripcion || '—'}\nTipo de comida: ${NOMBRE_TIPO[tipo]}${extra ? `\n\n${extra}` : ''}`;
   for (let intento = 0; intento < 2; intento++) {
     let r: RecetaIA;

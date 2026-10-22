@@ -28,3 +28,6 @@ verify_jwt = true
 
 [functions.asignar-receta]
 verify_jwt = true
+
+[functions.sembrar-recetas]
+verify_jwt = true

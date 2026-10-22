@@ -111,6 +111,18 @@ export const buscarRecetas = (texto: string, tipo: string | null) =>
 export const asignarReceta = (recetaId: number, fecha: string, tipoComida: string) =>
   llamar<{ comida_id: number }>('asignar-receta', { receta_id: recetaId, fecha, tipo_comida: tipoComida }, 'No hemos podido añadirla a tu menú.');
 
+// Administración: ¿es el dueño? y carga inicial del recetario por tandas.
+export async function esAdmin(): Promise<boolean> {
+  const { data } = await supabase.from('admins').select('user_id').maybeSingle();
+  return !!data;
+}
+export const sembrarRecetas = (cantidad: number) =>
+  llamar<{ creadas: string[]; quedan_cupo: number; tope: number; coste_usd: number; errores?: string[] }>(
+    'sembrar-recetas',
+    { cantidad },
+    'No hemos podido crear recetas ahora.',
+  );
+
 // Crea una receta con lo que hay en casa.
 export const cocinarCon = (ingredientes: string[], tipo: string) =>
   llamar<{ receta_id: number; nombre: string; descartados: string[] }>('cocinar-con', { ingredientes, tipo }, 'No hemos podido crear la receta.');

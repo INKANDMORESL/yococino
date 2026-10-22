@@ -16,6 +16,7 @@ import { cobrarA, modoMenu } from '../_shared/costes.ts';
 import { energiaDe, perfilSeguro } from '../_shared/perfil.ts';
 import {
   cargarCatalogo,
+  cupoRecetas,
   COLUMNAS_RECETA,
   crearReceta,
   enParalelo,
@@ -134,7 +135,11 @@ async function preparar(req: Request): Promise<Response> {
 
   // 4. Pedir a la IA los platos de esos días.
   const numMes = mesDe(aPreparar[0]);
-  const catalogo = await cargarCatalogo(admin, tipos, nivel, restr, numMes);
+  const catalogo = await cargarCatalogo(admin, tipos, nivel, restr, numMes, 60);
+  // Platos nuevos: solo si quedan en el cupo global del mes y pocos por llamada; lo normal es reutilizar.
+  const quedanNuevas = modo === 'completo' ? (await cupoRecetas(admin)).quedan : 0;
+  const pocasDeAlgunTipo = tipos.some((t) => catalogo.filter((r) => r.tipo_comida === t).length < 12);
+  const maxNuevas = Math.min(quedanNuevas, pocasDeAlgunTipo ? 2 * aPreparar.length + 2 : 1 + Math.floor(aPreparar.length / 2));
   const porId = new Map(catalogo.map((r) => [r.id, r]));
   const mes = MESES[numMes - 1];
 
@@ -146,7 +151,11 @@ Reglas obligatorias:
 - Equilibrio semanal: legumbres 2 a 4 veces, pescado al menos 3 (si se puede tomar), carne roja como mucho 2, verdura u hortaliza en almuerzo y cena, fruta a diario, cereales integrales cuando se pueda y pocos ultraprocesados.
 - Recetas de nivel ${nivel}: como máximo ${MINUTOS_NIVEL[nivel]} minutos.
 - Productos de temporada de ${mes} en España. La fruta fresca, siempre de temporada: ${frutasDelMes(numMes).join(', ')}. Varía la fruta a lo largo de la semana.
-- Reutiliza recetas del catálogo con su receta_id cuando encajen. Si no, propón un plato nuevo con "plato" (nombre corto y apetecible, sin cantidades) y "descripcion" (una línea).
+- Reutiliza SIEMPRE recetas del catálogo con su receta_id cuando encajen; es lo preferente. ${
+    maxNuevas > 0
+      ? `Solo si de verdad no hay ninguna adecuada, propón un plato nuevo con "plato" (nombre corto y apetecible, sin cantidades) y "descripcion" (una línea); como máximo ${maxNuevas} platos nuevos en total en esta respuesta.`
+      : 'No propongas platos nuevos: usa solo recetas del catálogo (receta_id) y deja plato y descripcion en null.'
+  }
 - Devuelve exactamente las comidas pedidas para cada día. Sin consejos médicos.`;
 
   const lineasCatalogo = catalogo.length
@@ -221,7 +230,7 @@ ${lineasCatalogo}`;
     }
   }
   // Recetas nuevas solo con presupuesto completo; si no, esas comidas se cubren con el catálogo.
-  const porCrear = modo === 'completo' ? [...nuevas.entries()].filter(([clave]) => !resueltas.has(clave)) : [];
+  const porCrear = modo === 'completo' ? [...nuevas.entries()].filter(([clave]) => !resueltas.has(clave)).slice(0, maxNuevas) : [];
   const errores: string[] = [];
   const creadas = await enParalelo(porCrear, RECETAS_EN_PARALELO, async ([clave, p]) => {
     try {
