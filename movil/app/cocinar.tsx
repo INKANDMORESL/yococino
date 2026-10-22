@@ -58,7 +58,7 @@ export default function Cocinar() {
     <SafeAreaView style={s.pantalla} edges={['top', 'bottom']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={s.contenido} keyboardShouldPersistTaps="handled">
-          <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Volver" style={s.volver}>
+          <Pressable onPress={() => router.navigate('/inicio')} accessibilityRole="button" accessibilityLabel="Volver" style={s.volver}>
             <Text style={s.flecha}>‹</Text>
           </Pressable>
 

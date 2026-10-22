@@ -11,6 +11,7 @@ import { CambiarIngrediente } from '../../src/features/menu/CambiarIngrediente';
 import { Peques } from '../../src/features/menu/Peques';
 import { anadirNoMeGusta, cambiarFavorita, esFavorita, pequesEnCasa } from '../../src/features/perfil/api';
 import { useAuth } from '../../src/lib/auth';
+import { volver } from '../../src/lib/volver';
 import { cantidadTexto } from '../../src/features/menu/cantidades';
 import { useModoCocinar } from '../../src/features/menu/modoCocinar';
 import { relojTexto, tiempoDelPaso } from '../../src/features/menu/temporizador';
@@ -226,7 +227,7 @@ export default function RecetaPantalla() {
     return (
       <SafeAreaView style={s.centro}>
         <Aviso tono="rosa" texto={error} />
-        <Boton texto="Volver" variante="linea" onPress={() => router.back()} />
+        <Boton texto="Volver" variante="linea" onPress={() => volver()} />
       </SafeAreaView>
     );
   }
@@ -489,7 +490,7 @@ export default function RecetaPantalla() {
       </ScrollView>
 
       <SafeAreaView edges={['top']} style={[s.barra, { pointerEvents: 'box-none' }]}>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Volver" style={s.volver}>
+        <Pressable onPress={() => volver()} accessibilityRole="button" accessibilityLabel="Volver" hitSlop={8} style={s.volver}>
           <Text style={s.flecha}>‹</Text>
         </Pressable>
         {!proximo && cocinar.activo ? (
