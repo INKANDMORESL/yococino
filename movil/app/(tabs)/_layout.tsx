@@ -1,6 +1,6 @@
 // Pestañas principales: Hoy, Compra, Progreso y Perfil. Solo con sesión iniciada.
 // Barra propia: flotante, redondeada, solo texto, con una píldora que se desliza hasta la pestaña activa.
-import { Redirect, Tabs } from 'expo-router';
+import { Redirect, Tabs, router, type Href } from 'expo-router';
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,7 +9,7 @@ import { colors, radius } from '../../src/theme';
 
 type PropsBarra = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
-function Barra({ state, descriptors, navigation }: PropsBarra) {
+function Barra({ state, descriptors }: PropsBarra) {
   const insets = useSafeAreaInsets();
   const [ancho, setAncho] = useState(0);
   const pos = useRef(new Animated.Value(state.index)).current;
@@ -40,14 +40,12 @@ function Barra({ state, descriptors, navigation }: PropsBarra) {
           const { options } = descriptors[ruta.key];
           const texto = typeof options.title === 'string' ? options.title : ruta.name;
           const pulsar = () => {
-            const evento = navigation.emit({ type: 'tabPress', target: ruta.key, canPreventDefault: true });
-            if (!activa && !evento.defaultPrevented) navigation.navigate(ruta.name, ruta.params);
+            if (!activa) router.navigate(`/${ruta.name}` as Href);
           };
           return (
             <Pressable
               key={ruta.key}
               onPress={pulsar}
-              onLongPress={() => navigation.emit({ type: 'tabLongPress', target: ruta.key })}
               accessibilityRole="tab"
               accessibilityState={{ selected: activa }}
               accessibilityLabel={texto}
