@@ -222,3 +222,7 @@ header.con-sombra { box-shadow: 0 6px 24px rgba(29,42,35,.08); }
 @media (prefers-reduced-motion: reduce) {
   .flota, .mancha, .entrada > * { animation: none !important; }
 }
+
+.precios.cuatro { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 1100px) { .precios.cuatro { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 900px) { .precios.cuatro { grid-template-columns: 1fr; } }

@@ -217,7 +217,10 @@ function portada(plantilla, destacadas) {
       applicationCategory: 'LifestyleApplication',
       operatingSystem: 'iOS, Android, Web',
       description: 'Menú personalizado de 30 días, recetas paso a paso y lista de la compra automática.',
-      offers: { '@type': 'Offer', price: '39.99', priceCurrency: 'EUR' },
+      offers: [
+        { '@type': 'Offer', name: 'Mensual', price: '5.99', priceCurrency: 'EUR' },
+        { '@type': 'Offer', name: 'Anual', price: '39.99', priceCurrency: 'EUR' },
+      ],
     },
   ];
   return html.replace('<!--DATOS_ESTRUCTURADOS-->', `<script type="application/ld+json">${JSON.stringify(datos)}</script>`);

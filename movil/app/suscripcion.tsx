@@ -8,6 +8,11 @@ import { diasRestantes, usePlan } from '../src/features/plan/plan';
 import { volver } from '../src/lib/volver';
 import { colors, radius, shadow, space, type } from '../src/theme';
 
+const PLANES = [
+  { clave: 'anual', nombre: 'Anual', precio: '39,99 €', periodo: 'al año', detalle: 'Menos de 3,40 € al mes', etiqueta: 'Ahorra un 44 %' },
+  { clave: 'mensual', nombre: 'Mensual', precio: '5,99 €', periodo: 'al mes', detalle: 'Sin compromiso', etiqueta: null },
+] as const;
+
 const INCLUYE = [
   ['📅', 'Tu menú siempre 30 días por delante, hecho para ti'],
   ['🔁', 'Cambia platos e ingredientes cuando quieras'],
@@ -20,6 +25,7 @@ const INCLUYE = [
 export default function Suscripcion() {
   const plan = usePlan();
   const [aviso, setAviso] = useState<string | null>(null);
+  const [elegido, setElegido] = useState<'anual' | 'mensual'>('anual');
   const quedan = diasRestantes(plan);
 
   return (
@@ -49,16 +55,45 @@ export default function Suscripcion() {
           ))}
         </View>
 
-        <View style={s.precio}>
-          <Text style={s.precioGrande}>39,99 €</Text>
-          <Text style={type.body}>al año · menos de 3,40 € al mes</Text>
-          <Text style={[type.small, { marginTop: space.sm }]}>Complemento Peques: +9,99 € al año (versión para niños de cada receta).</Text>
+        <View style={{ gap: space.md }}>
+          {PLANES.map((p) => {
+            const activo = elegido === p.clave;
+            return (
+              <Pressable
+                key={p.clave}
+                onPress={() => setElegido(p.clave)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: activo }}
+                style={[s.plan, activo && s.planActivo]}
+              >
+                <View style={[s.radio, activo && s.radioActivo]}>{activo ? <View style={s.punto} /> : null}</View>
+                <View style={{ flex: 1 }}>
+                  <View style={s.planFila}>
+                    <Text style={s.planNombre}>{p.nombre}</Text>
+                    {p.etiqueta ? (
+                      <View style={s.etiqueta}>
+                        <Text style={s.etiquetaTexto}>{p.etiqueta}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={type.small}>{p.detalle}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={s.planPrecio}>{p.precio}</Text>
+                  <Text style={type.small}>{p.periodo}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+          <Text style={[type.small, { textAlign: 'center' }]}>
+            Complemento Peques (versión para niños de cada receta): +1,49 € al mes o +9,99 € al año. Cancela cuando quieras.
+          </Text>
         </View>
 
         {aviso ? <Aviso tono="hoja" texto={aviso} /> : null}
         {plan?.estado !== 'premium' ? (
           <Boton
-            texto="Suscribirme"
+            texto={elegido === 'anual' ? 'Suscribirme por 39,99 € al año' : 'Suscribirme por 5,99 € al mes'}
             onPress={() => setAviso('Muy pronto podrás suscribirte desde la app. Te avisaremos en cuanto esté disponible.')}
           />
         ) : null}
@@ -77,8 +112,16 @@ const s = StyleSheet.create({
   flecha: { fontSize: 28, lineHeight: 30, color: colors.ink, marginTop: -2 },
   caja: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: space.lg, gap: space.md, ...shadow },
   fila: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  precio: { alignItems: 'center', backgroundColor: colors.leafSoft, borderRadius: radius.lg, padding: space.xl },
-  precioGrande: { fontSize: 44, fontWeight: '800', color: colors.ink, letterSpacing: -1 },
+  plan: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.surface, borderRadius: radius.lg, padding: space.lg, borderWidth: 2, borderColor: colors.line },
+  planActivo: { borderColor: colors.olive, backgroundColor: colors.leafSoft },
+  radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#D5D2C6', alignItems: 'center', justifyContent: 'center' },
+  radioActivo: { borderColor: colors.olive },
+  punto: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.olive },
+  planFila: { flexDirection: 'row', alignItems: 'center', gap: space.sm, flexWrap: 'wrap' },
+  planNombre: { fontSize: 18, fontWeight: '800', color: colors.ink },
+  planPrecio: { fontSize: 22, fontWeight: '800', color: colors.ink },
+  etiqueta: { backgroundColor: colors.lemon, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
+  etiquetaTexto: { fontSize: 12, fontWeight: '800', color: colors.ink },
   enlace: { alignSelf: 'center', padding: space.md },
   enlaceTexto: { color: colors.muted, fontWeight: '700', fontSize: 15 },
 });
