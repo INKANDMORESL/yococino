@@ -38,6 +38,7 @@ export default function Inicio() {
   const [preparando, setPreparando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refrescando, setRefrescando] = useState(false);
+  const [nombre, setNombre] = useState<string | null>(null);
   const activo = useRef(true);
   const enMarcha = useRef(false);
 
@@ -109,6 +110,8 @@ export default function Inicio() {
           setEstado({ tipo: 'sin_encuesta' });
           return;
         }
+        const meta = sesion.user.user_metadata as { full_name?: string; name?: string } | undefined;
+        setNombre((perfil.nombre || meta?.full_name || meta?.name || '').trim().split(' ')[0] || null);
         const lista = await recargar();
         setEstado({ tipo: 'listo' });
         const conMenu = new Set(lista.map((c) => c.fecha));
@@ -196,7 +199,10 @@ export default function Inicio() {
         refreshControl={<RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={colors.olive} />}
       >
         <Aparecer style={s.cabecera}>
-          <Text style={type.display}>{saludo()}</Text>
+          <Text style={type.display} numberOfLines={2}>
+            {saludo()}
+            {nombre ? `, ${nombre}` : ''}
+          </Text>
           <Text style={[type.body, { marginTop: 2 }]}>
             {fechaLarga(hoy)}
             {totalHoy ? ` · ${hechasHoy} de ${totalHoy} comidas hechas` : ''}

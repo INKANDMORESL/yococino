@@ -14,6 +14,18 @@ export function PasoSobreTi({ e, cambiar }: PasoProps) {
 
   return (
     <View style={ps.columnaAmplia}>
+      <Aparecer retraso={30}>
+        <Campo
+          etiqueta="¿Cómo te llamas?"
+          grande={false}
+          value={e.nombre}
+          onChangeText={(t) => cambiar({ nombre: t })}
+          placeholder="Tu nombre"
+          autoCapitalize="words"
+          autoComplete="given-name"
+          maxLength={40}
+        />
+      </Aparecer>
       <Aparecer retraso={60} style={{ gap: space.sm }}>
         <Text style={[type.label, { marginLeft: space.xs }]}>Fecha de nacimiento</Text>
         <View style={ps.fila}>

@@ -61,6 +61,6 @@ export async function prepararMenu(dias: number): Promise<ResultadoPreparar> {
 }
 
 export async function perfilBasico(userId: string) {
-  const { data } = await supabase.from('profiles').select('encuesta_completada_at, kcal_dia').eq('id', userId).maybeSingle();
-  return data as { encuesta_completada_at: string | null; kcal_dia: number | null } | null;
+  const { data } = await supabase.from('profiles').select('encuesta_completada_at, kcal_dia, nombre').eq('id', userId).maybeSingle();
+  return data as { encuesta_completada_at: string | null; kcal_dia: number | null; nombre: string | null } | null;
 }

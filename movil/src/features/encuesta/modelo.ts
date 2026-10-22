@@ -14,6 +14,7 @@ export interface Fecha {
 }
 
 export interface Encuesta {
+  nombre: string;
   nacimiento: Fecha;
   sexo: Sexo | null;
   altura: string; // cm
@@ -32,6 +33,7 @@ export interface Encuesta {
 }
 
 export const encuestaVacia: Encuesta = {
+  nombre: '',
   nacimiento: { dia: '', mes: '', ano: '' },
   sexo: null,
   altura: '',
@@ -155,6 +157,7 @@ export const evaluar = (e: Encuesta): Resultado => {
 // Errores de cada paso. Un paso sin errores deja avanzar.
 export const erroresPaso = (paso: number, e: Encuesta): string | null => {
   if (paso === 0) {
+    if (!e.nombre.trim()) return 'Dinos cómo te llamas.';
     const edad = edadDe(e.nacimiento);
     const altura = numero(e.altura);
     const peso = numero(e.peso);

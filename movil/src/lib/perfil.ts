@@ -13,6 +13,7 @@ export async function dejarEncuestaPendiente(e: Encuesta, consentimientoSalud: b
 
 export function aPerfil(e: Encuesta, consentimientoAt: string | null) {
   return {
+    nombre: e.nombre.trim().slice(0, 40) || null,
     fecha_nacimiento: fechaISO(e.nacimiento),
     sexo: e.sexo,
     altura_cm: numero(e.altura),

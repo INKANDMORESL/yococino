@@ -26,10 +26,55 @@ export interface PerfilPeso {
   altura_cm: number | null;
 }
 
-export async function cargarProgreso() {
+// Personas de la familia (adultas) que siguen su progreso en la misma cuenta. null = la persona de la cuenta.
+export const MAX_MIEMBROS = 4;
+export interface Miembro extends PerfilPeso {
+  id: number;
+  nombre: string;
+}
+
+export async function cargarMiembros(): Promise<Miembro[]> {
+  const { data, error } = await supabase
+    .from('miembros')
+    .select('id, nombre, altura_cm, peso_inicial_kg, objetivo, peso_objetivo_kg')
+    .order('created_at');
+  // Si la tabla aún no existe en el servidor, simplemente no hay familia.
+  if (error) return [];
+  return (data ?? []) as Miembro[];
+}
+
+export async function crearMiembro(m: {
+  nombre: string;
+  altura_cm: number;
+  peso_inicial_kg: number;
+  objetivo: 'perder' | 'mantener' | 'musculo';
+  peso_objetivo_kg: number | null;
+}): Promise<Miembro> {
+  const { data, error } = await supabase
+    .from('miembros')
+    .insert({ ...m, nombre: m.nombre.trim(), mayor_edad: true })
+    .select('id, nombre, altura_cm, peso_inicial_kg, objetivo, peso_objetivo_kg')
+    .single();
+  if (error || !data) {
+    if (error?.message.includes('hasta 4')) throw new Error(`Puedes añadir hasta ${MAX_MIEMBROS} personas.`);
+    throw new Error('No se ha podido añadir a esta persona.');
+  }
+  return data as Miembro;
+}
+
+export async function borrarMiembro(id: number) {
+  const { error } = await supabase.from('miembros').delete().eq('id', id);
+  if (error) throw new Error('No se ha podido quitar a esta persona.');
+}
+
+export async function cargarProgreso(miembroId: number | null = null) {
+  let qPesos = supabase.from('pesos').select('id, fecha, peso_kg, nota');
+  let qMedidas = supabase.from('medidas').select('*');
+  qPesos = miembroId === null ? qPesos.is('miembro_id', null) : qPesos.eq('miembro_id', miembroId);
+  qMedidas = miembroId === null ? qMedidas.is('miembro_id', null) : qMedidas.eq('miembro_id', miembroId);
   const [pesos, medidas, perfil] = await Promise.all([
-    supabase.from('pesos').select('id, fecha, peso_kg, nota').order('fecha').order('id'),
-    supabase.from('medidas').select('*').order('fecha').order('id'),
+    qPesos.order('fecha').order('id'),
+    qMedidas.order('fecha').order('id'),
     supabase.from('profiles').select('peso_inicial_kg, peso_objetivo_kg, objetivo, altura_cm').maybeSingle(),
   ]);
   if (pesos.error || medidas.error) throw new Error('No hemos podido cargar tu progreso.');
@@ -40,8 +85,8 @@ export async function cargarProgreso() {
   };
 }
 
-export async function guardarPeso(userId: string, fecha: string, peso: number, nota: string) {
-  const { error } = await supabase.from('pesos').insert({ user_id: userId, fecha, peso_kg: peso, nota: nota.trim() || null });
+export async function guardarPeso(userId: string, miembroId: number | null, fecha: string, peso: number, nota: string) {
+  const { error } = await supabase.from('pesos').insert({ user_id: userId, miembro_id: miembroId, fecha, peso_kg: peso, nota: nota.trim() || null });
   if (error) throw new Error('No se ha podido guardar el peso.');
 }
 
@@ -50,8 +95,8 @@ export async function borrarPeso(id: number) {
   if (error) throw new Error('No se ha podido borrar el registro.');
 }
 
-export async function guardarMedidas(userId: string, fecha: string, valores: Partial<Record<ClaveMedida, number>>) {
-  const { error } = await supabase.from('medidas').insert({ user_id: userId, fecha, ...valores });
+export async function guardarMedidas(userId: string, miembroId: number | null, fecha: string, valores: Partial<Record<ClaveMedida, number>>) {
+  const { error } = await supabase.from('medidas').insert({ user_id: userId, miembro_id: miembroId, fecha, ...valores });
   if (error) throw new Error('No se han podido guardar las medidas.');
 }
 

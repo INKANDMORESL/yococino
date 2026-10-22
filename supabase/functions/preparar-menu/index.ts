@@ -446,6 +446,7 @@ async function preparar(req: Request): Promise<Response> {
     .from('pesos')
     .select('peso_kg')
     .eq('user_id', user.id)
+    .is('miembro_id', null)
     .order('fecha', { ascending: false })
     .limit(1)
     .maybeSingle();

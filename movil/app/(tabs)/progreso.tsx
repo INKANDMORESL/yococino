@@ -1,4 +1,4 @@
-// Mi progreso: peso, tendencia semanal hacia el objetivo y medidas corporales.
+// Progreso: peso, tendencia semanal hacia el objetivo y medidas corporales, de la persona de la cuenta y de su familia.
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -8,16 +8,20 @@ import { fechaLarga, hoyISO } from '../../src/features/menu/fechas';
 import {
   MEDIDAS,
   borrarMedida,
+  borrarMiembro,
+  cargarMiembros,
   borrarPeso,
   cargarProgreso,
   guardarMedidas,
   guardarPeso,
   type ClaveMedida,
   type Medida,
+  type Miembro,
   type PerfilPeso,
   type Peso,
 } from '../../src/features/progreso/api';
 import { kg, resumen } from '../../src/features/progreso/calculos';
+import { NuevoMiembro, SelectorPersona } from '../../src/features/progreso/Familia';
 import { Grafica } from '../../src/features/progreso/Grafica';
 import { useAuth } from '../../src/lib/auth';
 import { colors, radius, space, type } from '../../src/theme';
@@ -31,7 +35,13 @@ export default function Progreso() {
   const { sesion } = useAuth();
   const [pesos, setPesos] = useState<Peso[]>([]);
   const [medidas, setMedidas] = useState<Medida[]>([]);
-  const [perfil, setPerfil] = useState<PerfilPeso | null>(null);
+  const [perfilPropio, setPerfilPropio] = useState<PerfilPeso | null>(null);
+  const [miembros, setMiembros] = useState<Miembro[]>([]);
+  const [persona, setPersona] = useState<number | null>(null);
+  const [anadiendo, setAnadiendo] = useState(false);
+  const [confirmarQuitar, setConfirmarQuitar] = useState(false);
+  const miembro = persona === null ? null : (miembros.find((m) => m.id === persona) ?? null);
+  const perfil = persona === null ? perfilPropio : miembro;
   const [nuevoPeso, setNuevoPeso] = useState('');
   const [nota, setNota] = useState('');
   const [nuevasMedidas, setNuevasMedidas] = useState<Partial<Record<ClaveMedida, string>>>({});
@@ -43,14 +53,41 @@ export default function Progreso() {
 
   const cargar = useCallback(async () => {
     try {
-      const d = await cargarProgreso();
+      const [d, fam] = await Promise.all([cargarProgreso(persona), cargarMiembros()]);
       setPesos(d.pesos);
       setMedidas(d.medidas);
-      setPerfil(d.perfil);
+      setPerfilPropio(d.perfil);
+      setMiembros(fam);
+      if (persona !== null && !fam.some((m) => m.id === persona)) setPersona(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No hemos podido cargar tu progreso.');
     }
-  }, []);
+  }, [persona]);
+
+  const elegirPersona = (id: number | null) => {
+    if (id === persona) return;
+    setError(null);
+    setAviso(null);
+    setAnadiendo(false);
+    setConfirmarQuitar(false);
+    setNuevoPeso('');
+    setNota('');
+    setNuevasMedidas({});
+    setPesos([]);
+    setMedidas([]);
+    setPersona(id);
+  };
+
+  const quitarPersona = async () => {
+    if (persona === null) return;
+    try {
+      await borrarMiembro(persona);
+      setMiembros(miembros.filter((m) => m.id !== persona));
+      elegirPersona(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se ha podido borrar.');
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -77,16 +114,16 @@ export default function Progreso() {
     setAviso(null);
     const v = numero(nuevoPeso);
     if (v === null || v < 30 || v > 300) {
-      setError('Escribe tu peso en kilos, por ejemplo 94,8.');
+      setError(miembro ? 'Escribe el peso en kilos, por ejemplo 94,8.' : 'Escribe tu peso en kilos, por ejemplo 94,8.');
       return;
     }
     setGuardando(true);
     try {
-      await guardarPeso(sesion.user.id, hoyISO(), v, nota);
+      await guardarPeso(sesion.user.id, persona, hoyISO(), v, nota);
       setNuevoPeso('');
       setNota('');
       await cargar();
-      setAviso('Peso guardado. Tus próximos días de menú ya lo tendrán en cuenta.');
+      setAviso(miembro ? 'Peso guardado.' : 'Peso guardado. Tus próximos días de menú ya lo tendrán en cuenta.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se ha podido guardar.');
     } finally {
@@ -107,7 +144,7 @@ export default function Progreso() {
       return;
     }
     try {
-      await guardarMedidas(sesion.user.id, hoyISO(), valores);
+      await guardarMedidas(sesion.user.id, persona, hoyISO(), valores);
       setNuevasMedidas({});
       await cargar();
       setAviso('Medidas guardadas.');
@@ -142,11 +179,30 @@ export default function Progreso() {
     <SafeAreaView style={s.pantalla} edges={['top']}>
       <ScrollView contentContainerStyle={s.contenido} keyboardShouldPersistTaps="handled">
         <Aparecer>
-          <Text style={type.display}>Mi progreso</Text>
+          <Text style={type.display}>{miembro ? `Progreso de ${miembro.nombre}` : 'Mi progreso'}</Text>
           <Text style={[type.body, { marginTop: 2 }]}>
-            {quiereBajar && inicial !== null && objetivo !== null ? `De ${kg(inicial, 0)} a ${kg(objetivo, 0)} kg` : 'Tu evolución, semana a semana'}
+            {quiereBajar && inicial !== null && objetivo !== null
+              ? `De ${kg(inicial, 0)} a ${kg(objetivo, 0)} kg`
+              : miembro
+                ? 'Su evolución, semana a semana'
+                : 'Tu evolución, semana a semana'}
           </Text>
         </Aparecer>
+
+        <Aparecer retraso={30}>
+          <SelectorPersona miembros={miembros} persona={persona} elegir={elegirPersona} anadir={() => setAnadiendo(true)} nombrePropio="Yo" />
+        </Aparecer>
+
+        {anadiendo ? (
+          <NuevoMiembro
+            cancelar={() => setAnadiendo(false)}
+            listo={(m) => {
+              setMiembros([...miembros, m]);
+              setAnadiendo(false);
+              elegirPersona(m.id);
+            }}
+          />
+        ) : null}
 
         <Aparecer retraso={60}>
           <Tarjeta style={{ gap: space.md }}>
@@ -194,7 +250,7 @@ export default function Progreso() {
 
         <Aparecer retraso={120}>
           <Tarjeta style={{ gap: space.md }}>
-            <Text style={type.heading}>Anotar el peso de hoy</Text>
+            <Text style={type.heading}>{miembro ? `Anotar el peso de ${miembro.nombre} hoy` : 'Anotar el peso de hoy'}</Text>
             <View style={{ flexDirection: 'row', gap: space.md }}>
               <Campo etiqueta="Peso" sufijo="kg" keyboardType="decimal-pad" value={nuevoPeso} onChangeText={setNuevoPeso} placeholder={kg(r.actual)} maxLength={5} />
             </View>
@@ -324,6 +380,21 @@ export default function Progreso() {
             ) : null}
           </Aparecer>
         ) : null}
+
+        {miembro ? (
+          confirmarQuitar ? (
+            <Tarjeta style={{ gap: space.md, borderWidth: 1.5, borderColor: colors.rose }}>
+              <Text style={type.heading}>¿Quitar a {miembro.nombre}?</Text>
+              <Text style={type.body}>Se borrarán para siempre su peso y sus medidas.</Text>
+              <Boton texto="Sí, quitar y borrar" onPress={quitarPersona} />
+              <Boton texto="Cancelar" variante="linea" onPress={() => setConfirmarQuitar(false)} />
+            </Tarjeta>
+          ) : (
+            <Pressable onPress={() => setConfirmarQuitar(true)} accessibilityRole="button" style={s.quitar}>
+              <Text style={s.quitarTexto}>Quitar a {miembro.nombre} y borrar sus datos</Text>
+            </Pressable>
+          )
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -353,4 +424,6 @@ const s = StyleSheet.create({
   desplegable: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: space.sm },
   rejilla: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
   celda: { width: '47%' },
+  quitar: { alignSelf: 'center', padding: space.md },
+  quitarTexto: { color: colors.rose, fontWeight: '600', fontSize: 15 },
 });

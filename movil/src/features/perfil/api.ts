@@ -5,6 +5,7 @@ import { encuestaVacia, numero, type Encuesta } from '../encuesta/modelo';
 import { hoyISO, sumarDias } from '../menu/fechas';
 
 export interface PerfilCompleto {
+  nombre: string | null;
   fecha_nacimiento: string | null;
   sexo: Encuesta['sexo'];
   altura_cm: number | null;
@@ -25,7 +26,7 @@ export interface PerfilCompleto {
 export async function cargarPerfil(): Promise<{ perfil: PerfilCompleto | null; pesoActual: number | null }> {
   const [p, peso] = await Promise.all([
     supabase.from('profiles').select('*').maybeSingle(),
-    supabase.from('pesos').select('peso_kg').order('fecha', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('pesos').select('peso_kg').is('miembro_id', null).order('fecha', { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (p.error) throw new Error('No hemos podido cargar tu perfil.');
   return { perfil: p.data as PerfilCompleto | null, pesoActual: peso.data ? Number(peso.data.peso_kg) : null };
@@ -39,6 +40,7 @@ export function aEncuesta(p: PerfilCompleto, pesoActual: number | null): Encuest
   const comidas = p.comidas_dia === 3 || p.comidas_dia === 4 ? p.comidas_dia : 5;
   return {
     ...encuestaVacia,
+    nombre: p.nombre ?? '',
     nacimiento: { dia, mes, ano },
     sexo: p.sexo,
     altura: texto(p.altura_cm),
@@ -67,6 +69,7 @@ export async function guardarPreferencias(userId: string, e: Encuesta, cambiaron
   const { error } = await supabase
     .from('profiles')
     .update({
+      nombre: e.nombre.trim().slice(0, 40) || null,
       objetivo: e.objetivo,
       peso_objetivo_kg: e.objetivo === 'perder' ? numero(e.pesoObjetivo) : null,
       actividad: e.actividad,

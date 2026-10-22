@@ -3,7 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Aparecer, Aviso, Boton, Tarjeta } from '../../src/components';
+import { Aparecer, Aviso, Boton, Campo, Tarjeta } from '../../src/components';
 import { erroresPaso, type Encuesta } from '../../src/features/encuesta/modelo';
 import { PasoActividad } from '../../src/features/encuesta/pasos/PasoActividad';
 import { PasoCasa } from '../../src/features/encuesta/pasos/PasoCasa';
@@ -126,6 +126,17 @@ export default function Perfil() {
         {e ? (
           <Aparecer retraso={60}>
             <Text style={s.titulo}>Mi plan</Text>
+            <View style={{ marginBottom: space.md }}>
+              <Campo
+                etiqueta="Tu nombre"
+                grande={false}
+                value={e.nombre}
+                onChangeText={(t) => cambiar({ nombre: t })}
+                placeholder="¿Cómo te llamamos?"
+                autoCapitalize="words"
+                maxLength={40}
+              />
+            </View>
             <View style={s.caja}>
               {SECCIONES.map((sec, i) => {
                 const Componente = COMPONENTE[sec.clave];

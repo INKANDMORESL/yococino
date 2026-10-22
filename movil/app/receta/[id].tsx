@@ -9,6 +9,7 @@ import { ErrorMenu, cargarComidas, cargarReceta, marcarHecha } from '../../src/f
 import { anadirNoMeGusta, cambiarFavorita, esFavorita } from '../../src/features/perfil/api';
 import { useAuth } from '../../src/lib/auth';
 import { cantidadTexto } from '../../src/features/menu/cantidades';
+import { useModoCocinar } from '../../src/features/menu/modoCocinar';
 import { relojTexto, tiempoDelPaso } from '../../src/features/menu/temporizador';
 import { hoyISO, sumarDias } from '../../src/features/menu/fechas';
 import { NIVEL, NOMBRE_ALERGENO, TIPOS, type Comida, type Receta } from '../../src/features/menu/tipos';
@@ -66,6 +67,7 @@ export default function RecetaPantalla() {
   const { sesion } = useAuth();
   const [temporizadores, setTemporizadores] = useState<Map<number, Temporizador>>(new Map());
   const [ahora, setAhora] = useState(Date.now());
+  const cocinar = useModoCocinar();
   const avisados = useRef<Set<number>>(new Set());
 
   // Mientras haya algún temporizador en marcha, se actualiza cada segundo.
@@ -244,6 +246,31 @@ export default function RecetaPantalla() {
             {factor !== 1 ? <Text style={[type.small, { marginTop: space.sm }]}>Cantidades ajustadas a tu plan.</Text> : null}
           </Aparecer>
 
+          <Aparecer retraso={40}>
+            <Pressable
+              onPress={cocinar.alternar}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: cocinar.activo }}
+              accessibilityLabel="Modo cocinar: la pantalla no se apaga"
+              style={[s.cocinar, cocinar.activo && s.cocinarActivo]}
+            >
+              <Text style={s.cocinarEmoji}>👩‍🍳</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.cocinarTitulo, cocinar.activo && { color: '#fff' }]}>Modo cocinar</Text>
+                <Text style={[type.small, cocinar.activo && { color: 'rgba(255,255,255,0.85)' }]}>
+                  {!cocinar.disponible
+                    ? 'Este dispositivo no permite mantener la pantalla encendida.'
+                    : cocinar.activo
+                      ? 'La pantalla no se apagará mientras cocinas.'
+                      : 'Actívalo y la pantalla no se apagará.'}
+                </Text>
+              </View>
+              <View style={[s.interruptor, cocinar.activo && s.interruptorActivo]}>
+                <View style={[s.bolita, cocinar.activo && s.bolitaActiva]} />
+              </View>
+            </Pressable>
+          </Aparecer>
+
           <Aparecer retraso={80}>
             <Text style={s.seccion}>Ingredientes</Text>
             <View style={s.caja}>
@@ -408,6 +435,11 @@ export default function RecetaPantalla() {
         <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Volver" style={s.volver}>
           <Text style={s.flecha}>‹</Text>
         </Pressable>
+        {!proximo && cocinar.activo ? (
+          <View style={[s.relojFlotante, { backgroundColor: colors.olive }]}>
+            <Text style={s.relojFlotanteTexto}>👩‍🍳 Modo cocinar</Text>
+          </View>
+        ) : null}
         {proximo ? (
           <View style={[s.relojFlotante, proximo[1].terminado && { backgroundColor: colors.rose }]} accessibilityLiveRegion="polite">
             <Text style={s.relojFlotanteTexto}>
@@ -449,6 +481,14 @@ const s = StyleSheet.create({
   relojBoton: { backgroundColor: colors.surface, borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: 12 },
   relojBotonTexto: { fontWeight: '700', fontSize: 14, color: colors.ink },
   corazon: { fontSize: 22, color: colors.ink },
+  cocinar: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.lg, padding: space.lg, borderRadius: radius.lg, backgroundColor: colors.surface, ...shadow },
+  cocinarActivo: { backgroundColor: colors.olive },
+  cocinarEmoji: { fontSize: 26 },
+  cocinarTitulo: { fontSize: 17, fontWeight: '700', color: colors.ink },
+  interruptor: { width: 50, height: 30, borderRadius: 15, backgroundColor: '#E4E1D6', padding: 3, justifyContent: 'center' },
+  interruptorActivo: { backgroundColor: 'rgba(255,255,255,0.35)' },
+  bolita: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#fff' },
+  bolitaActiva: { alignSelf: 'flex-end' },
   volver: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow },
   flecha: { fontSize: 28, lineHeight: 30, color: colors.ink, marginTop: -2 },
   emoji: { fontSize: 96 },
