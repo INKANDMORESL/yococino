@@ -37,10 +37,18 @@ jobs:
           exit 1
 
       - name: Comprobar versiones compatibles con Expo
-        run: npx expo install --check
+        run: |
+          npx expo install --check > salida.txt 2>&1 && { cat salida.txt; exit 0; }
+          cat salida.txt
+          grep -v '^\s*$' salida.txt | tail -n 12 | while IFS= read -r l; do echo "::error title=Versiones Expo::$l"; done
+          exit 1
 
       - name: Comprobar el código (TypeScript)
-        run: npx tsc --noEmit
+        run: |
+          npx tsc --noEmit > salida.txt 2>&1 && { cat salida.txt; exit 0; }
+          cat salida.txt
+          grep -v '^\s*$' salida.txt | tail -n 12 | while IFS= read -r l; do echo "::error title=TypeScript::$l"; done
+          exit 1
 
       - name: Generar la versión web de prueba
         run: npx expo export --platform web
