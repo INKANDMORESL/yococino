@@ -86,7 +86,7 @@ export default function Suscripcion() {
             );
           })}
           <Text style={[type.small, { textAlign: 'center' }]}>
-            Complemento Peques (versión para niños de cada receta): +0,90 € al mes o +9,99 € al año. Cancela cuando quieras.
+            Complemento Peques (versión para niños de cada receta): +0,99 € al mes o +9,99 € al año. Cancela cuando quieras.
           </Text>
         </View>
 
