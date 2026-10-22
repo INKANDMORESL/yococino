@@ -4,6 +4,7 @@ import { motivosNoApta, restriccionesDe } from '../_shared/alergenos.ts';
 import { crearClientes, fallo, hoyEspana, responder, servir, sumarDias } from '../_shared/http.ts';
 import { comidasDelDia, factorRacion, KCAL_RACION_ESTANDAR, type TipoComida } from '../_shared/nutricion.ts';
 import { energiaDe, perfilSeguro } from '../_shared/perfil.ts';
+import { planDe, respuestaSuscripcion } from '../_shared/plan.ts';
 
 async function asignar(req: Request): Promise<Response> {
   const { usuario, admin } = crearClientes(req);
@@ -18,6 +19,12 @@ async function asignar(req: Request): Promise<Response> {
   const hoy = hoyEspana();
   if (!Number.isInteger(recetaId) || recetaId <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return fallo(400, 'datos', 'Faltan datos.');
   if (fecha < hoy || fecha > sumarDias(hoy, 29)) return fallo(400, 'fecha', 'Elige un día entre hoy y dentro de 30 días.');
+
+  const plan = await planDe(admin, user.id);
+  if (plan.estado === 'caducada') return respuestaSuscripcion();
+  if (plan.estado === 'prueba' && plan.finPrueba && fecha > plan.finPrueba) {
+    return fallo(402, 'suscripcion', 'En la prueba gratis tu menú es de 7 días. Suscríbete para planificar el mes entero.');
+  }
 
   const seguro = await perfilSeguro(admin, user.id, hoy);
   if ('respuesta' in seguro) return seguro.respuesta;

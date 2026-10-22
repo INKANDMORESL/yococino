@@ -14,6 +14,7 @@ import { diaSemana, fallo, hoyEspana, mensajeTecnico, responder, servir, sumarDi
 import { comidasDelDia, factorRacion, KCAL_RACION_ESTANDAR, type Objetivo, type TipoComida } from '../_shared/nutricion.ts';
 import { cobrarA, modoMenu } from '../_shared/costes.ts';
 import { energiaDe, perfilSeguro } from '../_shared/perfil.ts';
+import { empezarPrueba, planDe } from '../_shared/plan.ts';
 import {
   cargarCatalogo,
   cupoRecetas,
@@ -106,7 +107,15 @@ async function preparar(req: Request): Promise<Response> {
 
   // Presupuesto de la persona: completo, ahorro (sin recetas nuevas) o sin IA (solo recetas existentes).
   cobrarA(user.id, 'menu');
-  const modo = await modoMenu(admin, user.id);
+  let modo = await modoMenu(admin, user.id);
+
+  // Plan: en la prueba gratis, menú solo de 7 días y sin platos nuevos (se usan recetas existentes).
+  const planPersona = await planDe(admin, user.id);
+  if (planPersona.estado === 'caducada') {
+    return responder({ ok: true, creados: [], pendientes: 0, kcal_dia: energia.kcal, plan: 'caducada', fin_prueba: planPersona.finPrueba });
+  }
+  const finPrueba = planPersona.estado === 'prueba' ? await empezarPrueba(admin, user.id) : null;
+  if (planPersona.estado === 'prueba' && modo === 'completo') modo = 'ahorro';
 
   const comidas = comidasDelDia(perfil.comidas_dia ?? 5);
   const tipos = comidas.map((c) => c.tipo);
@@ -127,9 +136,11 @@ async function preparar(req: Request): Promise<Response> {
   const faltan: string[] = [];
   for (let i = 0; i < DIAS_VENTANA; i++) {
     const f = sumarDias(hoy, i);
+    if (finPrueba && f > finPrueba) break;
     if (!conMenu.has(f)) faltan.push(f);
   }
-  if (faltan.length === 0) return responder({ ok: true, creados: [], pendientes: 0, kcal_dia: energia.kcal });
+  const datosPlan = { plan: planPersona.estado, fin_prueba: finPrueba };
+  if (faltan.length === 0) return responder({ ok: true, creados: [], pendientes: 0, kcal_dia: energia.kcal, ...datosPlan });
   const aPreparar = faltan.slice(0, diasPedidos);
   const yaPuestos = [...new Set(filasExistentes.map((e) => e.receta?.nombre).filter(Boolean))].slice(-60);
 
@@ -274,7 +285,7 @@ ${lineasCatalogo}`;
     const detalle = errores[0] ?? (porCrear.length ? 'ninguna receta superó la revisión de alergias' : 'la IA no devolvió las comidas pedidas');
     return fallo(502, 'ia', 'No hemos podido preparar estos días. Vuelve a intentarlo en un momento.', detalle);
   }
-  return responder({ ok: true, creados, pendientes: faltan.length - creados.length, kcal_dia: energia.kcal });
+  return responder({ ok: true, creados, pendientes: faltan.length - creados.length, kcal_dia: energia.kcal, ...datosPlan });
 }
 
 servir('preparar-menu', preparar, 'No hemos podido preparar estos días. Vuelve a intentarlo en un momento.');

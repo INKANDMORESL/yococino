@@ -155,7 +155,8 @@ async function foto(req: Request): Promise<Response> {
     .select('id');
   if (!bloqueo?.length) return responder({ ok: true, imagen: null, pendiente: true });
 
-  if (await permitirExtra(admin, user.id, 'foto', MAX_FOTOS_DIA)) {
+  // Fotos nuevas solo con suscripción (en la prueba se ven las que ya existen).
+  if (await permitirExtra(admin, user.id, 'foto', MAX_FOTOS_DIA, { enPrueba: false })) {
     await admin.from('recetas').update({ foto_pedida_at: null }).eq('id', receta.id);
     return responder({ ok: true, imagen: null, limite: true });
   }

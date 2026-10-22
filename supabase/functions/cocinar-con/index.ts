@@ -48,8 +48,8 @@ async function cocinar(req: Request): Promise<Response> {
     return fallo(422, 'no_aptos', 'Ninguno de esos ingredientes encaja con tus alergias o lo que no te gusta. Prueba con otros.');
   }
 
-  const motivo = await permitirExtra(admin, user.id, 'cocinar', MAX_USOS_DIA);
-  if (motivo) return fallo(429, 'limite', motivo);
+  const bloqueo = await permitirExtra(admin, user.id, 'cocinar', MAX_USOS_DIA);
+  if (bloqueo) return bloqueo;
 
   const receta = await crearReceta(
     admin,

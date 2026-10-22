@@ -1,7 +1,8 @@
 // Perfil de la persona, comprobaciones de seguridad y energía diaria (comunes a todas las funciones).
 // Seguridad (no negociable, ver CLAUDE.md): solo mayores de 18, con consentimiento de datos de salud
 // y sin situaciones que requieran un profesional.
-import { cobrarA, motivoSinExtras } from './costes.ts';
+import { cobrarA, gastoEur, motivoSinExtras } from './costes.ts';
+import { planDe, presupuestoPruebaEur, respuestaSuscripcion } from './plan.ts';
 import { fallo, type Cliente } from './http.ts';
 import { AJUSTES_POR_DEFECTO, edadEn, energiaDiaria, type Actividad, type Ajustes, type Energia, type Objetivo, type Sexo } from './nutricion.ts';
 import type { Nivel } from './recetas.ts';
@@ -80,13 +81,29 @@ export async function energiaDe(admin: Cliente, perfil: PerfilValido, hoy: strin
   );
 }
 
-// ¿Puede usar ahora una función extra con IA? Comprueba el límite diario de usos y el presupuesto
-// (ver costes.ts). Deja apuntado que lo que se gaste en esta petición es de esta persona.
-// Devuelve null si puede, o el mensaje para la persona si no.
-export async function permitirExtra(admin: Cliente, userId: string, tipo: string, maximoDia: number): Promise<string | null> {
+// ¿Puede usar ahora una función extra con IA? Comprueba el plan (prueba o suscripción), el límite diario
+// de usos y el presupuesto (ver costes.ts). Deja apuntado que lo que se gaste en esta petición es de esta persona.
+// Devuelve null si puede, o la respuesta de error para la persona si no.
+// `enPrueba: false` = esa función no está incluida en la prueba gratis (por ejemplo, fotos nuevas).
+export async function permitirExtra(
+  admin: Cliente,
+  userId: string,
+  tipo: string,
+  maximoDia: number,
+  opciones: { enPrueba?: boolean } = {},
+): Promise<Response | null> {
   cobrarA(userId, tipo);
+  const plan = await planDe(admin, userId);
+  if (plan.estado === 'caducada') return respuestaSuscripcion();
+  if (plan.estado === 'prueba') {
+    if (opciones.enPrueba === false) return fallo(402, 'suscripcion', 'Esta función está incluida en la suscripción.');
+    if ((await gastoEur(admin, userId, 3650)) >= (await presupuestoPruebaEur(admin))) {
+      return fallo(402, 'suscripcion', 'Durante la prueba gratis ya has usado todas las funciones con IA. Suscríbete para seguir disfrutándolas.');
+    }
+  }
   const desde = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const { count } = await admin.from('usos_ia').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('tipo', tipo).gte('created_at', desde);
-  if ((count ?? 0) >= maximoDia) return 'Hoy ya has usado mucho esta función. Mañana podrás volver a usarla.';
-  return await motivoSinExtras(admin, userId);
+  if ((count ?? 0) >= maximoDia) return fallo(429, 'limite', 'Hoy ya has usado mucho esta función. Mañana podrás volver a usarla.');
+  const motivo = await motivoSinExtras(admin, userId);
+  return motivo ? fallo(429, 'limite', motivo) : null;
 }

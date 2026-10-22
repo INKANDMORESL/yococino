@@ -57,7 +57,7 @@ export const cuentaActual = () => almacen.getStore();
 // deno-lint-ignore no-explicit-any
 type ClienteRpc = { rpc: (f: string, a: Record<string, unknown>) => PromiseLike<{ data: any }> };
 
-async function gastoEur(admin: ClienteRpc, userId: string, dias: number): Promise<number> {
+export async function gastoEur(admin: ClienteRpc, userId: string, dias: number): Promise<number> {
   const desde = new Date(Date.now() - dias * 86_400_000).toISOString();
   const { data } = await admin.rpc('gasto_ia', { p_user: userId, p_desde: desde });
   return (Number(data) || 0) * EUR_POR_USD;

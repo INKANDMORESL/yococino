@@ -6,6 +6,7 @@ import { restriccionesDe } from '../_shared/alergenos.ts';
 import { crearClientes, fallo, hoyEspana, responder, servir, sumarDias } from '../_shared/http.ts';
 import { comidasDelDia, factorRacion, KCAL_RACION_ESTANDAR, type TipoComida } from '../_shared/nutricion.ts';
 import { energiaDe, perfilSeguro, permitirExtra } from '../_shared/perfil.ts';
+import { planDe, respuestaSuscripcion } from '../_shared/plan.ts';
 import { cargarCatalogo, crearReceta, type Nivel, type RecetaGuardada } from '../_shared/recetas.ts';
 import { mesDe } from '../_shared/temporada.ts';
 
@@ -32,6 +33,7 @@ async function cambiar(req: Request): Promise<Response> {
   if (!comida) return fallo(404, 'no_encontrada', 'No encontramos esa comida en tu menú.');
   if (comida.fecha < hoy) return fallo(400, 'pasado', 'Solo puedes cambiar comidas de hoy en adelante.');
   const tipo = comida.tipo_comida as TipoComida;
+  if ((await planDe(admin, user.id)).estado === 'caducada') return respuestaSuscripcion();
 
   const seguro = await perfilSeguro(admin, user.id, hoy);
   if ('respuesta' in seguro) return seguro.respuesta;
@@ -59,8 +61,8 @@ async function cambiar(req: Request): Promise<Response> {
     if (candidatas.length) receta = candidatas[Math.floor(Math.random() * Math.min(candidatas.length, 15))];
   }
   if (!receta) {
-    const motivo = await permitirExtra(admin, user.id, 'cambiar', MAX_NUEVAS_DIA);
-    if (motivo) return fallo(429, 'limite', motivo);
+    const bloqueo = await permitirExtra(admin, user.id, 'cambiar', MAX_NUEVAS_DIA);
+    if (bloqueo) return bloqueo;
     receta = await crearReceta(
       admin,
       'Un plato nuevo a tu elección, casero y de temporada',

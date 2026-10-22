@@ -72,8 +72,8 @@ async function cambiar(req: Request): Promise<Response> {
     if (data && data.fecha >= hoy) comida = data;
   }
 
-  const motivo = await permitirExtra(admin, user.id, 'ingrediente', MAX_USOS_DIA);
-  if (motivo) return fallo(429, 'limite', motivo);
+  const bloqueo = await permitirExtra(admin, user.id, 'ingrediente', MAX_USOS_DIA);
+  if (bloqueo) return bloqueo;
 
   const tipo = receta.tipo_comida as TipoComida;
   const lineas = ingredientes.map((i) => `- ${i.cantidad ?? ''} ${i.unidad ?? ''} ${i.nombre}${i.nota ? ` (${i.nota})` : ''}`.replace(/\s+/g, ' ')).join('\n');

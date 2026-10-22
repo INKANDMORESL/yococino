@@ -87,8 +87,8 @@ async function version(req: Request): Promise<Response> {
 
   let peques = receta.peques as Peques | null;
   if (!peques) {
-    const motivo = await permitirExtra(admin, user.id, 'peques', MAX_NUEVAS_DIA);
-    if (motivo) return fallo(429, 'limite', motivo);
+    const bloqueo = await permitirExtra(admin, user.id, 'peques', MAX_NUEVAS_DIA);
+    if (bloqueo) return bloqueo;
     const ingredientes = ((receta.ingredientes ?? []) as { nombre: string; cantidad: number | null; unidad: string | null; nota: string | null; orden: number }[])
       .sort((a, b) => a.orden - b.orden)
       .map((i) => `- ${i.nombre}${i.nota ? ` (${i.nota})` : ''}`)
