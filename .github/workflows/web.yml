@@ -3,8 +3,7 @@
 # En GitHub → Settings → Secrets and variables → Actions:
 #   Secrets web:    IONOS_WEB_HOST, IONOS_WEB_USUARIO, IONOS_WEB_CONTRASENA
 #   Secrets panel:  IONOS_PANEL_HOST, IONOS_PANEL_USUARIO, IONOS_PANEL_CONTRASENA
-#   Variables (opcionales): IONOS_PROTOCOLO (sftp o ftp; por defecto sftp),
-#                           IONOS_WEB_CARPETA e IONOS_PANEL_CARPETA (por defecto, la carpeta inicial del acceso).
+#   Variables (opcionales): IONOS_WEB_CARPETA e IONOS_PANEL_CARPETA (por defecto, la carpeta inicial del acceso).
 # Nunca se borra nada en el servidor: solo se suben y reemplazan los archivos de Yococino.
 # Si aún no están los datos, se deja un .zip con las dos webs para subirlas con FileZilla.
 name: Web y panel
@@ -39,7 +38,6 @@ jobs:
 
       - name: Subir a IONOS
         env:
-          PROTOCOLO: ${{ vars.IONOS_PROTOCOLO }}
           WEB_HOST: ${{ secrets.IONOS_WEB_HOST }}
           WEB_USUARIO: ${{ secrets.IONOS_WEB_USUARIO }}
           WEB_CONTRASENA: ${{ secrets.IONOS_WEB_CONTRASENA }}
@@ -55,9 +53,9 @@ jobs:
               echo "::warning title=IONOS $6::Faltan los datos de acceso en GitHub. Descarga 'webs-yococino' de esta ejecución y súbela con FileZilla."
               return 0
             fi
-            local proto; proto="$(echo "${PROTOCOLO:-sftp}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
-            local ajustes="set net:max-retries 3; set net:timeout 30;"
-            if [ "$proto" = "sftp" ]; then ajustes="$ajustes set sftp:auto-confirm yes;"; else ajustes="$ajustes set ftp:ssl-allow yes; set ssl:verify-certificate no;"; fi
+            # IONOS tiene el FTP desactivado: siempre por SFTP (los mismos usuarios sirven).
+            local proto=sftp
+            local ajustes="set net:max-retries 3; set net:timeout 30; set sftp:auto-confirm yes;"
             local host="${2#*://}"; host="${host%%/*}"; host="$(echo "$host" | tr -d '[:space:]')"
             # La contraseña va por variable de entorno (así no da problemas si lleva comas o símbolos).
             if LFTP_PASSWORD="$4" lftp --env-password -u "$(echo "$3" | tr -d '[:space:]')" "$proto://$host" \
