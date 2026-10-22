@@ -1,0 +1,52 @@
+# Publica la web pública (yococino.app) y el panel de gestión (admin.yococino.app) en IONOS por SFTP.
+# Necesita en GitHub → Settings → Secrets and variables → Actions:
+#   Secrets:   IONOS_SFTP_HOST, IONOS_SFTP_USUARIO, IONOS_SFTP_CONTRASENA
+#   Variables: IONOS_CARPETA_WEB (p. ej. /yococino) e IONOS_CARPETA_PANEL (p. ej. /yococino-admin)
+# Si aún no están, se deja un .zip de cada web en el resumen de la ejecución para subirlo con FileZilla.
+name: Web y panel
+
+on:
+  push:
+    branches: [main]
+    paths: ['web/**', 'panel/**', '.github/workflows/web.yml']
+  workflow_dispatch:
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar el panel con Supabase
+        env:
+          URL: ${{ vars.SUPABASE_URL }}
+          CLAVE: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$CLAVE" ]; then echo "::error title=Panel::Faltan las variables SUPABASE_URL y SUPABASE_ANON_KEY"; exit 1; fi
+          printf 'window.YOCOCINO = { url: %s, clave: %s };\n' "$(jq -Rn --arg v "$URL" '$v')" "$(jq -Rn --arg v "$CLAVE" '$v')" > panel/config.js
+
+      - name: Guardar copias para FileZilla
+        uses: actions/upload-artifact@v4
+        with:
+          name: webs-yococino
+          path: |
+            web
+            panel
+
+      - name: Subir a IONOS
+        env:
+          HOST: ${{ secrets.IONOS_SFTP_HOST }}
+          USUARIO: ${{ secrets.IONOS_SFTP_USUARIO }}
+          CONTRASENA: ${{ secrets.IONOS_SFTP_CONTRASENA }}
+          CARPETA_WEB: ${{ vars.IONOS_CARPETA_WEB }}
+          CARPETA_PANEL: ${{ vars.IONOS_CARPETA_PANEL }}
+        run: |
+          if [ -z "$HOST" ] || [ -z "$USUARIO" ] || [ -z "$CONTRASENA" ] || [ -z "$CARPETA_WEB" ] || [ -z "$CARPETA_PANEL" ]; then
+            echo "::warning title=IONOS::Aún no están los datos de IONOS en GitHub. Descarga 'webs-yococino' de esta ejecución y súbelo con FileZilla."
+            exit 0
+          fi
+          sudo apt-get install -y lftp > /dev/null
+          lftp -u "$USUARIO","$CONTRASENA" "sftp://$HOST" -e "set sftp:auto-confirm yes; set net:max-retries 3; \
+            mirror -R --delete --verbose=1 web $CARPETA_WEB; \
+            mirror -R --delete --verbose=1 panel $CARPETA_PANEL; bye"
+          echo "::notice title=IONOS::Web y panel publicados."
