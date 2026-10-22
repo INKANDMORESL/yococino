@@ -1,0 +1,89 @@
+// Perfil de la persona, comprobaciones de seguridad y energía diaria (comunes a todas las funciones).
+// Seguridad (no negociable, ver CLAUDE.md): solo mayores de 18, con consentimiento de datos de salud
+// y sin situaciones que requieran un profesional.
+import { fallo, type Cliente } from './http.ts';
+import { AJUSTES_POR_DEFECTO, edadEn, energiaDiaria, type Actividad, type Ajustes, type Energia, type Objetivo, type Sexo } from './nutricion.ts';
+import type { Nivel } from './recetas.ts';
+
+export interface Perfil {
+  id: string;
+  fecha_nacimiento: string | null;
+  sexo: Sexo | null;
+  altura_cm: number | null;
+  peso_inicial_kg: number | null;
+  objetivo: Objetivo | null;
+  peso_objetivo_kg: number | null;
+  actividad: Actividad | null;
+  nivel_cocina: Nivel | null;
+  comidas_dia: number | null;
+  alergias: string[] | null;
+  condiciones: string[] | null;
+  no_me_gusta: string[] | null;
+  consentimiento_salud_at: string | null;
+  num_peques: number | null;
+  franjas_peques: string[] | null;
+  encuesta_completada_at: string | null;
+}
+
+export type PerfilValido = Perfil & { sexo: Sexo; altura_cm: number; peso_inicial_kg: number; objetivo: Objetivo; actividad: Actividad; fecha_nacimiento: string };
+
+// Devuelve el perfil si se puede preparar comida para esta persona, o la respuesta de error.
+export async function perfilSeguro(admin: Cliente, userId: string, hoy: string): Promise<{ perfil: PerfilValido } | { respuesta: Response }> {
+  const { data, error } = await admin.from('profiles').select('*').eq('id', userId).maybeSingle();
+  if (error) throw error;
+  const perfil = data as Perfil | null;
+  if (!perfil?.encuesta_completada_at || !perfil.sexo || !perfil.altura_cm || !perfil.peso_inicial_kg || !perfil.objetivo || !perfil.actividad) {
+    return { respuesta: fallo(409, 'sin_encuesta', 'Completa la encuesta para que podamos preparar tu menú.') };
+  }
+  if (!perfil.consentimiento_salud_at) {
+    return { respuesta: fallo(403, 'sin_consentimiento', 'Necesitamos tu permiso para usar tus datos de salud antes de preparar tu menú.') };
+  }
+  if (!perfil.fecha_nacimiento || edadEn(perfil.fecha_nacimiento, hoy) < 18) {
+    return { respuesta: fallo(403, 'menor', 'Yococino es solo para mayores de 18 años.') };
+  }
+  if ((perfil.condiciones ?? []).length > 0) {
+    return { respuesta: fallo(403, 'profesional', 'En tu caso, lo mejor es que un dietista-nutricionista o tu médico preparen tu pauta.') };
+  }
+  return { perfil: perfil as PerfilValido };
+}
+
+// Energía diaria con el peso más reciente de la persona de la cuenta y los límites de ajustes_nutricion.
+export async function energiaDe(admin: Cliente, perfil: PerfilValido, hoy: string): Promise<Energia> {
+  const { data: ultimoPeso } = await admin
+    .from('pesos')
+    .select('peso_kg')
+    .eq('user_id', perfil.id)
+    .is('miembro_id', null)
+    .order('fecha', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const { data: fila } = await admin.from('ajustes_nutricion').select('*').maybeSingle();
+  const ajustes: Ajustes = {
+    kcal_minimo_mujer: Number(fila?.kcal_minimo_mujer) || AJUSTES_POR_DEFECTO.kcal_minimo_mujer,
+    kcal_minimo_hombre: Number(fila?.kcal_minimo_hombre) || AJUSTES_POR_DEFECTO.kcal_minimo_hombre,
+    deficit_pct: Number(fila?.deficit_pct) || AJUSTES_POR_DEFECTO.deficit_pct,
+    deficit_max_kcal: Number(fila?.deficit_max_kcal) || AJUSTES_POR_DEFECTO.deficit_max_kcal,
+    superavit_pct: Number(fila?.superavit_pct) || AJUSTES_POR_DEFECTO.superavit_pct,
+  };
+  return energiaDiaria(
+    {
+      sexo: perfil.sexo,
+      edad: edadEn(perfil.fecha_nacimiento, hoy),
+      alturaCm: Number(perfil.altura_cm),
+      pesoKg: Number(ultimoPeso?.peso_kg ?? perfil.peso_inicial_kg),
+      pesoObjetivoKg: perfil.peso_objetivo_kg === null ? null : Number(perfil.peso_objetivo_kg),
+      objetivo: perfil.objetivo,
+      actividad: perfil.actividad,
+    },
+    ajustes,
+  );
+}
+
+// Límite diario de usos de la IA por persona (para controlar el gasto). Devuelve false si ya se pasó.
+export async function contarUso(admin: Cliente, userId: string, tipo: string, maximoDia: number): Promise<boolean> {
+  const desde = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const { count } = await admin.from('usos_ia').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('tipo', tipo).gte('created_at', desde);
+  if ((count ?? 0) >= maximoDia) return false;
+  await admin.from('usos_ia').insert({ user_id: userId, tipo });
+  return true;
+}

@@ -7,3 +7,12 @@ verify_jwt = true
 
 [functions.borrar-cuenta]
 verify_jwt = true
+
+[functions.cambiar-plato]
+verify_jwt = true
+
+[functions.cocinar-con]
+verify_jwt = true
+
+[functions.version-peques]
+verify_jwt = true
