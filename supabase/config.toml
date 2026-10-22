@@ -22,3 +22,9 @@ verify_jwt = true
 
 [functions.foto-receta]
 verify_jwt = true
+
+[functions.buscar-recetas]
+verify_jwt = true
+
+[functions.asignar-receta]
+verify_jwt = true

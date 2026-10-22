@@ -51,7 +51,7 @@ function Barra({ state, descriptors }: PropsBarra) {
               accessibilityLabel={texto}
               style={s.pestana}
             >
-              <Text style={[s.texto, activa && s.textoActivo]} numberOfLines={1}>
+              <Text style={[s.texto, activa && s.textoActivo]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
                 {texto}
               </Text>
             </Pressable>
@@ -69,6 +69,7 @@ export default function Pestanas() {
   return (
     <Tabs tabBar={(props) => <Barra {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}>
       <Tabs.Screen name="inicio" options={{ title: 'Hoy' }} />
+      <Tabs.Screen name="recetas" options={{ title: 'Recetas' }} />
       <Tabs.Screen name="compra" options={{ title: 'Compra' }} />
       <Tabs.Screen name="progreso" options={{ title: 'Progreso' }} />
       <Tabs.Screen name="perfil" options={{ title: 'Perfil' }} />
@@ -82,7 +83,7 @@ const s = StyleSheet.create({
   fondo: { backgroundColor: colors.bg, paddingHorizontal: 16, paddingTop: 8 },
   barra: {
     flexDirection: 'row',
-    height: 60,
+    height: 58,
     padding: RELLENO,
     borderRadius: radius.pill,
     backgroundColor: colors.ink,
@@ -93,7 +94,7 @@ const s = StyleSheet.create({
     elevation: 8,
   },
   pildora: { position: 'absolute', top: RELLENO, bottom: RELLENO, left: RELLENO, borderRadius: radius.pill, backgroundColor: colors.lemon },
-  pestana: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  texto: { fontSize: 15, fontWeight: '700', color: 'rgba(255,255,255,0.72)', letterSpacing: 0.2 },
+  pestana: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 2 },
+  texto: { fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.72)' },
   textoActivo: { color: colors.ink },
 });

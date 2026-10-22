@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Saltar } from '../../src/components';
 import { useLatido } from '../../src/components/Animaciones';
 import { ErrorMenu, cambiarPlato, cargarComidas, cargarReceta, fotoReceta, marcarHecha } from '../../src/features/menu/api';
+import { AsignarDia } from '../../src/features/menu/AsignarDia';
 import { CambiarIngrediente } from '../../src/features/menu/CambiarIngrediente';
 import { Peques } from '../../src/features/menu/Peques';
 import { anadirNoMeGusta, cambiarFavorita, esFavorita, pequesEnCasa } from '../../src/features/perfil/api';
@@ -433,6 +434,10 @@ export default function RecetaPantalla() {
               <Peques recetaId={receta.id} franjas={peques.franjas} />
             </View>
           ) : null}
+
+          <View style={{ marginTop: space.xl }}>
+            <AsignarDia recetaId={receta.id} tipoReceta={receta.tipo_comida} />
+          </View>
 
           {comida && comida.fecha >= hoyISO() ? (
             <View>

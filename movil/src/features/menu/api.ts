@@ -82,6 +82,25 @@ export async function fotoReceta(recetaId: number): Promise<string | null> {
   return (data as { imagen?: string | null } | null)?.imagen ?? null;
 }
 
+export interface RecetaResumen {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+  tipo_comida: string;
+  nivel: 'facil' | 'medio' | 'elaborado';
+  minutos: number | null;
+  kcal: number | null;
+  imagen: string | null;
+}
+
+// Recetario: solo devuelve recetas aptas para la persona.
+export const buscarRecetas = (texto: string, tipo: string | null) =>
+  llamar<{ recetas: RecetaResumen[] }>('buscar-recetas', { texto, tipo }, 'No hemos podido buscar recetas.').then((r) => r.recetas);
+
+// Pone una receta en un día y una comida del menú.
+export const asignarReceta = (recetaId: number, fecha: string, tipoComida: string) =>
+  llamar<{ comida_id: number }>('asignar-receta', { receta_id: recetaId, fecha, tipo_comida: tipoComida }, 'No hemos podido añadirla a tu menú.');
+
 // Crea una receta con lo que hay en casa.
 export const cocinarCon = (ingredientes: string[], tipo: string) =>
   llamar<{ receta_id: number; nombre: string; descartados: string[] }>('cocinar-con', { ingredientes, tipo }, 'No hemos podido crear la receta.');
