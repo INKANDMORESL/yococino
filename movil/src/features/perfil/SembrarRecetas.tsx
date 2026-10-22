@@ -1,92 +1,102 @@
-// Herramienta del dueño: llenar el recetario compartido por tandas, respetando el cupo del mes.
-import { useRef, useState } from 'react';
+// Herramienta del dueño: llenar el recetario y hacer sus fotos por LOTES (a mitad de precio).
+// Los lotes tardan desde minutos hasta unas horas; al volver aquí se recogen solos.
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Aviso, Boton, Chip, Tarjeta } from '../../components';
-import { colors, space, type } from '../../theme';
-import { ErrorMenu, sembrarRecetas } from '../menu/api';
+import { colors, radius, space, type } from '../../theme';
+import { ErrorMenu, sembrarRecetas, type EstadoLotes } from '../menu/api';
 
 const OPCIONES = [50, 100, 200];
+const fecha = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+const euros = (usd?: number) => `${((usd ?? 0) * 0.9).toFixed(2).replace('.', ',')} €`;
 
 export function SembrarRecetas() {
-  const [objetivo, setObjetivo] = useState(200);
-  const [hechas, setHechas] = useState(0);
-  const [coste, setCoste] = useState(0);
-  const [ultimas, setUltimas] = useState<string[]>([]);
-  const [enMarcha, setEnMarcha] = useState(false);
+  const [cantidad, setCantidad] = useState(200);
+  const [datos, setDatos] = useState<EstadoLotes | null>(null);
+  const [ocupado, setOcupado] = useState<'estado' | 'enviar' | 'fotos' | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
-  const parar = useRef(false);
 
-  const empezar = async () => {
-    parar.current = false;
-    setEnMarcha(true);
+  const hacer = useCallback(async (accion: 'estado' | 'enviar' | 'fotos', n?: number) => {
+    setOcupado(accion);
     setMensaje(null);
-    setHechas(0);
-    setCoste(0);
-    let total = 0;
-    let gastado = 0;
-    let vaciasSeguidas = 0;
     try {
-      while (!parar.current && total < objetivo) {
-        const r = await sembrarRecetas(Math.min(8, objetivo - total));
-        total += r.creadas.length;
-        gastado += r.coste_usd;
-        setHechas(total);
-        setCoste(gastado);
-        if (r.creadas.length) setUltimas(r.creadas.slice(-3));
-        if (r.quedan_cupo <= 0) {
-          setMensaje(`Se ha llegado al límite de este mes (${r.tope} recetas nuevas).`);
-          break;
-        }
-        vaciasSeguidas = r.creadas.length ? 0 : vaciasSeguidas + 1;
-        if (vaciasSeguidas >= 2) {
-          setMensaje(`No se han podido crear más recetas ahora.${r.errores?.length ? ` Detalle técnico: ${r.errores[0]}` : ''}`);
-          break;
-        }
-      }
-      if (!parar.current && total >= objetivo) setMensaje('¡Listo! Recetario cargado.');
+      const r = await sembrarRecetas(accion, n);
+      setDatos(r);
+      if (r.aviso) setMensaje(r.aviso);
+      else if (accion === 'enviar' && r.enviadas) setMensaje(`Enviadas ${r.enviadas} recetas a la cola. Estarán listas en unos minutos o unas horas.`);
+      else if (accion === 'fotos' && r.enviadas) setMensaje(`Enviadas ${r.enviadas} fotos a la cola.`);
+      if (r.errores?.length) setMensaje(`Detalle técnico: ${r.errores[0]}`);
     } catch (e) {
-      setMensaje(e instanceof ErrorMenu ? `${e.message}${e.detalle ? ` (${e.detalle})` : ''}` : 'Se ha cortado la conexión. Puedes volver a empezar.');
+      setMensaje(e instanceof ErrorMenu ? `${e.message}${e.detalle ? ` (${e.detalle})` : ''}` : 'Se ha cortado la conexión.');
     } finally {
-      setEnMarcha(false);
+      setOcupado(null);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    hacer('estado');
+  }, [hacer]);
+
+  const abiertos = datos?.lotes.filter((l) => l.estado === 'enviado').length ?? 0;
 
   return (
     <Tarjeta style={{ gap: space.md }}>
       <Text style={type.heading}>Llenar el recetario</Text>
       <Text style={type.small}>
-        Crea recetas nuevas para todos, por tandas de 8. Respeta el límite del mes (600 al mes los 7 primeros meses, luego 200). Deja esta pantalla
-        abierta mientras trabaja: unas 200 recetas tardan alrededor de media hora.
+        Las recetas y fotos que creas tú van por lotes, a mitad de precio. Tardan desde unos minutos hasta unas horas; no hace falta dejar la pantalla
+        abierta. Al volver aquí, lo terminado se guarda solo.
       </Text>
-      {!enMarcha ? (
-        <View style={s.chips}>
-          {OPCIONES.map((n) => (
-            <Chip key={n} texto={`${n} recetas`} elegido={objetivo === n} onPress={() => setObjetivo(n)} />
+      {datos ? (
+        <Text style={[type.body, { color: colors.ink }]}>
+          Recetas nuevas este mes: {datos.cupo.usadas} de {datos.cupo.tope}
+        </Text>
+      ) : null}
+
+      <View style={s.chips}>
+        {OPCIONES.map((n) => (
+          <Chip key={n} texto={`${n} recetas`} elegido={cantidad === n} onPress={() => setCantidad(n)} />
+        ))}
+      </View>
+      <Boton texto="Crear recetas (lote)" variante="suave" cargando={ocupado === 'enviar'} desactivado={!!ocupado} onPress={() => hacer('enviar', cantidad)} />
+      <Boton texto="Hacer 20 fotos que faltan (lote)" variante="linea" cargando={ocupado === 'fotos'} desactivado={!!ocupado} onPress={() => hacer('fotos', 20)} />
+
+      {mensaje ? <Aviso tono="hoja" texto={mensaje} /> : null}
+
+      {datos?.lotes.length ? (
+        <View style={{ gap: space.sm }}>
+          <View style={s.fila}>
+            <Text style={s.subtitulo}>Lotes</Text>
+            <Boton texto={abiertos ? 'Comprobar ahora' : 'Actualizar'} variante="linea" cargando={ocupado === 'estado'} desactivado={!!ocupado} onPress={() => hacer('estado')} />
+          </View>
+          {datos.lotes.map((l) => (
+            <View key={l.id} style={s.lote}>
+              <Text style={s.loteTitulo}>
+                {l.tipo === 'recetas' ? '📖' : '📷'} {l.cantidad} {l.tipo === 'recetas' ? 'recetas' : 'fotos'} · {fecha(l.created_at)}
+              </Text>
+              <Text style={type.small}>
+                {l.estado === 'enviado'
+                  ? 'En la cola…'
+                  : l.estado === 'fallido'
+                    ? 'No se completó (se puede volver a pedir).'
+                    : l.tipo === 'recetas'
+                      ? `Listo: ${l.resultado?.creadas ?? 0} guardadas, ${l.resultado?.descartadas ?? 0} descartadas · ${euros(l.resultado?.coste_usd)}`
+                      : `Listo: ${l.resultado?.guardadas ?? 0} fotos · ${euros(l.resultado?.coste_usd)}`}
+              </Text>
+            </View>
           ))}
         </View>
       ) : null}
-      {enMarcha || hechas ? (
-        <View style={{ gap: 4 }}>
-          <Text style={[type.body, { color: colors.ink }]}>
-            {hechas} de {objetivo} recetas creadas · gasto aprox. {(coste * 0.9).toFixed(2).replace('.', ',')} €
-          </Text>
-          {ultimas.length ? <Text style={type.small}>Últimas: {ultimas.join(', ')}</Text> : null}
-        </View>
-      ) : null}
-      {mensaje ? <Aviso tono="hoja" texto={mensaje} /> : null}
-      {enMarcha ? (
-        <Boton
-          texto="Parar después de esta tanda"
-          variante="linea"
-          onPress={() => {
-            parar.current = true;
-          }}
-        />
-      ) : (
-        <Boton texto="Empezar" variante="suave" onPress={empezar} />
-      )}
     </Tarjeta>
   );
 }
 
-const s = StyleSheet.create({ chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm } });
+const s = StyleSheet.create({
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  fila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  subtitulo: { fontSize: 16, fontWeight: '700', color: colors.ink },
+  lote: { backgroundColor: colors.leafSoft, borderRadius: radius.md, padding: space.md, gap: 2 },
+  loteTitulo: { fontSize: 15, fontWeight: '700', color: colors.ink },
+});

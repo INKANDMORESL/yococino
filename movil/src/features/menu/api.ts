@@ -121,12 +121,25 @@ export async function esAdmin(): Promise<boolean> {
   const { data } = await supabase.from('admins').select('user_id').maybeSingle();
   return !!data;
 }
-export const sembrarRecetas = (cantidad: number) =>
-  llamar<{ creadas: string[]; quedan_cupo: number; tope: number; coste_usd: number; errores?: string[] }>(
-    'sembrar-recetas',
-    { cantidad },
-    'No hemos podido crear recetas ahora.',
-  );
+export interface LoteIA {
+  id: number;
+  tipo: 'recetas' | 'fotos';
+  estado: 'enviado' | 'terminado' | 'fallido';
+  cantidad: number;
+  resultado: { creadas?: number; descartadas?: number; guardadas?: number; fallidas?: number; coste_usd?: number } | null;
+  created_at: string;
+  terminado_at: string | null;
+}
+export interface EstadoLotes {
+  lotes: LoteIA[];
+  cupo: { tope: number; usadas: number; quedan: number };
+  enviadas?: number;
+  aviso?: string;
+  errores?: string[];
+}
+// Carga del recetario y fotos por lotes a mitad de precio (solo administradores).
+export const sembrarRecetas = (accion: 'estado' | 'enviar' | 'fotos', cantidad?: number) =>
+  llamar<EstadoLotes>('sembrar-recetas', { accion, cantidad }, 'No se ha podido completar.');
 
 // Crea una receta con lo que hay en casa.
 export interface SugerenciaCocinar {
