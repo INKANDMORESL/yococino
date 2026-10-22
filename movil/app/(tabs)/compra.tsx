@@ -8,6 +8,7 @@ import { borrarMarcas, cargarComensales, cargarIngredientes, cargarMarcas, guard
 import { SECCIONES, agruparCompra, cantidadCompra, type Articulo, type ComidaConIngredientes, type Comensales } from '../../src/features/compra/lista';
 import { hoyISO, sumarDias } from '../../src/features/menu/fechas';
 import { useAuth } from '../../src/lib/auth';
+import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../../src/theme';
 
 const RANGOS = [
@@ -48,12 +49,12 @@ function Contador({ texto, valor, min, max, cambiar }: { texto: string; valor: n
 export default function Compra() {
   const { sesion } = useAuth();
   const [rango, setRango] = useState<(typeof RANGOS)[number]['clave']>('3d');
-  const [comidas, setComidas] = useState<ComidaConIngredientes[]>([]);
-  const [casa, setCasa] = useState<Comensales | null>(null);
-  const casaCargada = useRef(false);
+  const [comidas, setComidas] = useState<ComidaConIngredientes[]>(leerCache('compra:3d') ?? []);
+  const [casa, setCasa] = useState<Comensales | null>(leerCache('compra:casa') ?? null);
+  const casaCargada = useRef(!!leerCache('compra:casa'));
   const articulos: Articulo[] = useMemo(() => agruparCompra(comidas, casa ?? undefined), [comidas, casa]);
-  const [marcas, setMarcas] = useState<Set<string>>(new Set());
-  const [cargando, setCargando] = useState(true);
+  const [marcas, setMarcas] = useState<Set<string>>(leerCache('compra:marcas') ?? new Set());
+  const [cargando, setCargando] = useState(!leerCache('compra:3d'));
   const [error, setError] = useState<string | null>(null);
 
   const dias = RANGOS.find((r) => r.clave === rango)?.dias ?? 3;
@@ -61,22 +62,26 @@ export default function Compra() {
   // "Preparando tu lista…" solo la primera vez; después se actualiza sin vaciar la pantalla.
   const cargar = useCallback(async () => {
     setError(null);
+    const enMemoria = leerCache<ComidaConIngredientes[]>(`compra:${rango}`);
+    if (enMemoria) setComidas(enMemoria);
     try {
       const hoy = hoyISO();
       const [lista, m] = await Promise.all([cargarIngredientes(hoy, sumarDias(hoy, dias - 1)), cargarMarcas()]);
+      guardarCache(`compra:${rango}`, lista);
+      guardarCache('compra:marcas', m);
       setComidas(lista);
       setMarcas(m);
       // Los comensales se leen una sola vez; luego los cambia la propia pantalla.
       if (!casaCargada.current) {
         casaCargada.current = true;
-        setCasa(await cargarComensales().catch(() => ({ adultos: 1, peques: 0 })));
+        setCasa(guardarCache('compra:casa', await cargarComensales().catch(() => ({ adultos: 1, peques: 0 }))));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No hemos podido cargar la lista.');
     } finally {
       setCargando(false);
     }
-  }, [dias]);
+  }, [dias, rango]);
 
   // Se carga un poco después de entrar para que el cambio de pestaña vaya fluido.
   useFocusEffect(
@@ -109,7 +114,7 @@ export default function Compra() {
 
   // Cambiar cuántos coméis: se recalcula al momento y se guarda para la próxima vez.
   const cambiarCasa = (nueva: Comensales) => {
-    setCasa(nueva);
+    setCasa(guardarCache('compra:casa', nueva));
     if (sesion) guardarComensales(sesion.user.id, nueva).catch((e) => setError(e instanceof Error ? e.message : 'No se ha podido guardar.'));
   };
 

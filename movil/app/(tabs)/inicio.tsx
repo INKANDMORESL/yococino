@@ -1,12 +1,13 @@
 // Inicio: la próxima comida, el menú de hoy (con acceso al menú completo), cocina con lo que tienes y el progreso.
 // Mientras faltan días para tener 30 por delante, los va preparando.
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Saltar, Tarjeta } from '../../src/components';
 import { ResumenPeso } from '../../src/features/progreso/ResumenPeso';
-import { ErrorMenu, cambiarPlato, cargarComidas, fotoReceta, marcarHecha, perfilBasico, prepararMenu } from '../../src/features/menu/api';
+import { ErrorMenu, cambiarPlato, cargarComidas, marcarHecha, perfilBasico, prepararMenu } from '../../src/features/menu/api';
+import { faltaFoto, pedirFoto } from '../../src/features/menu/fotos';
 import { fechaLarga, hoyISO, sumarDias } from '../../src/features/menu/fechas';
 import { PreparandoMenu } from '../../src/features/menu/PreparandoMenu';
 import { ProximaComida, proximaComida } from '../../src/features/menu/ProximaComida';
@@ -14,6 +15,7 @@ import { TarjetaComida } from '../../src/features/menu/TarjetaComida';
 import type { Comida } from '../../src/features/menu/tipos';
 import { useAuth } from '../../src/lib/auth';
 import { guardarEncuestaPendiente } from '../../src/lib/perfil';
+import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, space, type } from '../../src/theme';
 
 const DIAS = 30;
@@ -33,12 +35,14 @@ export default function Inicio() {
   const { sesion, cargando: cargandoSesion, salir } = useAuth();
   const hoy = hoyISO();
   const dias = useMemo(() => Array.from({ length: DIAS }, (_, i) => sumarDias(hoy, i)), [hoy]);
-  const [estado, setEstado] = useState<Estado>({ tipo: 'cargando' });
-  const [comidas, setComidas] = useState<Comida[]>([]);
+  // Lo último que se vio, para enseñarlo al instante al volver.
+  const previo = leerCache<{ comidas: Comida[]; nombre: string | null }>('inicio');
+  const [estado, setEstado] = useState<Estado>(previo ? { tipo: 'listo' } : { tipo: 'cargando' });
+  const [comidas, setComidas] = useState<Comida[]>(previo?.comidas ?? []);
   const [preparando, setPreparando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refrescando, setRefrescando] = useState(false);
-  const [nombre, setNombre] = useState<string | null>(null);
+  const [nombre, setNombre] = useState<string | null>(previo?.nombre ?? null);
   const [cambiando, setCambiando] = useState<number | null>(null);
   const [avisoCambio, setAvisoCambio] = useState<string | null>(null);
   const activo = useRef(true);
@@ -125,6 +129,22 @@ export default function Inicio() {
     })();
   }, [sesion, recargar, completarMes, dias]);
 
+  useEffect(() => {
+    if (comidas.length) guardarCache('inicio', { comidas, nombre });
+  }, [comidas, nombre]);
+
+  // Al volver a Inicio (desde una receta o el menú), se actualiza sin esperar.
+  const primeraVez = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (primeraVez.current) {
+        primeraVez.current = false;
+        return;
+      }
+      recargar().catch(() => {});
+    }, [recargar]),
+  );
+
   const porDia = useMemo(() => {
     const m = new Map<string, Comida[]>();
     for (const c of comidas) m.set(c.fecha, [...(m.get(c.fecha) ?? []), c]);
@@ -138,14 +158,14 @@ export default function Inicio() {
   const fotosPedidas = useRef<Set<number>>(new Set());
   useEffect(() => {
     const candidatas = proxima ? [proxima.comida, ...delDia] : delDia;
-    const sinFoto = [...new Set(candidatas.filter((c) => c.receta && !c.receta.imagen && !fotosPedidas.current.has(c.receta.id)).map((c) => c.receta!.id))];
+    const sinFoto = [...new Set(candidatas.filter((c) => faltaFoto(c.receta) && !fotosPedidas.current.has(c.receta!.id)).map((c) => c.receta!.id))];
     if (!sinFoto.length) return;
     sinFoto.forEach((id) => fotosPedidas.current.add(id));
     (async () => {
       for (const id of sinFoto) {
-        const url = await fotoReceta(id).catch(() => null);
-        if (!url || !activo.current) continue;
-        setComidas((prev) => prev.map((c) => (c.receta && c.receta.id === id ? { ...c, receta: { ...c.receta, imagen: url } } : c)));
+        const f = await pedirFoto(id);
+        if (!f || !activo.current) continue;
+        setComidas((prev) => prev.map((c) => (c.receta && c.receta.id === id ? { ...c, receta: { ...c.receta, imagen: f.imagen, imagen_mini: f.imagen_mini } } : c)));
       }
     })();
   }, [delDia, proxima]);

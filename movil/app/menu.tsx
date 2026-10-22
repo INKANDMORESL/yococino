@@ -5,9 +5,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aviso } from '../src/components';
-import { ErrorMenu, cambiarPlato, cargarComidas, fotoReceta, marcarHecha } from '../src/features/menu/api';
+import { ErrorMenu, cambiarPlato, cargarComidas, marcarHecha } from '../src/features/menu/api';
+import { faltaFoto, fotoPequena, pedirFoto } from '../src/features/menu/fotos';
 import { deISO, hoyISO, sumarDias } from '../src/features/menu/fechas';
 import { TIPOS, type Comida } from '../src/features/menu/tipos';
+import { guardarCache, leerCache } from '../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../src/theme';
 
 const DIAS = 30;
@@ -45,7 +47,7 @@ function FilaComida({
     <View style={s.comida}>
       <Pressable onPress={abrir} accessibilityRole="button" accessibilityLabel={`${t.texto}: ${comida.receta?.nombre ?? ''}. Ver receta`} style={s.comidaZona}>
         <View style={[s.miniatura, { backgroundColor: t.fondo }]}>
-          {comida.receta?.imagen ? <Image source={{ uri: comida.receta.imagen }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <Text style={{ fontSize: 20 }}>{t.emoji}</Text>}
+          {fotoPequena(comida.receta) ? <Image source={{ uri: fotoPequena(comida.receta)! }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <Text style={{ fontSize: 20 }}>{t.emoji}</Text>}
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.comidaTipo}>{t.texto}</Text>
@@ -78,7 +80,7 @@ export default function Menu() {
   const primerLunes = lunesDe(hoy);
   const ultimoLunes = lunesDe(sumarDias(hoy, DIAS - 1));
   const [lunes, setLunes] = useState(primerLunes);
-  const [comidas, setComidas] = useState<Comida[] | null>(null);
+  const [comidas, setComidas] = useState<Comida[] | null>(leerCache<Comida[]>('menu') ?? null);
   const [cambiando, setCambiando] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -94,6 +96,7 @@ export default function Menu() {
   const recargar = useCallback(async () => {
     try {
       const lista = await cargarComidas(primerLunes, sumarDias(hoy, DIAS - 1));
+      guardarCache('menu', lista);
       if (activo.current) setComidas(lista);
     } catch (e) {
       setError(e instanceof ErrorMenu ? e.message : 'No hemos podido cargar tu menú.');
@@ -123,7 +126,7 @@ export default function Menu() {
     const sinFoto = [
       ...new Set(
         deLaSemana
-          .filter((c) => c.fecha >= hoy && c.fecha <= limite && c.receta && !c.receta.imagen && !fotosPedidas.current.has(c.receta.id))
+          .filter((c) => c.fecha >= hoy && c.fecha <= limite && faltaFoto(c.receta) && !fotosPedidas.current.has(c.receta!.id))
           .map((c) => c.receta!.id),
       ),
     ];
@@ -131,9 +134,9 @@ export default function Menu() {
     sinFoto.forEach((id) => fotosPedidas.current.add(id));
     (async () => {
       for (const id of sinFoto) {
-        const url = await fotoReceta(id).catch(() => null);
-        if (!url || !activo.current) continue;
-        setComidas((prev) => (prev ?? []).map((c) => (c.receta && c.receta.id === id ? { ...c, receta: { ...c.receta, imagen: url } } : c)));
+        const f = await pedirFoto(id);
+        if (!f || !activo.current) continue;
+        setComidas((prev) => (prev ?? []).map((c) => (c.receta && c.receta.id === id ? { ...c, receta: { ...c.receta, imagen: f.imagen, imagen_mini: f.imagen_mini } } : c)));
       }
     })();
   }, [deLaSemana, hoy]);

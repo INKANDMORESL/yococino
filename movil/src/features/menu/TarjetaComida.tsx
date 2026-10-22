@@ -4,6 +4,7 @@ import { ActivityIndicator, Animated, Image, Pressable, StyleSheet, Text, View }
 import { useLatido } from '../../components/Animaciones';
 import { colors, radius, shadow, space } from '../../theme';
 import { kcalTexto } from './cantidades';
+import { fotoPequena } from './fotos';
 import { TIPOS, type Comida } from './tipos';
 
 export function TarjetaComida({
@@ -30,8 +31,8 @@ export function TarjetaComida({
     <View style={[s.tarjeta, siguiente && s.siguiente]}>
       <Pressable onPress={abrir} style={s.zona} accessibilityRole="button" accessibilityLabel={`${t.texto}: ${comida.receta?.nombre ?? ''}. Ver receta`}>
         <View style={[s.icono, { backgroundColor: t.fondo }]}>
-          {comida.receta?.imagen ? (
-            <Image source={{ uri: comida.receta.imagen }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          {fotoPequena(comida.receta) ? (
+            <Image source={{ uri: fotoPequena(comida.receta)! }} style={StyleSheet.absoluteFill} resizeMode="cover" />
           ) : (
             <Text style={{ fontSize: 26 }}>{t.emoji}</Text>
           )}

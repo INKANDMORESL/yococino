@@ -5,7 +5,8 @@ import { ActivityIndicator, Animated, Image, Platform, Pressable, ScrollView, St
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Saltar } from '../../src/components';
 import { useLatido } from '../../src/components/Animaciones';
-import { ErrorMenu, cambiarPlato, cargarComidas, cargarReceta, fotoReceta, marcarHecha } from '../../src/features/menu/api';
+import { ErrorMenu, cambiarPlato, cargarComidas, cargarReceta, marcarHecha } from '../../src/features/menu/api';
+import { faltaFoto, pedirFoto } from '../../src/features/menu/fotos';
 import { AsignarDia } from '../../src/features/menu/AsignarDia';
 import { CambiarIngrediente } from '../../src/features/menu/CambiarIngrediente';
 import { Peques } from '../../src/features/menu/Peques';
@@ -133,7 +134,7 @@ export default function RecetaPantalla() {
         if (!vivo) return;
         setReceta(r);
         setFoto(r.imagen);
-        if (!r.imagen) fotoReceta(r.id).then((u) => vivo && u && setFoto(u)).catch(() => {});
+        if (faltaFoto(r)) pedirFoto(r.id).then((f) => vivo && f?.imagen && setFoto(f.imagen)).catch(() => {});
         esFavorita(r.id).then((f) => vivo && setFavorita(f)).catch(() => {});
         pequesEnCasa().then((p) => vivo && setPeques(p)).catch(() => {});
         if (comidaParam) {

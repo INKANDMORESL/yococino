@@ -1,8 +1,9 @@
 // Animaciones reutilizables. Usan la API Animated de React Native, sin librerías extra.
 import { useEffect, useRef, type ReactNode } from 'react';
-import { AccessibilityInfo, Animated, Easing, type StyleProp, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, Platform, type StyleProp, type ViewStyle } from 'react-native';
 
-const nativo = true;
+// En la web no hay driver nativo: allí la animación va por JavaScript.
+const nativo = Platform.OS !== 'web';
 
 // Respeta la opción de accesibilidad "Reducir movimiento" del móvil.
 function useReducirMovimiento() {
@@ -22,7 +23,7 @@ export function Aparecer({
   children,
   retraso = 0,
   desde = 16,
-  duracion = 420,
+  duracion = 280,
   style,
 }: {
   children: ReactNode;
@@ -37,7 +38,7 @@ export function Aparecer({
     Animated.timing(v, {
       toValue: 1,
       duration: reducir.current ? 0 : duracion,
-      delay: reducir.current ? 0 : retraso,
+      delay: reducir.current ? 0 : Math.min(retraso, 160),
       easing: Easing.out(Easing.cubic),
       useNativeDriver: nativo,
     }).start();

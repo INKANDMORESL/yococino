@@ -6,8 +6,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Chip } from '../../src/components';
 import { ErrorMenu, buscarRecetas, type RecetaResumen } from '../../src/features/menu/api';
 import { kcalTexto } from '../../src/features/menu/cantidades';
+import { fotoPequena } from '../../src/features/menu/fotos';
 import { NIVEL, TIPOS, type TipoComida } from '../../src/features/menu/tipos';
 import { cargarFavoritas } from '../../src/features/perfil/api';
+import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../../src/theme';
 
 const FILTROS: { clave: string | null; texto: string }[] = [
@@ -23,8 +25,8 @@ const FILTROS: { clave: string | null; texto: string }[] = [
 export default function Recetas() {
   const [texto, setTexto] = useState('');
   const [filtro, setFiltro] = useState<string | null>(null);
-  const [recetas, setRecetas] = useState<RecetaResumen[] | null>(null);
-  const [favs, setFavs] = useState<{ id: number; nombre: string; tipo_comida: string }[]>([]);
+  const [recetas, setRecetas] = useState<RecetaResumen[] | null>(leerCache<RecetaResumen[]>('recetas:|') ?? null);
+  const [favs, setFavs] = useState<{ id: number; nombre: string; tipo_comida: string }[]>(leerCache('favoritas') ?? []);
   const favoritas = new Set(favs.map((f) => f.id));
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export default function Recetas() {
   useFocusEffect(
     useCallback(() => {
       cargarFavoritas()
-        .then(setFavs)
+        .then((f) => setFavs(guardarCache('favoritas', f)))
         .catch(() => {});
     }, []),
   );
@@ -41,13 +43,16 @@ export default function Recetas() {
   // Busca al dejar de escribir (con una pequeña espera) o al cambiar el filtro.
   useEffect(() => {
     const mio = ++turno.current;
+    const tipo = filtro && filtro !== 'favoritas' ? filtro : null;
+    const clave = `recetas:${texto.trim().toLowerCase()}|${tipo ?? ''}`;
+    const enMemoria = leerCache<RecetaResumen[]>(clave);
+    if (enMemoria) setRecetas(enMemoria);
     const t = setTimeout(
       async () => {
         setCargando(true);
         setError(null);
         try {
-          const tipo = filtro && filtro !== 'favoritas' ? filtro : null;
-          const r = await buscarRecetas(texto.trim(), tipo);
+          const r = guardarCache(clave, await buscarRecetas(texto.trim(), tipo));
           if (mio === turno.current) setRecetas(r);
         } catch (e) {
           if (mio === turno.current) setError(e instanceof ErrorMenu ? e.message : 'No hemos podido buscar recetas.');
@@ -55,7 +60,7 @@ export default function Recetas() {
           if (mio === turno.current) setCargando(false);
         }
       },
-      texto ? 400 : 250,
+      enMemoria ? 0 : texto ? 400 : 250,
     );
     return () => clearTimeout(t);
   }, [texto, filtro]);
@@ -133,7 +138,7 @@ export default function Recetas() {
                   style={s.tarjeta}
                 >
                   <View style={[s.foto, { backgroundColor: t.fondo }]}>
-                    {r.imagen ? <Image source={{ uri: r.imagen }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <Text style={{ fontSize: 30 }}>{t.emoji}</Text>}
+                    {fotoPequena(r) ? <Image source={{ uri: fotoPequena(r)! }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <Text style={{ fontSize: 30 }}>{t.emoji}</Text>}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.nombre} numberOfLines={2}>

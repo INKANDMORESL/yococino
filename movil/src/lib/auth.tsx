@@ -1,5 +1,6 @@
 // Sesión del usuario: registro, entrada con email o Google, y salida.
 import type { Session } from '@supabase/supabase-js';
+import { vaciarCache } from './cache';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -88,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (e2) throw e2;
       },
       async salir() {
+        vaciarCache();
         await supabase.auth.signOut();
       },
     }),

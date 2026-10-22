@@ -7,7 +7,7 @@ import { normalizar } from '../_shared/texto.ts';
 
 const TIPOS = ['desayuno', 'media_manana', 'almuerzo', 'merienda', 'cena'];
 const MAX_RESULTADOS = 60;
-const COLUMNAS = 'id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, alergenos, ingredientes(nombre, nota)';
+const COLUMNAS = 'id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini, alergenos, ingredientes(nombre, nota)';
 
 async function buscar(req: Request): Promise<Response> {
   const { usuario, admin } = crearClientes(req);
@@ -48,7 +48,7 @@ async function buscar(req: Request): Promise<Response> {
   const recetas = ((data ?? []) as unknown as (RecetaGuardada & Record<string, unknown>)[])
     .filter((r) => esApta(r, restr))
     .slice(0, MAX_RESULTADOS)
-    .map(({ id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen }) => ({ id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen }));
+    .map(({ id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini }) => ({ id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini }));
   return responder({ ok: true, recetas });
 }
 

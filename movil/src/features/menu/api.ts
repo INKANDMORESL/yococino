@@ -16,7 +16,7 @@ export class ErrorMenu extends Error {
 export async function cargarComidas(desde: string, hasta: string): Promise<Comida[]> {
   const { data, error } = await supabase
     .from('comidas')
-    .select('id, fecha, orden, tipo_comida, receta_id, factor, kcal, hecha, receta:recetas(id, nombre, minutos, descripcion, imagen)')
+    .select('id, fecha, orden, tipo_comida, receta_id, factor, kcal, hecha, receta:recetas(id, nombre, minutos, descripcion, imagen, imagen_mini)')
     .gte('fecha', desde)
     .lte('fecha', hasta)
     .order('fecha')
@@ -75,31 +75,21 @@ export const cambiarIngrediente = (recetaId: number, ingrediente: string, por: s
     'No hemos podido adaptar la receta.',
   );
 
-// Foto del plato: la genera el servidor la primera vez. Devuelve null si aún no hay (o no están activadas).
-export async function fotoReceta(recetaId: number): Promise<string | null> {
-  const { data, error } = await supabase.functions.invoke('foto-receta', { body: { receta_id: recetaId } });
-  if (error) return null;
-  return (data as { imagen?: string | null } | null)?.imagen ?? null;
-}
-
-export interface RecetaResumen {
-  id: number;
-  nombre: string;
-  descripcion: string | null;
-  tipo_comida: string;
-  nivel: 'facil' | 'medio' | 'elaborado';
-  minutos: number | null;
-  kcal: number | null;
+// Foto del plato (la genera o aligera el servidor la primera vez). Ver fotos.ts para la cola y la caché.
+export interface FotoReceta {
   imagen: string | null;
+  imagen_mini: string | null;
+  desactivadas?: boolean;
 }
-
-// Recetario: solo devuelve recetas aptas para la persona.
-export const buscarRecetas = (texto: string, tipo: string | null) =>
-  llamar<{ recetas: RecetaResumen[] }>('buscar-recetas', { texto, tipo }, 'No hemos podido buscar recetas.').then((r) => r.recetas);
-
-// Pone una receta en un día y una comida del menú.
-export const asignarReceta = (recetaId: number, fecha: string, tipoComida: string) =>
-  llamar<{ comida_id: number }>('asignar-receta', { receta_id: recetaId, fecha, tipo_comida: tipoComida }, 'No hemos podido añadirla a tu menú.');
+export async function fotoReceta(recetaId: number): Promise<FotoReceta> {
+  const { data, error } = await supabase.functions.invoke('foto-receta', { body: { receta_id: recetaId } });
+  if (error) {
+    const cuerpo = error instanceof FunctionsHttpError ? await error.context.json().catch(() => null) : null;
+    return { imagen: null, imagen_mini: null, desactivadas: cuerpo?.error === 'foto_no_configurada' };
+  }
+  const d = (data ?? {}) as { imagen?: string | null; imagen_mini?: string | null };
+  return { imagen: d.imagen ?? null, imagen_mini: d.imagen_mini ?? d.imagen ?? null };
+}
 
 // Crea una receta con lo que hay en casa.
 export const cocinarCon = (ingredientes: string[], tipo: string) =>

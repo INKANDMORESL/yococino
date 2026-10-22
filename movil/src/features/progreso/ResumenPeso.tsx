@@ -3,20 +3,21 @@ import { router, useFocusEffect, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Tarjeta } from '../../components';
+import { guardarCache, leerCache } from '../../lib/cache';
 import { colors, radius, space, type } from '../../theme';
 import { cargarProgreso, type PerfilPeso, type Peso } from './api';
 import { kg, resumen } from './calculos';
 import { Grafica } from './Grafica';
 
 export function ResumenPeso() {
-  const [datos, setDatos] = useState<{ pesos: Peso[]; perfil: PerfilPeso | null } | null>(null);
+  const [datos, setDatos] = useState<{ pesos: Peso[]; perfil: PerfilPeso | null } | null>(leerCache('resumen-peso') ?? null);
 
   useFocusEffect(
     useCallback(() => {
       // Se carga un poco después para no frenar la animación al cambiar de pestaña.
       const t = setTimeout(() => {
         cargarProgreso(null)
-          .then((d) => setDatos({ pesos: d.pesos, perfil: d.perfil }))
+          .then((d) => setDatos(guardarCache('resumen-peso', { pesos: d.pesos, perfil: d.perfil })))
           .catch(() => {});
       }, 300);
       return () => clearTimeout(t);

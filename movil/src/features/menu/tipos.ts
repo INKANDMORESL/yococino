@@ -41,6 +41,7 @@ export interface Receta {
   alergenos: string[];
   etiquetas: string[];
   imagen: string | null;
+  imagen_mini?: string | null;
   ingredientes: Ingrediente[];
 }
 
@@ -53,7 +54,7 @@ export interface Comida {
   factor: number;
   kcal: number | null;
   hecha: boolean;
-  receta: { id: number; nombre: string; minutos: number | null; descripcion: string | null; imagen: string | null } | null;
+  receta: { id: number; nombre: string; minutos: number | null; descripcion: string | null; imagen: string | null; imagen_mini?: string | null } | null;
 }
 
 export const NOMBRE_ALERGENO: Record<string, string> = {

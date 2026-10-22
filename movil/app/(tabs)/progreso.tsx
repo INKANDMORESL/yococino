@@ -1,6 +1,7 @@
 // Progreso: peso, tendencia semanal hacia el objetivo y medidas corporales, de la persona de la cuenta y de su familia.
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
+import { guardarCache, leerCache } from '../../src/lib/cache';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Campo, Chip, Tarjeta } from '../../src/components';
@@ -33,10 +34,12 @@ const numero = (t: string) => {
 
 export default function Progreso() {
   const { sesion } = useAuth();
-  const [pesos, setPesos] = useState<Peso[]>([]);
-  const [medidas, setMedidas] = useState<Medida[]>([]);
-  const [perfilPropio, setPerfilPropio] = useState<PerfilPeso | null>(null);
-  const [miembros, setMiembros] = useState<Miembro[]>([]);
+  type Guardado = { pesos: Peso[]; medidas: Medida[]; perfil: PerfilPeso | null; miembros: Miembro[] };
+  const previo = leerCache<Guardado>('progreso:yo');
+  const [pesos, setPesos] = useState<Peso[]>(previo?.pesos ?? []);
+  const [medidas, setMedidas] = useState<Medida[]>(previo?.medidas ?? []);
+  const [perfilPropio, setPerfilPropio] = useState<PerfilPeso | null>(previo?.perfil ?? null);
+  const [miembros, setMiembros] = useState<Miembro[]>(previo?.miembros ?? []);
   const [persona, setPersona] = useState<number | null>(null);
   const [anadiendo, setAnadiendo] = useState(false);
   const [confirmarQuitar, setConfirmarQuitar] = useState(false);
@@ -54,6 +57,7 @@ export default function Progreso() {
   const cargar = useCallback(async () => {
     try {
       const [d, fam] = await Promise.all([cargarProgreso(persona), cargarMiembros()]);
+      guardarCache(`progreso:${persona ?? 'yo'}`, { pesos: d.pesos, medidas: d.medidas, perfil: d.perfil, miembros: fam });
       setPesos(d.pesos);
       setMedidas(d.medidas);
       setPerfilPropio(d.perfil);
@@ -73,8 +77,9 @@ export default function Progreso() {
     setNuevoPeso('');
     setNota('');
     setNuevasMedidas({});
-    setPesos([]);
-    setMedidas([]);
+    const enMemoria = leerCache<{ pesos: Peso[]; medidas: Medida[] }>(`progreso:${id ?? 'yo'}`);
+    setPesos(enMemoria?.pesos ?? []);
+    setMedidas(enMemoria?.medidas ?? []);
     setPersona(id);
   };
 

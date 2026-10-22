@@ -14,6 +14,7 @@ import { PasoSalud } from '../../src/features/encuesta/pasos/PasoSalud';
 import { TIPOS, type TipoComida } from '../../src/features/menu/tipos';
 import { aEncuesta, borrarCuenta, cargarFavoritas, cargarPerfil, guardarPreferencias } from '../../src/features/perfil/api';
 import { useAuth } from '../../src/lib/auth';
+import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../../src/theme';
 
 type Seccion = 'objetivo' | 'actividad' | 'salud' | 'gustos' | 'cocina' | 'casa';
@@ -41,10 +42,11 @@ function resumenSeccion(c: Seccion, e: Encuesta): string {
 
 export default function Perfil() {
   const { sesion, salir } = useAuth();
-  const [original, setOriginal] = useState<Encuesta | null>(null);
-  const [e, setE] = useState<Encuesta | null>(null);
+  const previo = leerCache<{ enc: Encuesta | null; favs: { id: number; nombre: string; tipo_comida: string }[] }>('perfil');
+  const [original, setOriginal] = useState<Encuesta | null>(previo?.enc ?? null);
+  const [e, setE] = useState<Encuesta | null>(previo?.enc ?? null);
   const [abierta, setAbierta] = useState<Seccion | null>(null);
-  const [favoritas, setFavoritas] = useState<{ id: number; nombre: string; tipo_comida: string }[]>([]);
+  const [favoritas, setFavoritas] = useState<{ id: number; nombre: string; tipo_comida: string }[]>(previo?.favs ?? []);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -56,8 +58,9 @@ export default function Perfil() {
       (async () => {
         try {
           const [{ perfil, pesoActual }, favs] = await Promise.all([cargarPerfil(), cargarFavoritas()]);
-          if (perfil) {
-            const enc = aEncuesta(perfil, pesoActual);
+          const enc = perfil ? aEncuesta(perfil, pesoActual) : null;
+          guardarCache('perfil', { enc, favs });
+          if (enc) {
             setOriginal(enc);
             setE(enc);
           }
