@@ -1,7 +1,7 @@
 // Receta paso a paso, con las cantidades ajustadas a la ración de la persona.
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Platform, Pressable, ScrollView, StyleSheet, Text, Vibration, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Saltar } from '../../src/components';
 import { useLatido } from '../../src/components/Animaciones';
@@ -9,9 +9,40 @@ import { ErrorMenu, cargarComidas, cargarReceta, marcarHecha } from '../../src/f
 import { anadirNoMeGusta, cambiarFavorita, esFavorita } from '../../src/features/perfil/api';
 import { useAuth } from '../../src/lib/auth';
 import { cantidadTexto } from '../../src/features/menu/cantidades';
+import { relojTexto, tiempoDelPaso } from '../../src/features/menu/temporizador';
 import { hoyISO, sumarDias } from '../../src/features/menu/fechas';
 import { NIVEL, NOMBRE_ALERGENO, TIPOS, type Comida, type Receta } from '../../src/features/menu/tipos';
 import { colors, radius, shadow, space, type } from '../../src/theme';
+
+// Aviso al terminar un temporizador: vibración en el móvil y un pitido en la web.
+function avisarFin() {
+  Vibration.vibrate([0, 600, 250, 600, 250, 600]);
+  if (Platform.OS !== 'web') return;
+  try {
+    const Ctx = (globalThis as { AudioContext?: new () => AudioContext }).AudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    [0, 0.45, 0.9].forEach((t) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.frequency.value = 880;
+      g.gain.setValueAtTime(0.25, ctx.currentTime + t);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.35);
+      o.connect(g).connect(ctx.destination);
+      o.start(ctx.currentTime + t);
+      o.stop(ctx.currentTime + t + 0.4);
+    });
+  } catch {
+    // Sin sonido disponible: basta con el aviso en pantalla.
+  }
+}
+
+interface Temporizador {
+  total: number; // segundos
+  fin: number | null; // marca de tiempo en ms; null si está en pausa
+  restante: number; // segundos que quedaban al pausar
+  terminado: boolean;
+}
 
 function Marca({ hecha }: { hecha: boolean }) {
   const escala = useLatido(hecha);
@@ -33,6 +64,57 @@ export default function RecetaPantalla() {
   const [noGusta, setNoGusta] = useState<Set<string>>(new Set());
   const [aviso, setAviso] = useState<string | null>(null);
   const { sesion } = useAuth();
+  const [temporizadores, setTemporizadores] = useState<Map<number, Temporizador>>(new Map());
+  const [ahora, setAhora] = useState(Date.now());
+  const avisados = useRef<Set<number>>(new Set());
+
+  // Mientras haya algún temporizador en marcha, se actualiza cada segundo.
+  const enMarcha = [...temporizadores.values()].some((t) => t.fin !== null && !t.terminado);
+  useEffect(() => {
+    if (!enMarcha) return;
+    const id = setInterval(() => setAhora(Date.now()), 500);
+    return () => clearInterval(id);
+  }, [enMarcha]);
+
+  const restante = (t: Temporizador) => (t.fin === null ? t.restante : Math.max(0, (t.fin - ahora) / 1000));
+
+  // Al llegar a cero: aviso una sola vez.
+  useEffect(() => {
+    let cambio = false;
+    const nuevo = new Map(temporizadores);
+    for (const [paso, t] of temporizadores) {
+      if (!t.terminado && t.fin !== null && t.fin <= ahora) {
+        nuevo.set(paso, { ...t, terminado: true, restante: 0 });
+        cambio = true;
+        if (!avisados.current.has(paso)) {
+          avisados.current.add(paso);
+          avisarFin();
+          setAviso(`⏰ ¡Tiempo! Paso ${paso + 1} listo.`);
+        }
+      }
+    }
+    if (cambio) setTemporizadores(nuevo);
+  }, [ahora, temporizadores]);
+
+  const iniciar = (paso: number, segundos: number) => {
+    avisados.current.delete(paso);
+    setAhora(Date.now());
+    setTemporizadores(new Map(temporizadores).set(paso, { total: segundos, fin: Date.now() + segundos * 1000, restante: segundos, terminado: false }));
+  };
+  const pausar = (paso: number) => {
+    const t = temporizadores.get(paso);
+    if (!t) return;
+    const nuevo = new Map(temporizadores);
+    if (t.fin === null) nuevo.set(paso, { ...t, fin: Date.now() + t.restante * 1000 });
+    else nuevo.set(paso, { ...t, fin: null, restante: restante(t) });
+    setAhora(Date.now());
+    setTemporizadores(nuevo);
+  };
+  const cancelar = (paso: number) => {
+    const nuevo = new Map(temporizadores);
+    nuevo.delete(paso);
+    setTemporizadores(nuevo);
+  };
 
   useEffect(() => {
     let vivo = true;
@@ -133,6 +215,8 @@ export default function RecetaPantalla() {
   }
 
   const t = TIPOS[receta.tipo_comida] ?? TIPOS.otro;
+  const activos = [...temporizadores.entries()].filter(([, x]) => x.fin !== null || x.terminado);
+  const proximo = activos.find(([, x]) => x.terminado) ?? activos.sort((a, b) => restante(a[1]) - restante(b[1]))[0];
   const meta = [t.texto, receta.minutos ? `${receta.minutos} min` : null, NIVEL[receta.nivel], nutricion[0] ? `${nutricion[0][1]} kcal` : null].filter(
     Boolean,
   ) as string[];
@@ -141,19 +225,6 @@ export default function RecetaPantalla() {
     <View style={s.pantalla}>
       <ScrollView contentContainerStyle={{ paddingBottom: comida ? 120 : space.xxl }}>
         <View style={[s.portada, { backgroundColor: t.fondo }]}>
-          <SafeAreaView edges={['top']} style={s.barra}>
-            <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Volver" style={s.volver}>
-              <Text style={s.flecha}>‹</Text>
-            </Pressable>
-            <Pressable
-              onPress={alternarFavorita}
-              accessibilityRole="button"
-              accessibilityLabel={favorita ? 'Quitar de favoritas' : 'Guardar en favoritas'}
-              style={s.volver}
-            >
-              <Text style={[s.corazon, favorita && { color: colors.rose }]}>{favorita ? '♥' : '♡'}</Text>
-            </Pressable>
-          </SafeAreaView>
           <Saltar>
             <Text style={s.emoji}>{t.emoji}</Text>
           </Saltar>
@@ -203,6 +274,8 @@ export default function RecetaPantalla() {
             <View style={{ gap: space.md }}>
               {receta.pasos.map((paso, i) => {
                 const hecho = pasosHechos.has(i);
+                const tiempo = tiempoDelPaso(paso);
+                const reloj = temporizadores.get(i);
                 return (
                   <Pressable
                     key={i}
@@ -215,7 +288,35 @@ export default function RecetaPantalla() {
                       <Text style={s.pasoEtiqueta}>Paso</Text>
                       <Text style={s.pasoNumero}>{i + 1}</Text>
                     </View>
-                    <Text style={s.pasoTexto}>{paso}</Text>
+                    <View style={{ flex: 1, gap: space.md }}>
+                      <Text style={s.pasoTexto}>{paso}</Text>
+                      {tiempo ? (
+                        reloj ? (
+                          <View style={[s.reloj, reloj.terminado && s.relojFin]}>
+                            <Text style={[s.relojNumero, reloj.terminado && { color: '#fff' }]}>
+                              {reloj.terminado ? '⏰ ¡Listo!' : relojTexto(restante(reloj))}
+                            </Text>
+                            {!reloj.terminado ? (
+                              <Pressable onPress={() => pausar(i)} accessibilityRole="button" hitSlop={6} style={s.relojBoton}>
+                                <Text style={s.relojBotonTexto}>{reloj.fin === null ? 'Seguir' : 'Pausa'}</Text>
+                              </Pressable>
+                            ) : null}
+                            <Pressable onPress={() => cancelar(i)} accessibilityRole="button" hitSlop={6} style={s.relojBoton}>
+                              <Text style={s.relojBotonTexto}>{reloj.terminado ? 'Cerrar' : 'Parar'}</Text>
+                            </Pressable>
+                          </View>
+                        ) : (
+                          <Pressable
+                            onPress={() => iniciar(i, tiempo.segundos)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Iniciar temporizador de ${tiempo.texto}`}
+                            style={s.iniciar}
+                          >
+                            <Text style={s.iniciarTexto}>⏱ Iniciar {tiempo.texto}</Text>
+                          </Pressable>
+                        )
+                      ) : null}
+                    </View>
                     <Marca hecha={hecho} />
                   </Pressable>
                 );
@@ -303,6 +404,27 @@ export default function RecetaPantalla() {
         </View>
       </ScrollView>
 
+      <SafeAreaView edges={['top']} style={[s.barra, { pointerEvents: 'box-none' }]}>
+        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Volver" style={s.volver}>
+          <Text style={s.flecha}>‹</Text>
+        </Pressable>
+        {proximo ? (
+          <View style={[s.relojFlotante, proximo[1].terminado && { backgroundColor: colors.rose }]} accessibilityLiveRegion="polite">
+            <Text style={s.relojFlotanteTexto}>
+              {proximo[1].terminado ? `⏰ Paso ${proximo[0] + 1} listo` : `⏱ ${relojTexto(restante(proximo[1]))} · Paso ${proximo[0] + 1}`}
+            </Text>
+          </View>
+        ) : null}
+        <Pressable
+          onPress={alternarFavorita}
+          accessibilityRole="button"
+          accessibilityLabel={favorita ? 'Quitar de favoritas' : 'Guardar en favoritas'}
+          style={s.volver}
+        >
+          <Text style={[s.corazon, favorita && { color: colors.rose }]}>{favorita ? '♥' : '♡'}</Text>
+        </Pressable>
+      </SafeAreaView>
+
       {comida ? (
         <SafeAreaView edges={['bottom']} style={s.pie}>
           <Boton texto={comida.hecha ? '✓ Hecha' : 'Marcar como hecha'} variante={comida.hecha ? 'suave' : 'principal'} onPress={marcarComida} />
@@ -316,7 +438,16 @@ const s = StyleSheet.create({
   pantalla: { flex: 1, backgroundColor: colors.bg },
   centro: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: space.xl, gap: space.lg },
   portada: { height: 260, alignItems: 'center', justifyContent: 'center' },
-  barra: { position: 'absolute', top: 0, left: 0, right: 0, padding: space.lg, flexDirection: 'row', justifyContent: 'space-between' },
+  barra: { position: 'absolute', top: 0, left: 0, right: 0, padding: space.lg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  relojFlotante: { backgroundColor: colors.ink, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 16, ...shadow },
+  relojFlotanteTexto: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  iniciar: { alignSelf: 'flex-start', backgroundColor: colors.leaf, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 16 },
+  iniciarTexto: { color: colors.oliveInk, fontWeight: '700', fontSize: 15 },
+  reloj: { flexDirection: 'row', alignItems: 'center', gap: space.sm, alignSelf: 'flex-start', backgroundColor: colors.lemonSoft, borderRadius: radius.pill, paddingVertical: 6, paddingLeft: 16, paddingRight: 6 },
+  relojFin: { backgroundColor: colors.rose },
+  relojNumero: { fontSize: 22, fontWeight: '800', color: colors.ink, fontVariant: ['tabular-nums'], minWidth: 70 },
+  relojBoton: { backgroundColor: colors.surface, borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: 12 },
+  relojBotonTexto: { fontWeight: '700', fontSize: 14, color: colors.ink },
   corazon: { fontSize: 22, color: colors.ink },
   volver: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow },
   flecha: { fontSize: 28, lineHeight: 30, color: colors.ink, marginTop: -2 },
@@ -340,7 +471,7 @@ const s = StyleSheet.create({
   paso: { flexDirection: 'row', gap: space.lg, alignItems: 'flex-start', backgroundColor: colors.surface, borderRadius: radius.lg, padding: space.lg, ...shadow },
   pasoEtiqueta: { fontSize: 13, fontWeight: '700', color: colors.olive },
   pasoNumero: { fontSize: 32, fontWeight: '800', color: colors.ink, lineHeight: 36 },
-  pasoTexto: { flex: 1, fontSize: 19, lineHeight: 27, color: colors.ink },
+  pasoTexto: { fontSize: 19, lineHeight: 27, color: colors.ink },
   nota: { borderRadius: radius.md, padding: space.lg },
   nutricion: { flexDirection: 'row', gap: space.sm },
   dato: { flex: 1, alignItems: 'center', paddingVertical: space.md, borderRadius: radius.sm, borderWidth: 1.5, borderColor: colors.line, backgroundColor: colors.surface },
