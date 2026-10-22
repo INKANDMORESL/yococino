@@ -1,5 +1,6 @@
 // Lectura y escritura del menú en Supabase.
 import { FunctionsHttpError } from '@supabase/supabase-js';
+import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import type { Comida, Receta } from './tipos';
 
@@ -45,6 +46,8 @@ export interface ResultadoPreparar {
   creados: string[];
   pendientes: number;
   kcal_dia?: number;
+  plan?: 'premium' | 'prueba' | 'caducada';
+  fin_prueba?: string | null;
 }
 
 // Llama a una función del servidor y convierte sus errores en mensajes para la persona.
@@ -53,6 +56,8 @@ async function llamar<T>(nombre: string, body: Record<string, unknown>, porDefec
   if (error) {
     if (error instanceof FunctionsHttpError) {
       const cuerpo = await error.context.json().catch(() => null);
+      // Fuera de la prueba gratis: salta la pantalla de suscripción.
+      if (cuerpo?.error === 'suscripcion') router.push('/suscripcion');
       throw new ErrorMenu(cuerpo?.mensaje ?? porDefecto, cuerpo?.error ?? 'servidor', cuerpo?.detalle);
     }
     throw new ErrorMenu('No hay conexión con el servidor. Revisa tu Internet.', 'red');

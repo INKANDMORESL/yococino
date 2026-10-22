@@ -222,6 +222,22 @@ export default function Perfil() {
         <Aparecer retraso={180}>
           <Text style={s.titulo}>Cuenta</Text>
           <View style={{ gap: space.md }}>
+            <View style={s.caja}>
+              <Pressable onPress={() => router.push('/suscripcion')} accessibilityRole="button" style={s.fila}>
+                <View style={s.icono}>
+                  <Text style={{ fontSize: 18 }}>✨</Text>
+                </View>
+                <Text style={[s.filaTitulo, { flex: 1 }]}>Mi suscripción</Text>
+                <Text style={s.chevron}>›</Text>
+              </Pressable>
+              <Pressable onPress={() => router.push('/tutorial')} accessibilityRole="button" style={[s.fila, s.separador]}>
+                <View style={s.icono}>
+                  <Text style={{ fontSize: 18 }}>🧭</Text>
+                </View>
+                <Text style={[s.filaTitulo, { flex: 1 }]}>Ver el paso a paso de la app</Text>
+                <Text style={s.chevron}>›</Text>
+              </Pressable>
+            </View>
             <Boton texto="Cerrar sesión" variante="linea" onPress={salir} />
             {!confirmarBorrado ? (
               <Pressable onPress={() => setConfirmarBorrado(true)} accessibilityRole="button" style={s.enlaceBorrar}>

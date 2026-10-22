@@ -10,6 +10,7 @@ import { faltaFoto, fotoPequena, pedirFoto } from '../src/features/menu/fotos';
 import { deISO, hoyISO, sumarDias } from '../src/features/menu/fechas';
 import { TIPOS, type Comida } from '../src/features/menu/tipos';
 import { guardarCache, leerCache } from '../src/lib/cache';
+import { fueraDelPlan, usePlan } from '../src/features/plan/plan';
 import { colors, radius, shadow, space, type } from '../src/theme';
 
 const DIAS = 30;
@@ -85,6 +86,7 @@ export default function Menu() {
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const activo = useRef(true);
+  const plan = usePlan();
 
   useEffect(() => {
     activo.current = true;
@@ -220,6 +222,18 @@ export default function Menu() {
             const lista = porDia.get(d) ?? [];
             const esHoy = d === hoy;
             const pasado = d < hoy;
+            if (fueraDelPlan(plan, d) && !lista.length) {
+              return (
+                <Pressable key={d} onPress={() => router.push('/suscripcion')} accessibilityRole="button" style={[s.dia, s.bloqueado]}>
+                  <View style={s.diaTitulo}>
+                    <Text style={s.diaNombre}>{NOMBRES[i]}</Text>
+                    <Text style={s.diaNumero}>{deISO(d).getDate()}</Text>
+                    <Text style={{ fontSize: 16 }}>🔒</Text>
+                  </View>
+                  <Text style={[type.small, { paddingVertical: space.xs }]}>Con la suscripción tienes el menú del mes entero. Toca para verla.</Text>
+                </Pressable>
+              );
+            }
             return (
               <View key={d} style={[s.dia, esHoy && s.diaHoy, pasado && { opacity: 0.6 }]}>
                 <View style={s.diaTitulo}>
@@ -266,6 +280,7 @@ const s = StyleSheet.create({
   contenido: { paddingHorizontal: space.xl, paddingBottom: space.xxl, gap: space.md },
   dia: { backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md, ...shadow },
   diaHoy: { borderWidth: 2, borderColor: colors.olive },
+  bloqueado: { backgroundColor: colors.leafSoft, shadowOpacity: 0, elevation: 0 },
   diaTitulo: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm, marginBottom: space.xs },
   diaNombre: { fontSize: 17, fontWeight: '700', color: colors.ink },
   diaNumero: { fontSize: 15, color: colors.muted, flex: 1 },

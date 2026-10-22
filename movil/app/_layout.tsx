@@ -23,6 +23,8 @@ export default function Layout() {
             <Stack.Screen name="auth" options={{ animation: 'fade' }} />
             <Stack.Screen name="cocinar" options={{ animation: 'slide_from_bottom' }} />
             <Stack.Screen name="menu" />
+            <Stack.Screen name="tutorial" options={{ animation: 'fade', gestureEnabled: false }} />
+            <Stack.Screen name="suscripcion" options={{ animation: 'slide_from_bottom' }} />
           </Stack>
         </EncuestaProvider>
       </AuthProvider>

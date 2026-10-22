@@ -16,6 +16,9 @@ import type { Comida } from '../../src/features/menu/tipos';
 import { useAuth } from '../../src/lib/auth';
 import { guardarEncuestaPendiente } from '../../src/lib/perfil';
 import { guardarCache, leerCache } from '../../src/lib/cache';
+import { tutorialVisto } from '../../src/lib/tutorial';
+import { AvisoPlan } from '../../src/features/plan/AvisoPlan';
+import { fueraDelPlan, usePlan } from '../../src/features/plan/plan';
 import { colors, radius, space, type } from '../../src/theme';
 
 const DIAS = 30;
@@ -46,6 +49,11 @@ export default function Inicio() {
   const [cambiando, setCambiando] = useState<number | null>(null);
   const [avisoCambio, setAvisoCambio] = useState<string | null>(null);
   const activo = useRef(true);
+  const plan = usePlan();
+  // Días que incluye su plan (en la prueba gratis, solo 7).
+  const diasPlan = useMemo(() => dias.filter((d) => !fueraDelPlan(plan, d)), [dias, plan]);
+  const planRef = useRef(plan);
+  planRef.current = plan;
   const enMarcha = useRef(false);
 
   useEffect(() => {
@@ -75,7 +83,7 @@ export default function Inicio() {
           const r = await prepararMenu(lote);
           fallosSeguidos = 0;
           await recargar();
-          if (r.pendientes === 0) break;
+          if (r.pendientes === 0 || r.plan === 'caducada') break;
           lote = 2;
         } catch (e) {
           const codigo = e instanceof ErrorMenu ? e.codigo : 'red';
@@ -120,8 +128,10 @@ export default function Inicio() {
         setNombre((perfil.nombre || meta?.full_name || meta?.name || '').trim().split(' ')[0] || null);
         const lista = await recargar();
         setEstado({ tipo: 'listo' });
+        if (!(await tutorialVisto())) router.push('/tutorial');
         const conMenu = new Set(lista.map((c) => c.fecha));
-        if (dias.some((d) => !conMenu.has(d))) completarMes();
+        const p = planRef.current;
+        if (p?.estado !== 'caducada' && dias.some((d) => !fueraDelPlan(p, d) && !conMenu.has(d))) completarMes();
       } catch (e) {
         setEstado({ tipo: 'listo' });
         setError(e instanceof Error ? e.message : 'No hemos podido cargar tu menú.');
@@ -205,7 +215,7 @@ export default function Inicio() {
     try {
       const lista = await recargar();
       const conMenu = new Set(lista.map((c) => c.fecha));
-      if (dias.some((d) => !conMenu.has(d))) completarMes();
+      if (plan?.estado !== 'caducada' && diasPlan.some((d) => !conMenu.has(d))) completarMes();
     } finally {
       setRefrescando(false);
     }
@@ -259,7 +269,8 @@ export default function Inicio() {
         </Aparecer>
 
         <View style={s.contenido}>
-          {preparando ? <PreparandoMenu listos={listos.size} total={DIAS} /> : null}
+          <AvisoPlan plan={plan} />
+          {preparando ? <PreparandoMenu listos={Math.min(listos.size, diasPlan.length)} total={diasPlan.length} /> : null}
           {error ? <Aviso tono="rosa" texto={error} /> : null}
           {error && !preparando ? <Boton texto="Reintentar" variante="suave" onPress={completarMes} /> : null}
 
