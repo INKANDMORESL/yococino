@@ -13,3 +13,4 @@
 - Menú: Edge Function `preparar-menu` (Deno). Reglas puras en `supabase/functions/_shared/` con pruebas en `reglas_test.ts` (se ejecutan en GitHub con `deno test`). Recetas compartidas (ración estándar) + `comidas.factor` por persona. Secreto en Supabase: `ANTHROPIC_API_KEY`. A la IA no se envían datos personales.
 - Límites nutricionales en la tabla `ajustes_nutricion` (pendientes de validar por un dietista-nutricionista).
 - Fotos de los platos (pendiente): realistas, como cocinadas de verdad en casa, pero bonitas. Luz natural, textura real (dorados, salsa, migas, vapor), emplatado cuidado sin parecer de estudio ni artificial. Una foto por receta compartida, generada una sola vez.
+- Por ahora todos los usuarios ven la versión premium completa (decisión del dueño). El plan gratuito y los pagos se harán más adelante.

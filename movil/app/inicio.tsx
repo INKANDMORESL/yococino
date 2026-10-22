@@ -72,7 +72,9 @@ export default function Inicio() {
           lote = 4;
         } catch (e) {
           const codigo = e instanceof ErrorMenu ? e.codigo : 'red';
-          const mensaje = e instanceof Error ? e.message : 'No hemos podido preparar tu menú.';
+          const base = e instanceof Error ? e.message : 'No hemos podido preparar tu menú.';
+          const detalle = e instanceof ErrorMenu && e.detalle ? `\n\nDetalle técnico: ${e.detalle}` : '';
+          const mensaje = base + detalle;
           if (codigo === 'sin_encuesta') {
             setEstado({ tipo: 'sin_encuesta' });
             break;

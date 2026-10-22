@@ -5,9 +5,11 @@ import type { Comida, Receta } from './tipos';
 
 export class ErrorMenu extends Error {
   readonly codigo: string;
-  constructor(mensaje: string, codigo: string) {
+  readonly detalle?: string;
+  constructor(mensaje: string, codigo: string, detalle?: string) {
     super(mensaje);
     this.codigo = codigo;
+    this.detalle = detalle;
   }
 }
 
@@ -51,7 +53,7 @@ export async function prepararMenu(dias: number): Promise<ResultadoPreparar> {
   if (error) {
     if (error instanceof FunctionsHttpError) {
       const cuerpo = await error.context.json().catch(() => null);
-      throw new ErrorMenu(cuerpo?.mensaje ?? 'No hemos podido preparar tu menú.', cuerpo?.error ?? 'servidor');
+      throw new ErrorMenu(cuerpo?.mensaje ?? 'No hemos podido preparar tu menú.', cuerpo?.error ?? 'servidor', cuerpo?.detalle);
     }
     throw new ErrorMenu('No hay conexión con el servidor. Revisa tu Internet.', 'red');
   }

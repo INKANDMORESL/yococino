@@ -63,7 +63,12 @@ const CORS = {
 const responder = (cuerpo: unknown, estado = 200) =>
   new Response(JSON.stringify(cuerpo), { status: estado, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-const fallo = (estado: number, error: string, mensaje: string) => responder({ error, mensaje }, estado);
+// `detalle` es técnico y nunca incluye datos de la persona: sirve para diagnosticar.
+const fallo = (estado: number, error: string, mensaje: string, detalle?: string) =>
+  responder({ error, mensaje, ...(detalle ? { detalle: detalle.slice(0, 300) } : {}) }, estado);
+
+const mensajeTecnico = (e: unknown) =>
+  e instanceof Error ? e.message : (e as { message?: string })?.message ?? String(e);
 
 // ---------- Fechas (zona horaria de España) ----------
 
@@ -330,7 +335,7 @@ async function guardarReceta(admin: Cliente, r: RecetaIA, tipo: TipoComida, rest
         consejos: listaTextos(r.consejos, 3, 300),
         sustituciones: listaTextos(r.sustituciones, 3, 300),
         nutricion,
-        kcal: nutricion.kcal,
+        kcal: nutricion.kcal === null ? null : Math.round(nutricion.kcal),
         alergenos: (r.alergenos ?? []).filter((a) => (ALERGENOS_UE as readonly string[]).includes(a)),
         etiquetas: listaTextos(r.etiquetas, 6, 30),
         modelo: MODELO_RECETA,
@@ -355,7 +360,7 @@ async function guardarReceta(admin: Cliente, r: RecetaIA, tipo: TipoComida, rest
       id: data.id,
       nombre,
       tipo_comida: tipo,
-      kcal: nutricion.kcal,
+      kcal: nutricion.kcal === null ? null : Math.round(nutricion.kcal),
       alergenos: r.alergenos ?? [],
       ingredientes: ingredientes.map((i) => ({ nombre: i.nombre, nota: i.nota })),
     };
@@ -564,12 +569,14 @@ ${lineasCatalogo}`;
     }
   }
   const porCrear = [...nuevas.entries()].filter(([clave]) => !resueltas.has(clave));
+  const errores: string[] = [];
   const creadas = await enParalelo(porCrear, RECETAS_EN_PARALELO, async ([clave, p]) => {
     try {
       return [clave, await crearReceta(admin, p.plato, p.descripcion, p.tipo, nivel, restr)] as const;
     } catch (e) {
       if (e instanceof ErrorIA && e.noConfigurada) throw e;
-      console.error('receta no creada:', e instanceof Error ? e.message : 'error');
+      errores.push(mensajeTecnico(e));
+      console.error('receta no creada:', mensajeTecnico(e));
       return [clave, null] as const;
     }
   });
@@ -601,7 +608,8 @@ ${lineasCatalogo}`;
     if (error) throw error;
   }
   if (creados.length === 0) {
-    return fallo(502, 'ia', 'No hemos podido preparar estos días. Vuelve a intentarlo en un momento.');
+    const detalle = errores[0] ?? (porCrear.length ? 'ninguna receta superó la revisión de alergias' : 'la IA no devolvió las comidas pedidas');
+    return fallo(502, 'ia', 'No hemos podido preparar estos días. Vuelve a intentarlo en un momento.', detalle);
   }
   return responder({ ok: true, creados, pendientes: faltan.length - creados.length, kcal_dia: energia.kcal });
 }
@@ -616,9 +624,11 @@ Deno.serve(async (req) => {
       console.error('preparar-menu: IA no configurada:', e.message);
       return fallo(503, 'ia_no_configurada', 'El generador de menús aún no está activado. Vuelve a intentarlo más tarde.');
     }
-    if (e instanceof ErrorIA) return fallo(502, 'ia', 'No hemos podido preparar estos días. Vuelve a intentarlo en un momento.');
+    if (e instanceof ErrorIA) {
+      return fallo(502, 'ia', 'No hemos podido preparar estos días. Vuelve a intentarlo en un momento.', e.message);
+    }
     // Solo el mensaje técnico: nunca datos de la persona.
-    console.error('preparar-menu:', e instanceof Error ? e.message : (e as { message?: string })?.message ?? 'error');
-    return fallo(500, 'interno', 'No hemos podido preparar tu menú. Inténtalo de nuevo en un momento.');
+    console.error('preparar-menu:', mensajeTecnico(e));
+    return fallo(500, 'interno', 'No hemos podido preparar tu menú. Inténtalo de nuevo en un momento.', mensajeTecnico(e));
   }
 });
