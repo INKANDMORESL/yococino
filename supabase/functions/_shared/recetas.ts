@@ -4,6 +4,7 @@ import { ALERGENOS_UE, describirRestricciones, motivosNoApta, type Restricciones
 import { ErrorIA, pedirJSON } from './claude.ts';
 import type { Cliente } from './http.ts';
 import { KCAL_RACION_ESTANDAR, type TipoComida } from './nutricion.ts';
+import { frutasDelMes, frutasFueraDeTemporada } from './temporada.ts';
 import { normalizar } from './texto.ts';
 
 export const MODELO_RECETA = Deno.env.get('MODELO_RECETA') || 'claude-sonnet-5-5';
@@ -115,7 +116,8 @@ const numeroPositivo = (v: unknown) => (typeof v === 'number' && Number.isFinite
 
 // ---------- Recetas ----------
 
-export async function cargarCatalogo(admin: Cliente, tipos: TipoComida[], nivel: Nivel, restr: Restricciones) {
+// Con `mes`, se dejan fuera las recetas con fruta fresca fuera de temporada.
+export async function cargarCatalogo(admin: Cliente, tipos: TipoComida[], nivel: Nivel, restr: Restricciones, mes: number | null = null) {
   const { data, error } = await admin
     .from('recetas')
     .select(COLUMNAS_RECETA)
@@ -127,6 +129,7 @@ export async function cargarCatalogo(admin: Cliente, tipos: TipoComida[], nivel:
   const porTipo = new Map<TipoComida, RecetaGuardada[]>();
   for (const r of (data ?? []) as RecetaGuardada[]) {
     if (!esApta(r, restr)) continue;
+    if (mes && frutasFueraDeTemporada([r.nombre, ...(r.ingredientes ?? []).map((i) => i.nombre)], mes).length) continue;
     const lista = porTipo.get(r.tipo_comida) ?? [];
     if (lista.length < 30) lista.push(r);
     porTipo.set(r.tipo_comida, lista);
@@ -134,7 +137,7 @@ export async function cargarCatalogo(admin: Cliente, tipos: TipoComida[], nivel:
   return [...porTipo.values()].flat();
 }
 
-export function sistemaReceta(tipo: TipoComida, nivel: Nivel, restr: Restricciones) {
+export function sistemaReceta(tipo: TipoComida, nivel: Nivel, restr: Restricciones, mes: number | null = null) {
   return `Eres cocinero y dietista-nutricionista. Escribes recetas caseras de cocina mediterránea española, fáciles de seguir mientras se cocina, para UNA ración de una persona adulta.
 
 Reglas:
@@ -147,7 +150,9 @@ Reglas:
 - Nutrición por ración, estimada con criterio.
 - Alérgenos: marca TODOS los de la lista de la UE presentes en cualquier ingrediente, incluidos pan, salsas, caldos y productos elaborados.
 - Esta receta debe ser apta por completo para alguien que no puede tomar: ${describirRestricciones(restr)}. Usa sustitutos aptos (por ejemplo, pan sin gluten o yogur sin lactosa) y, si el plato cambia, dilo en el nombre ("sin gluten").
-- Español de España, tono cercano. Sin consejos médicos.`;
+- Español de España, tono cercano. Sin consejos médicos.${
+    mes ? `\n- Si lleva fruta fresca, que sea de temporada en España este mes: ${frutasDelMes(mes).join(', ')}.` : ''
+  }`;
 }
 
 export async function guardarReceta(admin: Cliente, r: RecetaIA, tipo: TipoComida, restr: Restricciones): Promise<RecetaGuardada> {
@@ -235,6 +240,7 @@ export async function crearReceta(
   nivel: Nivel,
   restr: Restricciones,
   extra = '',
+  mes: number | null = null,
 ): Promise<RecetaGuardada | null> {
   let mensaje = `Plato: ${plato}\nDescripción: ${descripcion || '—'}\nTipo de comida: ${NOMBRE_TIPO[tipo]}${extra ? `\n\n${extra}` : ''}`;
   for (let intento = 0; intento < 2; intento++) {
@@ -242,7 +248,7 @@ export async function crearReceta(
     try {
       r = await pedirJSON<RecetaIA>({
         modelo: MODELO_RECETA,
-        sistema: sistemaReceta(tipo, nivel, restr),
+        sistema: sistemaReceta(tipo, nivel, restr, mes),
         mensaje,
         esquema: ESQUEMA_RECETA,
         maxTokens: 8000,
@@ -259,6 +265,12 @@ export async function crearReceta(
       { nombre: r.nombre, alergenos: r.alergenos ?? [], ingredientes: r.ingredientes.map((i) => ({ nombre: i.nombre, nota: i.nota ?? null })) },
       restr,
     );
+    // Fruta fuera de temporada: se pide otra vez una sola vez; no es motivo de seguridad, así que la segunda se acepta.
+    const fueraTemporada = mes ? frutasFueraDeTemporada([r.nombre, ...r.ingredientes.map((i) => i.nombre)], mes) : [];
+    if (motivos.length === 0 && fueraTemporada.length && intento === 0) {
+      mensaje += `\n\nLa propuesta anterior usaba fruta fuera de temporada (${fueraTemporada.join(', ')}). Cámbiala por fruta de temporada: ${frutasDelMes(mes as number).join(', ')}.`;
+      continue;
+    }
     if (motivos.length === 0) return await guardarReceta(admin, r, tipo, restr);
     mensaje += `\n\nLa propuesta anterior NO era apta (${motivos.join('; ')}). Crea una versión que lo evite por completo.`;
   }

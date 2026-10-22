@@ -24,6 +24,7 @@ import {
   type Nivel,
   type RecetaGuardada,
 } from '../_shared/recetas.ts';
+import { frutasDelMes, mesDe } from '../_shared/temporada.ts';
 import { normalizar } from '../_shared/texto.ts';
 
 const MODELO_MENU = Deno.env.get('MODELO_MENU') || 'claude-sonnet-5-5';
@@ -126,9 +127,10 @@ async function preparar(req: Request): Promise<Response> {
   const yaPuestos = [...new Set(filasExistentes.map((e) => e.receta?.nombre).filter(Boolean))].slice(-60);
 
   // 4. Pedir a la IA los platos de esos días.
-  const catalogo = await cargarCatalogo(admin, tipos, nivel, restr);
+  const numMes = mesDe(aPreparar[0]);
+  const catalogo = await cargarCatalogo(admin, tipos, nivel, restr, numMes);
   const porId = new Map(catalogo.map((r) => [r.id, r]));
-  const mes = MESES[Number(hoy.slice(5, 7)) - 1];
+  const mes = MESES[numMes - 1];
 
   const sistemaMenu = `Eres dietista-nutricionista y cocinero de cocina mediterránea española. Planificas menús caseros, equilibrados, variados y apetecibles para una persona adulta sana.
 
@@ -137,7 +139,7 @@ Reglas obligatorias:
 - Variedad: no repitas un mismo almuerzo o cena en 7 días. Desayunos y tomas pequeñas pueden repetirse como mucho 2 veces por semana.
 - Equilibrio semanal: legumbres 2 a 4 veces, pescado al menos 3 (si se puede tomar), carne roja como mucho 2, verdura u hortaliza en almuerzo y cena, fruta a diario, cereales integrales cuando se pueda y pocos ultraprocesados.
 - Recetas de nivel ${nivel}: como máximo ${MINUTOS_NIVEL[nivel]} minutos.
-- Productos de temporada de ${mes} en España.
+- Productos de temporada de ${mes} en España. La fruta fresca, siempre de temporada: ${frutasDelMes(numMes).join(', ')}. Varía la fruta a lo largo de la semana.
 - Reutiliza recetas del catálogo con su receta_id cuando encajen. Si no, propón un plato nuevo con "plato" (nombre corto y apetecible, sin cantidades) y "descripcion" (una línea).
 - Devuelve exactamente las comidas pedidas para cada día. Sin consejos médicos.`;
 
@@ -201,7 +203,7 @@ ${lineasCatalogo}`;
   const errores: string[] = [];
   const creadas = await enParalelo(porCrear, RECETAS_EN_PARALELO, async ([clave, p]) => {
     try {
-      return [clave, await crearReceta(admin, p.plato, p.descripcion, p.tipo, nivel, restr)] as const;
+      return [clave, await crearReceta(admin, p.plato, p.descripcion, p.tipo, nivel, restr, '', numMes)] as const;
     } catch (e) {
       if (e instanceof ErrorIA && e.noConfigurada) throw e;
       errores.push(mensajeTecnico(e));

@@ -1,6 +1,7 @@
 // Pruebas de las reglas de seguridad. En GitHub se ejecutan con: deno test supabase/functions/_shared
 import { motivosNoApta, restriccionesDe, textoIncumple } from './alergenos.ts';
 import { comidasDelDia, edadEn, energiaDiaria, factorRacion } from './nutricion.ts';
+import { frutasDelMes, frutasFueraDeTemporada } from './temporada.ts';
 import { contieneAlimento, contienePalabra } from './texto.ts';
 
 type Caso = [string, () => boolean];
@@ -75,6 +76,16 @@ export const CASOS: Caso[] = [
   ['receta apta sin restricciones', () =>
     motivosNoApta({ nombre: 'Pollo al horno', alergenos: [], ingredientes: [{ nombre: 'pechuga de pollo' }] },
       restriccionesDe([], [])).length === 0],
+
+  // Fruta de temporada
+  ['temporada: sandía en enero está fuera', () => frutasFueraDeTemporada(['sandía'], 1).join() === 'sandía'],
+  ['temporada: sandía en julio está bien', () => frutasFueraDeTemporada(['Sandía fresca'], 7).length === 0],
+  ['temporada: mandarina en diciembre está bien', () => frutasFueraDeTemporada(['mandarinas'], 12).length === 0],
+  ['temporada: fresas en octubre están fuera', () => frutasFueraDeTemporada(['Yogur con fresas'], 10).join() === 'fresa'],
+  ['temporada: "ciruelas pasas" valen todo el año', () => frutasFueraDeTemporada(['ciruelas pasas'], 1).length === 0],
+  ['temporada: manzana y plátano siempre', () => frutasFueraDeTemporada(['manzana', 'plátano'], 3).length === 0],
+  ['temporada: "melón" no se confunde con "melocotón"', () => frutasFueraDeTemporada(['melón'], 6).length === 0 && frutasFueraDeTemporada(['melocotón'], 1).join() === 'melocotón'],
+  ['temporada: la naranja pasa de diciembre a mayo', () => frutasDelMes(12).includes('naranja') && frutasDelMes(3).includes('naranja') && !frutasDelMes(8).includes('naranja')],
 
   // Energía
   ['edad: cumple años mañana', () => edadEn('1990-10-23', '2026-10-22') === 35],

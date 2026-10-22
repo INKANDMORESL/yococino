@@ -1,0 +1,117 @@
+// cambiar-ingrediente: rehace una receta cambiando un ingrediente por otro (cantidades, tiempos,
+// pasos y nutrición adaptados). Se guarda como receta compartida nueva y, si viene de una comida
+// del menú, esa comida pasa a usarla con la ración de la persona.
+// El ingrediente nuevo y la receta resultante pasan la misma revisión de alergias y gustos.
+import { motivosNoApta, restriccionesDe } from '../_shared/alergenos.ts';
+import { crearClientes, fallo, hoyEspana, responder, servir } from '../_shared/http.ts';
+import { comidasDelDia, factorRacion, KCAL_RACION_ESTANDAR, type TipoComida } from '../_shared/nutricion.ts';
+import { contarUso, energiaDe, perfilSeguro } from '../_shared/perfil.ts';
+import { crearReceta, type Nivel } from '../_shared/recetas.ts';
+import { mesDe } from '../_shared/temporada.ts';
+import { normalizar } from '../_shared/texto.ts';
+
+const MAX_USOS_DIA = 15;
+
+// Solo nombres de alimentos: así no se cuela otra cosa en la petición a la IA.
+const limpiar = (t: unknown) =>
+  typeof t === 'string'
+    ? t
+        .replace(/[^\p{L}\p{N} ,.'-]/gu, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 60)
+    : '';
+
+interface IngredienteBD {
+  nombre: string;
+  cantidad: number | null;
+  unidad: string | null;
+  nota: string | null;
+  orden: number;
+}
+
+async function cambiar(req: Request): Promise<Response> {
+  const { usuario, admin } = crearClientes(req);
+  const { data: auth } = await usuario.auth.getUser();
+  const user = auth?.user;
+  if (!user) return fallo(401, 'no_autenticado', 'Vuelve a entrar en tu cuenta.');
+
+  const cuerpo = (await req.json().catch(() => ({}))) as { receta_id?: number; ingrediente?: string; por?: string; comida_id?: number | null };
+  const recetaId = Number(cuerpo.receta_id);
+  const por = limpiar(cuerpo.por);
+  if (!Number.isInteger(recetaId) || recetaId <= 0) return fallo(400, 'datos', 'Falta la receta.');
+  if (!por) return fallo(400, 'datos', 'Escribe por qué ingrediente lo quieres cambiar.');
+
+  const hoy = hoyEspana();
+  const seguro = await perfilSeguro(admin, user.id, hoy);
+  if ('respuesta' in seguro) return seguro.respuesta;
+  const perfil = seguro.perfil;
+  const nivel: Nivel = perfil.nivel_cocina ?? 'facil';
+  const restr = restriccionesDe(perfil.alergias ?? [], perfil.no_me_gusta ?? []);
+
+  const { data: receta, error } = await admin
+    .from('recetas')
+    .select('id, nombre, descripcion, tipo_comida, pasos, ingredientes(nombre, cantidad, unidad, nota, orden)')
+    .eq('id', recetaId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!receta) return fallo(404, 'no_encontrada', 'No encontramos esa receta.');
+  const ingredientes = ((receta.ingredientes ?? []) as IngredienteBD[]).sort((a, b) => a.orden - b.orden);
+  const original = ingredientes.find((i) => normalizar(i.nombre) === normalizar(String(cuerpo.ingrediente ?? '')));
+  if (!original) return fallo(400, 'datos', 'Ese ingrediente no está en la receta.');
+  if (normalizar(original.nombre) === normalizar(por)) return fallo(400, 'datos', 'Escribe un ingrediente distinto.');
+
+  if (motivosNoApta({ nombre: '', alergenos: [], ingredientes: [{ nombre: por }] }, restr).length) {
+    return fallo(422, 'no_apto', `«${por}» no encaja con tus alergias o con lo que no te gusta. Prueba con otro.`);
+  }
+
+  // Comida del menú (opcional): debe ser de la persona y de hoy en adelante.
+  let comida: { id: number; fecha: string; tipo_comida: string } | null = null;
+  if (cuerpo.comida_id) {
+    const { data } = await admin.from('comidas').select('id, fecha, tipo_comida').eq('id', Number(cuerpo.comida_id)).eq('user_id', user.id).maybeSingle();
+    if (data && data.fecha >= hoy) comida = data;
+  }
+
+  if (!(await contarUso(admin, user.id, 'ingrediente', MAX_USOS_DIA))) {
+    return fallo(429, 'limite', 'Hoy ya has adaptado muchas recetas. Mañana podrás adaptar más.');
+  }
+
+  const tipo = receta.tipo_comida as TipoComida;
+  const lineas = ingredientes.map((i) => `- ${i.cantidad ?? ''} ${i.unidad ?? ''} ${i.nombre}${i.nota ? ` (${i.nota})` : ''}`.replace(/\s+/g, ' ')).join('\n');
+  const pasos = ((receta.pasos ?? []) as string[]).map((p, n) => `${n + 1}. ${p}`).join('\n');
+  const nueva = await crearReceta(
+    admin,
+    `${receta.nombre}, con ${por} en lugar de ${original.nombre}`,
+    receta.descripcion ?? '',
+    tipo,
+    nivel,
+    restr,
+    `Es una adaptación de esta receta.
+Ingredientes originales:
+${lineas}
+
+Pasos originales:
+${pasos}
+
+Cambia «${original.nombre}» por «${por}». Ajusta todo lo necesario para que quede bien con el ingrediente nuevo: su cantidad, el tiempo y la forma de cocción, el orden de los pasos, los consejos, los alérgenos y la nutrición. Mantén el resto de la receta igual. Pon al plato un nombre corto que refleje el cambio.`,
+    mesDe(comida?.fecha ?? hoy),
+  );
+  if (!nueva) return fallo(502, 'ia', 'No hemos podido adaptar la receta con ese ingrediente. Prueba con otro.', 'sin receta apta');
+
+  if (comida) {
+    const tipoComida = comida.tipo_comida;
+    const energia = await energiaDe(admin, perfil, hoy);
+    const parte = comidasDelDia(perfil.comidas_dia ?? 5).find((c) => c.tipo === tipoComida)?.parte ?? 0.3;
+    const kcalReceta = nueva.kcal ?? KCAL_RACION_ESTANDAR[tipo];
+    const factor = factorRacion(energia.kcal * parte, kcalReceta);
+    const { error: errorComida } = await admin
+      .from('comidas')
+      .update({ receta_id: nueva.id, factor, kcal: Math.round(kcalReceta * factor) })
+      .eq('id', comida.id)
+      .eq('user_id', user.id);
+    if (errorComida) throw errorComida;
+  }
+  return responder({ ok: true, receta_id: nueva.id, nombre: nueva.nombre });
+}
+
+servir('cambiar-ingrediente', cambiar, 'No hemos podido adaptar la receta. Vuelve a intentarlo en un momento.');

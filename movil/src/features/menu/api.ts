@@ -67,6 +67,14 @@ export const prepararMenu = (dias: number) => llamar<ResultadoPreparar>('prepara
 export const cambiarPlato = (comidaId: number, nueva = false) =>
   llamar<{ receta_id: number; nombre: string }>('cambiar-plato', { comida_id: comidaId, nueva }, 'No hemos podido cambiar el plato.');
 
+// Rehace la receta cambiando un ingrediente. Con comidaId, esa comida del menú pasa a usar la receta nueva.
+export const cambiarIngrediente = (recetaId: number, ingrediente: string, por: string, comidaId: number | null) =>
+  llamar<{ receta_id: number; nombre: string }>(
+    'cambiar-ingrediente',
+    { receta_id: recetaId, ingrediente, por, comida_id: comidaId },
+    'No hemos podido adaptar la receta.',
+  );
+
 // Crea una receta con lo que hay en casa.
 export const cocinarCon = (ingredientes: string[], tipo: string) =>
   llamar<{ receta_id: number; nombre: string; descartados: string[] }>('cocinar-con', { ingredientes, tipo }, 'No hemos podido crear la receta.');

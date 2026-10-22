@@ -16,3 +16,6 @@ verify_jwt = true
 
 [functions.version-peques]
 verify_jwt = true
+
+[functions.cambiar-ingrediente]
+verify_jwt = true

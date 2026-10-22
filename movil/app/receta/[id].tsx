@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Saltar } from '../../src/components';
 import { useLatido } from '../../src/components/Animaciones';
 import { ErrorMenu, cambiarPlato, cargarComidas, cargarReceta, marcarHecha } from '../../src/features/menu/api';
+import { CambiarIngrediente } from '../../src/features/menu/CambiarIngrediente';
 import { Peques } from '../../src/features/menu/Peques';
 import { anadirNoMeGusta, cambiarFavorita, esFavorita, pequesEnCasa } from '../../src/features/perfil/api';
 import { useAuth } from '../../src/lib/auth';
@@ -311,6 +312,14 @@ export default function RecetaPantalla() {
                 );
               })}
             </View>
+            <CambiarIngrediente
+              recetaId={receta.id}
+              ingredientes={receta.ingredientes}
+              comidaId={comida && comida.fecha >= hoyISO() ? comida.id : null}
+              listo={(nueva) =>
+                router.replace({ pathname: '/receta/[id]', params: comida ? { id: String(nueva), comida: String(comida.id) } : { id: String(nueva) } })
+              }
+            />
           </Aparecer>
 
           <Aparecer retraso={140}>

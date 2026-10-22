@@ -7,6 +7,7 @@ import { crearClientes, fallo, hoyEspana, responder, servir, sumarDias } from '.
 import { comidasDelDia, factorRacion, KCAL_RACION_ESTANDAR, type TipoComida } from '../_shared/nutricion.ts';
 import { contarUso, energiaDe, perfilSeguro } from '../_shared/perfil.ts';
 import { cargarCatalogo, crearReceta, type Nivel, type RecetaGuardada } from '../_shared/recetas.ts';
+import { mesDe } from '../_shared/temporada.ts';
 
 const MAX_NUEVAS_DIA = 15;
 
@@ -54,7 +55,7 @@ async function cambiar(req: Request): Promise<Response> {
 
   let receta: RecetaGuardada | null = null;
   if (!cuerpo.nueva) {
-    const candidatas = (await cargarCatalogo(admin, [tipo], nivel, restr)).filter((r) => !usadas.has(r.id));
+    const candidatas = (await cargarCatalogo(admin, [tipo], nivel, restr, mesDe(comida.fecha))).filter((r) => !usadas.has(r.id));
     if (candidatas.length) receta = candidatas[Math.floor(Math.random() * Math.min(candidatas.length, 15))];
   }
   if (!receta) {
@@ -69,6 +70,7 @@ async function cambiar(req: Request): Promise<Response> {
       nivel,
       restr,
       nombresUsados.length ? `No repitas ninguno de estos platos: ${nombresUsados.join(', ')}.` : '',
+      mesDe(comida.fecha),
     );
   }
   if (!receta) return fallo(502, 'ia', 'No hemos encontrado un plato que encaje contigo. Prueba otra vez en un momento.', 'sin receta apta');
