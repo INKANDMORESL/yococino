@@ -34,6 +34,12 @@ import { normalizar } from '../_shared/texto.ts';
 const MODELO_MENU = Deno.env.get('MODELO_MENU') || 'claude-haiku-5-5';
 const DIAS_VENTANA = 30;
 const MAX_DIAS_POR_LLAMADA = 3;
+// Reposición semanal: cuando solo faltan los últimos días del mes, se preparan 7 de golpe (una llamada a la semana
+// en lugar de una al día). Así siempre hay al menos 30 días por delante y se gasta mucho menos.
+const DIAS_REPOSICION = 7;
+const VENTANA_MAX = DIAS_VENTANA + DIAS_REPOSICION - 1;
+// Recetas del catálogo que se le enseñan a la IA por tipo de comida (menos texto = más barato).
+const CATALOGO_POR_TIPO = 25;
 const RECETAS_EN_PARALELO = 6;
 
 const NOMBRE_OBJETIVO: Record<Objetivo, string> = {
@@ -123,7 +129,7 @@ async function preparar(req: Request): Promise<Response> {
   const restr = restriccionesDe(perfil.alergias ?? [], perfil.no_me_gusta ?? []);
 
   // 3. Qué días faltan para tener 30 por delante.
-  const fin = sumarDias(hoy, DIAS_VENTANA - 1);
+  const fin = sumarDias(hoy, VENTANA_MAX - 1);
   const { data: existentes, error: errorExist } = await admin
     .from('comidas')
     .select('fecha, receta_id, receta:recetas(nombre)')
@@ -133,15 +139,22 @@ async function preparar(req: Request): Promise<Response> {
   if (errorExist) throw errorExist;
   const filasExistentes = (existentes ?? []) as unknown as { fecha: string; receta_id: number | null; receta: { nombre: string } | null }[];
   const conMenu = new Set(filasExistentes.filter((e) => e.fecha >= hoy).map((e) => e.fecha));
-  const faltan: string[] = [];
-  for (let i = 0; i < DIAS_VENTANA; i++) {
-    const f = sumarDias(hoy, i);
-    if (finPrueba && f > finPrueba) break;
-    if (!conMenu.has(f)) faltan.push(f);
-  }
+  const faltanEn = (dias: number) => {
+    const lista: string[] = [];
+    for (let i = 0; i < dias; i++) {
+      const f = sumarDias(hoy, i);
+      if (finPrueba && f > finPrueba) break;
+      if (!conMenu.has(f)) lista.push(f);
+    }
+    return lista;
+  };
+  let faltan = faltanEn(DIAS_VENTANA);
+  // Solo faltan los últimos días (reposición normal): se prepara una semana entera de una vez.
+  const reponerSemana = !finPrueba && faltan.length > 0 && faltan.length <= 2 && faltan[0] >= sumarDias(hoy, DIAS_VENTANA - DIAS_REPOSICION);
+  if (reponerSemana) faltan = faltanEn(VENTANA_MAX);
   const datosPlan = { plan: planPersona.estado, fin_prueba: finPrueba };
   if (faltan.length === 0) return responder({ ok: true, creados: [], pendientes: 0, kcal_dia: energia.kcal, ...datosPlan });
-  const aPreparar = faltan.slice(0, diasPedidos);
+  const aPreparar = faltan.slice(0, reponerSemana ? DIAS_REPOSICION : diasPedidos);
   const yaPuestos = [...new Set(filasExistentes.map((e) => e.receta?.nombre).filter(Boolean))].slice(-60);
 
   // 4. Pedir a la IA los platos de esos días.
@@ -169,8 +182,14 @@ Reglas obligatorias:
   }
 - Devuelve exactamente las comidas pedidas para cada día. Sin consejos médicos.`;
 
-  const lineasCatalogo = catalogo.length
-    ? catalogo.map((r) => `${r.id} · ${r.tipo_comida} · ${r.nombre}`).join('\n')
+  // Recetas ya usadas cerca: no se repiten al elegir del catálogo sin IA, y van al final de lo que se enseña a la IA.
+  const usadas = new Set(filasExistentes.map((e) => e.receta_id).filter((x): x is number => x !== null));
+  const catalogoIA = tipos.flatMap((t) => {
+    const delTipo = catalogo.filter((r) => r.tipo_comida === t);
+    return [...delTipo.filter((r) => !usadas.has(r.id)), ...delTipo.filter((r) => usadas.has(r.id))].slice(0, CATALOGO_POR_TIPO);
+  });
+  const lineasCatalogo = catalogoIA.length
+    ? catalogoIA.map((r) => `${r.id} · ${r.tipo_comida} · ${r.nombre}`).join('\n')
     : '(vacío: propón platos nuevos)';
   const mensajeMenu = `Días a planificar:
 ${aPreparar.map((f) => `- ${f} (${diaSemana(f)})`).join('\n')}
@@ -186,8 +205,6 @@ ${yaPuestos.length ? yaPuestos.join(', ') : '(ninguno todavía)'}
 Catálogo reutilizable (id · tipo · nombre):
 ${lineasCatalogo}`;
 
-  // Recetas ya usadas cerca: no se repiten al elegir del catálogo sin IA.
-  const usadas = new Set(filasExistentes.map((e) => e.receta_id).filter((x): x is number => x !== null));
   const elegirDelCatalogo = (tipo: TipoComida): RecetaGuardada | null => {
     const delTipo = catalogo.filter((r) => r.tipo_comida === tipo);
     const libres = delTipo.filter((r) => !usadas.has(r.id));
