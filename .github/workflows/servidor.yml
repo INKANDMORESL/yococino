@@ -1,0 +1,94 @@
+name: Servidor (Supabase)
+
+# Comprueba el código del servidor y, en main, aplica en Supabase las migraciones nuevas
+# y publica las funciones. No usa la contraseña de la base de datos: solo un token limitado
+# (secreto SUPABASE_ACCESS_TOKEN) con permisos de Migraciones y Edge Functions.
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/**', '.github/workflows/servidor.yml']
+  pull_request:
+    paths: ['supabase/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Comprobar tipos de las funciones
+        run: deno check supabase/functions/preparar-menu/index.ts
+      - name: Pruebas de seguridad (alergias y nutrición)
+        run: deno test supabase/functions/_shared/
+
+  publicar:
+    needs: comprobar
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Comprobar configuración
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$REF" ]; then
+            echo "::warning title=Servidor::Falta el secreto SUPABASE_ACCESS_TOKEN o la variable SUPABASE_PROJECT_REF."
+            echo "LISTO=no" >> "$GITHUB_ENV"
+          else
+            echo "LISTO=si" >> "$GITHUB_ENV"
+          fi
+
+      - name: Aplicar migraciones nuevas
+        if: env.LISTO == 'si'
+        run: |
+          API="https://api.supabase.com/v1/projects/$REF/database/migrations"
+          CODIGO=$(curl -sS -o historial.json -w '%{http_code}' -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "$API")
+          if [ "$CODIGO" != "200" ]; then
+            echo "::error title=Migraciones::No se pudo leer el historial (HTTP $CODIGO). Revisa que el token tenga el permiso Migrations: $(head -c 300 historial.json)"
+            exit 1
+          fi
+          APLICADAS=0
+          for f in $(ls supabase/migrations/*.sql | sort); do
+            NOMBRE=$(basename "$f" .sql)
+            VERSION=${NOMBRE%%_*}
+            SUFIJO=${NOMBRE#*_}
+            if grep -qx "$NOMBRE" supabase/aplicadas-a-mano.txt 2>/dev/null; then
+              continue
+            fi
+            if jq -e --arg n "$NOMBRE" --arg v "$VERSION" --arg s "$SUFIJO" \
+                'any(.[]; .name == $n or .version == $v or .name == $s)' historial.json > /dev/null; then
+              continue
+            fi
+            echo "Aplicando $NOMBRE..."
+            jq -n --rawfile q "$f" --arg n "$NOMBRE" '{query: $q, name: $n}' > cuerpo.json
+            CODIGO=$(curl -sS -o respuesta.json -w '%{http_code}' -X POST "$API" \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @cuerpo.json)
+            if [ "$CODIGO" -ge 300 ]; then
+              echo "::error title=Migración $NOMBRE::HTTP $CODIGO $(head -c 600 respuesta.json)"
+              exit 1
+            fi
+            APLICADAS=$((APLICADAS + 1))
+          done
+          echo "::notice title=Migraciones::$APLICADAS migraciones nuevas aplicadas."
+
+      - uses: supabase/setup-cli@v1
+        if: env.LISTO == 'si'
+        with:
+          version: latest
+
+      - name: Publicar funciones
+        if: env.LISTO == 'si'
+        run: |
+          supabase functions deploy --project-ref "$REF" 2>&1 | tee salida.txt || {
+            echo "::error title=Funciones::$(grep -v '^\s*$' salida.txt | tail -n 6 | tr '\n' ' ' | cut -c1-800)"
+            exit 1
+          }
+          echo "::notice title=Funciones::Funciones publicadas en Supabase."

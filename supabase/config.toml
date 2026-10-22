@@ -1,2 +1,6 @@
-# Configuración mínima para que GitHub aplique las migraciones con la CLI de Supabase.
+# Configuración para que GitHub aplique cambios en Supabase con la CLI.
 project_id = "yococino"
+
+[functions.preparar-menu]
+# La plataforma comprueba que quien llama ha iniciado sesión; la función lo vuelve a comprobar.
+verify_jwt = true

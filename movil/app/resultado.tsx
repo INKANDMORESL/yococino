@@ -1,10 +1,13 @@
 // Resultado de la encuesta: resumen del plan, o recomendación de un profesional.
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Aparecer, Aviso, Boton, Saltar, Tarjeta } from '../src/components';
+import { Aparecer, Aviso, Boton, Casilla, Saltar, Tarjeta } from '../src/components';
 import { OPCIONES, evaluar } from '../src/features/encuesta/modelo';
 import { useEncuesta } from '../src/features/encuesta/store';
+import { useAuth } from '../src/lib/auth';
+import { guardarEncuesta } from '../src/lib/perfil';
 import { colors, space, type } from '../src/theme';
 
 const texto = <T extends { valor: string; texto: string }>(lista: readonly T[], valor: string | null) =>
@@ -12,7 +15,30 @@ const texto = <T extends { valor: string; texto: string }>(lista: readonly T[], 
 
 export default function Resultado() {
   const { encuesta: e, reiniciar } = useEncuesta();
+  const { sesion } = useAuth();
+  const [consentimiento, setConsentimiento] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const r = evaluar(e);
+
+  // Si ya hay sesión (por ejemplo, entró con Google antes de hacer la encuesta), se guarda directamente.
+  const guardar = async () => {
+    if (!sesion) return;
+    if (!consentimiento) {
+      setError('Para preparar tu menú necesitamos tu permiso para usar tus datos de salud.');
+      return;
+    }
+    setGuardando(true);
+    setError(null);
+    try {
+      await guardarEncuesta(sesion.user.id, e);
+      router.replace('/inicio');
+    } catch {
+      setError('No hemos podido guardar tus respuestas. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   const alInicio = () => {
     reiniciar();
@@ -106,9 +132,19 @@ export default function Resultado() {
           ))}
         </Tarjeta>
         <Aviso tono="mar" texto="Los menús de Yococino son orientativos y no sustituyen el consejo de un profesional sanitario." />
+        {sesion ? (
+          <Casilla marcada={consentimiento} onPress={() => setConsentimiento(!consentimiento)}>
+            Doy mi permiso para que Yococino use mis datos de salud (peso, alergias y respuestas de la encuesta) solo para preparar mi menú.
+          </Casilla>
+        ) : null}
+        {error ? <Aviso tono="rosa" texto={error} /> : null}
       </ScrollView>
       <Aparecer retraso={650} style={{ gap: space.md }}>
-        <Boton texto="Crear mi cuenta" onPress={() => router.push('/registro')} />
+        {sesion ? (
+          <Boton texto="Guardar mi plan" cargando={guardando} onPress={guardar} />
+        ) : (
+          <Boton texto="Crear mi cuenta" onPress={() => router.push('/registro')} />
+        )}
         <Boton texto="Cambiar respuestas" variante="linea" onPress={() => router.back()} />
       </Aparecer>
     </SafeAreaView>

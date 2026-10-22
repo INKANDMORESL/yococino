@@ -9,4 +9,6 @@
 - Precios: gratis = solo el recetario del mes, sin cambios; suscripción 39,99 €/año; complemento Peques +9,99 €/año.
 - Menú continuo: cada día se añade un día nuevo, siempre 30 días por delante.
 - En esta sesión de Claude no hay acceso al registro de npm: la comprobación real la hace GitHub Actions (`.github/workflows/comprobar.yml`).
-- Proyecto Supabase en la región eu-west-1 (Irlanda, UE). Las migraciones `20261021000000_inicio.sql` y `20261021200000_fecha_nacimiento.sql` se aplican a mano desde el SQL Editor: antes del próximo `supabase db push` desde GitHub hay que marcarlas como aplicadas con `supabase migration repair --status applied <versión>`. El secreto SUPABASE_DB_PASSWORD de GitHub falló al autenticar; revisarlo antes de usar el flujo `base-de-datos.yml`.
+- Proyecto Supabase en la región eu-west-1 (Irlanda, UE). Las migraciones se aplican desde GitHub (`.github/workflows/servidor.yml`) con la Management API y un token limitado (`SUPABASE_ACCESS_TOKEN`: Migrations RW + Edge Functions RW). Las aplicadas a mano están en `supabase/aplicadas-a-mano.txt` y se saltan. Escribe migraciones idempotentes (`if not exists`).
+- Menú: Edge Function `preparar-menu` (Deno). Reglas puras en `supabase/functions/_shared/` con pruebas en `reglas_test.ts` (se ejecutan en GitHub con `deno test`). Recetas compartidas (ración estándar) + `comidas.factor` por persona. Secreto en Supabase: `ANTHROPIC_API_KEY`. A la IA no se envían datos personales.
+- Límites nutricionales en la tabla `ajustes_nutricion` (pendientes de validar por un dietista-nutricionista).

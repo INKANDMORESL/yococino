@@ -42,3 +42,9 @@ export async function guardarEncuestaPendiente(userId: string) {
   if (error) throw error;
   await AsyncStorage.removeItem(CLAVE);
 }
+
+// Guarda la encuesta directamente (cuando la persona ya ha iniciado sesión).
+export async function guardarEncuesta(userId: string, e: Encuesta) {
+  const { error } = await supabase.from('profiles').upsert({ id: userId, ...aPerfil(e, new Date().toISOString()) });
+  if (error) throw error;
+}
