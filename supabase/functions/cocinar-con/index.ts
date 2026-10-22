@@ -4,7 +4,7 @@
 import { motivosNoApta, restriccionesDe } from '../_shared/alergenos.ts';
 import { crearClientes, fallo, hoyEspana, responder, servir } from '../_shared/http.ts';
 import type { TipoComida } from '../_shared/nutricion.ts';
-import { contarUso, perfilSeguro } from '../_shared/perfil.ts';
+import { perfilSeguro, permitirExtra } from '../_shared/perfil.ts';
 import { crearReceta, type Nivel } from '../_shared/recetas.ts';
 
 const MAX_USOS_DIA = 10;
@@ -48,9 +48,8 @@ async function cocinar(req: Request): Promise<Response> {
     return fallo(422, 'no_aptos', 'Ninguno de esos ingredientes encaja con tus alergias o lo que no te gusta. Prueba con otros.');
   }
 
-  if (!(await contarUso(admin, user.id, 'cocinar', MAX_USOS_DIA))) {
-    return fallo(429, 'limite', 'Hoy ya has creado muchas recetas con lo que tienes. Mañana podrás crear más.');
-  }
+  const motivo = await permitirExtra(admin, user.id, 'cocinar', MAX_USOS_DIA);
+  if (motivo) return fallo(429, 'limite', motivo);
 
   const receta = await crearReceta(
     admin,

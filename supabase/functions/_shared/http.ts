@@ -1,6 +1,7 @@
 // Piezas comunes de las funciones: respuestas HTTP, conexión con Supabase y fechas de España.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { ErrorIA } from './claude.ts';
+import { conCuenta, cuentaActual } from './costes.ts';
 
 // ---------- Respuestas HTTP ----------
 
@@ -65,17 +66,35 @@ export function servir(nombre: string, manejar: (req: Request) => Promise<Respon
   Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
     if (req.method !== 'POST') return fallo(405, 'metodo', 'Usa POST.');
-    try {
-      return await manejar(req);
-    } catch (e) {
-      if (e instanceof ErrorIA && e.noConfigurada) {
-        console.error(`${nombre}: IA no configurada:`, e.message);
-        return fallo(503, 'ia_no_configurada', 'Esta función aún no está activada. Vuelve a intentarlo más tarde.');
+    return await conCuenta(async () => {
+      try {
+        return await manejar(req);
+      } catch (e) {
+        return errorDe(e);
+      } finally {
+        await guardarGasto();
       }
-      if (e instanceof ErrorIA) return fallo(502, 'ia', textoFallo, e.message);
-      // Solo el mensaje técnico: nunca datos de la persona.
-      console.error(`${nombre}:`, mensajeTecnico(e));
-      return fallo(500, 'interno', textoFallo, mensajeTecnico(e));
-    }
+    });
   });
+
+  async function guardarGasto() {
+    const c = cuentaActual();
+    if (!c?.userId || !c.tipo || c.usd <= 0) return;
+    const url = Deno.env.get('SUPABASE_URL') ?? '';
+    const secreta = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || claveDeLista('SUPABASE_SECRET_KEYS') || '';
+    const admin = createClient(url, secreta, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { error } = await admin.from('usos_ia').insert({ user_id: c.userId, tipo: c.tipo, coste_usd: Math.round(c.usd * 1e6) / 1e6 });
+    if (error) console.error(`${nombre}: no se pudo guardar el gasto:`, error.message);
+  }
+
+  function errorDe(e: unknown): Response {
+    if (e instanceof ErrorIA && e.noConfigurada) {
+      console.error(`${nombre}: IA no configurada:`, e.message);
+      return fallo(503, 'ia_no_configurada', 'Esta función aún no está activada. Vuelve a intentarlo más tarde.');
+    }
+    if (e instanceof ErrorIA) return fallo(502, 'ia', textoFallo, e.message);
+    // Solo el mensaje técnico: nunca datos de la persona.
+    console.error(`${nombre}:`, mensajeTecnico(e));
+    return fallo(500, 'interno', textoFallo, mensajeTecnico(e));
+  }
 }

@@ -12,6 +12,7 @@ import { describirRestricciones, restriccionesDe } from '../_shared/alergenos.ts
 import { ErrorIA, pedirJSON } from '../_shared/claude.ts';
 import { diaSemana, fallo, hoyEspana, mensajeTecnico, responder, servir, sumarDias, crearClientes } from '../_shared/http.ts';
 import { comidasDelDia, factorRacion, KCAL_RACION_ESTANDAR, type Objetivo, type TipoComida } from '../_shared/nutricion.ts';
+import { cobrarA, modoMenu } from '../_shared/costes.ts';
 import { energiaDe, perfilSeguro } from '../_shared/perfil.ts';
 import {
   cargarCatalogo,
@@ -27,7 +28,8 @@ import {
 import { frutasDelMes, mesDe } from '../_shared/temporada.ts';
 import { normalizar } from '../_shared/texto.ts';
 
-const MODELO_MENU = Deno.env.get('MODELO_MENU') || 'claude-sonnet-5-5';
+// Planificar es sencillo y se hace a diario: modelo barato (ver costes.ts). Las recetas nuevas usan MODELO_RECETA.
+const MODELO_MENU = Deno.env.get('MODELO_MENU') || 'claude-haiku-5-5';
 const DIAS_VENTANA = 30;
 const MAX_DIAS_POR_LLAMADA = 3;
 const RECETAS_EN_PARALELO = 6;
@@ -101,6 +103,10 @@ async function preparar(req: Request): Promise<Response> {
   const energia = await energiaDe(admin, perfil, hoy);
   await admin.from('profiles').update({ kcal_dia: energia.kcal }).eq('id', user.id);
 
+  // Presupuesto de la persona: completo, ahorro (sin recetas nuevas) o sin IA (solo recetas existentes).
+  cobrarA(user.id, 'menu');
+  const modo = await modoMenu(admin, user.id);
+
   const comidas = comidasDelDia(perfil.comidas_dia ?? 5);
   const tipos = comidas.map((c) => c.tipo);
   const nivel: Nivel = perfil.nivel_cocina ?? 'facil';
@@ -110,12 +116,12 @@ async function preparar(req: Request): Promise<Response> {
   const fin = sumarDias(hoy, DIAS_VENTANA - 1);
   const { data: existentes, error: errorExist } = await admin
     .from('comidas')
-    .select('fecha, receta:recetas(nombre)')
+    .select('fecha, receta_id, receta:recetas(nombre)')
     .eq('user_id', user.id)
     .gte('fecha', sumarDias(hoy, -10))
     .lte('fecha', fin);
   if (errorExist) throw errorExist;
-  const filasExistentes = (existentes ?? []) as unknown as { fecha: string; receta: { nombre: string } | null }[];
+  const filasExistentes = (existentes ?? []) as unknown as { fecha: string; receta_id: number | null; receta: { nombre: string } | null }[];
   const conMenu = new Set(filasExistentes.filter((e) => e.fecha >= hoy).map((e) => e.fecha));
   const faltan: string[] = [];
   for (let i = 0; i < DIAS_VENTANA; i++) {
@@ -160,13 +166,28 @@ ${yaPuestos.length ? yaPuestos.join(', ') : '(ninguno todavía)'}
 Catálogo reutilizable (id · tipo · nombre):
 ${lineasCatalogo}`;
 
-  const menu = await pedirJSON<MenuIA>({
-    modelo: MODELO_MENU,
-    sistema: sistemaMenu,
-    mensaje: mensajeMenu,
-    esquema: esquemaMenu(tipos),
-    maxTokens: 8000,
-  });
+  // Recetas ya usadas cerca: no se repiten al elegir del catálogo sin IA.
+  const usadas = new Set(filasExistentes.map((e) => e.receta_id).filter((x): x is number => x !== null));
+  const elegirDelCatalogo = (tipo: TipoComida): RecetaGuardada | null => {
+    const delTipo = catalogo.filter((r) => r.tipo_comida === tipo);
+    const libres = delTipo.filter((r) => !usadas.has(r.id));
+    const lista = libres.length ? libres : delTipo;
+    if (!lista.length) return null;
+    const r = lista[Math.floor(Math.random() * lista.length)];
+    usadas.add(r.id);
+    return r;
+  };
+
+  const menu: MenuIA =
+    modo === 'sin_ia'
+      ? { dias: aPreparar.map((fecha) => ({ fecha, comidas: [] })) }
+      : await pedirJSON<MenuIA>({
+          modelo: MODELO_MENU,
+          sistema: sistemaMenu,
+          mensaje: mensajeMenu,
+          esquema: esquemaMenu(tipos),
+          maxTokens: 8000,
+        });
 
   // 5. Resolver cada comida: receta del catálogo, receta existente con el mismo nombre o receta nueva.
   type Pendiente = { plato: string; descripcion: string; tipo: TipoComida };
@@ -199,7 +220,8 @@ ${lineasCatalogo}`;
       if (nuevas.has(clave) && esApta(r, restr)) resueltas.set(clave, r);
     }
   }
-  const porCrear = [...nuevas.entries()].filter(([clave]) => !resueltas.has(clave));
+  // Recetas nuevas solo con presupuesto completo; si no, esas comidas se cubren con el catálogo.
+  const porCrear = modo === 'completo' ? [...nuevas.entries()].filter(([clave]) => !resueltas.has(clave)) : [];
   const errores: string[] = [];
   const creadas = await enParalelo(porCrear, RECETAS_EN_PARALELO, async ([clave, p]) => {
     try {
@@ -217,13 +239,14 @@ ${lineasCatalogo}`;
   const filas: Record<string, unknown>[] = [];
   const creados: string[] = [];
   for (const fecha of aPreparar) {
-    const porTipo = plan.get(fecha);
-    if (!porTipo) continue;
+    const porTipo = plan.get(fecha) ?? new Map<TipoComida, { recetaId?: number; clave?: string }>();
     const filasDia: Record<string, unknown>[] = [];
     for (const [orden, { tipo, parte }] of comidas.entries()) {
       const eleccion = porTipo.get(tipo);
-      const receta = eleccion?.recetaId ? porId.get(eleccion.recetaId) : eleccion?.clave ? resueltas.get(eleccion.clave) : null;
+      const receta =
+        (eleccion?.recetaId ? porId.get(eleccion.recetaId) : eleccion?.clave ? resueltas.get(eleccion.clave) : null) ?? elegirDelCatalogo(tipo);
       if (!receta) break;
+      usadas.add(receta.id);
       const kcalReceta = receta.kcal ?? KCAL_RACION_ESTANDAR[tipo];
       const factor = factorRacion(energia.kcal * parte, kcalReceta);
       filasDia.push({ user_id: user.id, fecha, orden, tipo_comida: tipo, receta_id: receta.id, factor, kcal: Math.round(kcalReceta * factor) });

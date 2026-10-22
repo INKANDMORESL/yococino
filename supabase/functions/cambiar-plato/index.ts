@@ -5,7 +5,7 @@
 import { restriccionesDe } from '../_shared/alergenos.ts';
 import { crearClientes, fallo, hoyEspana, responder, servir, sumarDias } from '../_shared/http.ts';
 import { comidasDelDia, factorRacion, KCAL_RACION_ESTANDAR, type TipoComida } from '../_shared/nutricion.ts';
-import { contarUso, energiaDe, perfilSeguro } from '../_shared/perfil.ts';
+import { energiaDe, perfilSeguro, permitirExtra } from '../_shared/perfil.ts';
 import { cargarCatalogo, crearReceta, type Nivel, type RecetaGuardada } from '../_shared/recetas.ts';
 import { mesDe } from '../_shared/temporada.ts';
 
@@ -59,9 +59,8 @@ async function cambiar(req: Request): Promise<Response> {
     if (candidatas.length) receta = candidatas[Math.floor(Math.random() * Math.min(candidatas.length, 15))];
   }
   if (!receta) {
-    if (!(await contarUso(admin, user.id, 'cambiar', MAX_NUEVAS_DIA))) {
-      return fallo(429, 'limite', 'Hoy ya has pedido muchos platos nuevos. Mañana podrás pedir más.');
-    }
+    const motivo = await permitirExtra(admin, user.id, 'cambiar', MAX_NUEVAS_DIA);
+    if (motivo) return fallo(429, 'limite', motivo);
     receta = await crearReceta(
       admin,
       'Un plato nuevo a tu elección, casero y de temporada',

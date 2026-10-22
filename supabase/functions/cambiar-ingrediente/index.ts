@@ -5,7 +5,7 @@
 import { motivosNoApta, restriccionesDe } from '../_shared/alergenos.ts';
 import { crearClientes, fallo, hoyEspana, responder, servir } from '../_shared/http.ts';
 import { comidasDelDia, factorRacion, KCAL_RACION_ESTANDAR, type TipoComida } from '../_shared/nutricion.ts';
-import { contarUso, energiaDe, perfilSeguro } from '../_shared/perfil.ts';
+import { energiaDe, perfilSeguro, permitirExtra } from '../_shared/perfil.ts';
 import { crearReceta, type Nivel } from '../_shared/recetas.ts';
 import { mesDe } from '../_shared/temporada.ts';
 import { normalizar } from '../_shared/texto.ts';
@@ -72,9 +72,8 @@ async function cambiar(req: Request): Promise<Response> {
     if (data && data.fecha >= hoy) comida = data;
   }
 
-  if (!(await contarUso(admin, user.id, 'ingrediente', MAX_USOS_DIA))) {
-    return fallo(429, 'limite', 'Hoy ya has adaptado muchas recetas. Mañana podrás adaptar más.');
-  }
+  const motivo = await permitirExtra(admin, user.id, 'ingrediente', MAX_USOS_DIA);
+  if (motivo) return fallo(429, 'limite', motivo);
 
   const tipo = receta.tipo_comida as TipoComida;
   const lineas = ingredientes.map((i) => `- ${i.cantidad ?? ''} ${i.unidad ?? ''} ${i.nombre}${i.nota ? ` (${i.nota})` : ''}`.replace(/\s+/g, ' ')).join('\n');

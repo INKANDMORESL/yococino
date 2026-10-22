@@ -5,7 +5,7 @@
 import { motivosNoApta, restriccionesDe } from '../_shared/alergenos.ts';
 import { pedirJSON } from '../_shared/claude.ts';
 import { crearClientes, fallo, responder, servir } from '../_shared/http.ts';
-import { contarUso } from '../_shared/perfil.ts';
+import { permitirExtra } from '../_shared/perfil.ts';
 import { listaTextos, texto } from '../_shared/recetas.ts';
 
 const MODELO_PEQUES = Deno.env.get('MODELO_PEQUES') || Deno.env.get('MODELO_RECETA') || 'claude-sonnet-5-5';
@@ -87,9 +87,8 @@ async function version(req: Request): Promise<Response> {
 
   let peques = receta.peques as Peques | null;
   if (!peques) {
-    if (!(await contarUso(admin, user.id, 'peques', MAX_NUEVAS_DIA))) {
-      return fallo(429, 'limite', 'Hoy ya has preparado muchas versiones Peques. Mañana podrás ver más.');
-    }
+    const motivo = await permitirExtra(admin, user.id, 'peques', MAX_NUEVAS_DIA);
+    if (motivo) return fallo(429, 'limite', motivo);
     const ingredientes = ((receta.ingredientes ?? []) as { nombre: string; cantidad: number | null; unidad: string | null; nota: string | null; orden: number }[])
       .sort((a, b) => a.orden - b.orden)
       .map((i) => `- ${i.nombre}${i.nota ? ` (${i.nota})` : ''}`)

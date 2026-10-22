@@ -1,6 +1,7 @@
 // Perfil de la persona, comprobaciones de seguridad y energía diaria (comunes a todas las funciones).
 // Seguridad (no negociable, ver CLAUDE.md): solo mayores de 18, con consentimiento de datos de salud
 // y sin situaciones que requieran un profesional.
+import { cobrarA, motivoSinExtras } from './costes.ts';
 import { fallo, type Cliente } from './http.ts';
 import { AJUSTES_POR_DEFECTO, edadEn, energiaDiaria, type Actividad, type Ajustes, type Energia, type Objetivo, type Sexo } from './nutricion.ts';
 import type { Nivel } from './recetas.ts';
@@ -79,11 +80,13 @@ export async function energiaDe(admin: Cliente, perfil: PerfilValido, hoy: strin
   );
 }
 
-// Límite diario de usos de la IA por persona (para controlar el gasto). Devuelve false si ya se pasó.
-export async function contarUso(admin: Cliente, userId: string, tipo: string, maximoDia: number): Promise<boolean> {
+// ¿Puede usar ahora una función extra con IA? Comprueba el límite diario de usos y el presupuesto
+// (ver costes.ts). Deja apuntado que lo que se gaste en esta petición es de esta persona.
+// Devuelve null si puede, o el mensaje para la persona si no.
+export async function permitirExtra(admin: Cliente, userId: string, tipo: string, maximoDia: number): Promise<string | null> {
+  cobrarA(userId, tipo);
   const desde = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const { count } = await admin.from('usos_ia').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('tipo', tipo).gte('created_at', desde);
-  if ((count ?? 0) >= maximoDia) return false;
-  await admin.from('usos_ia').insert({ user_id: userId, tipo });
-  return true;
+  if ((count ?? 0) >= maximoDia) return 'Hoy ya has usado mucho esta función. Mañana podrás volver a usarla.';
+  return await motivoSinExtras(admin, userId);
 }

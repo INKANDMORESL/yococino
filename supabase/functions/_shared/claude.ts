@@ -3,6 +3,8 @@
 // output_config.format, que garantiza que la respuesta cumple el esquema.
 // La clave se guarda como secreto de Supabase: ANTHROPIC_API_KEY.
 
+import { costeTokens, sumarCoste } from './costes.ts';
+
 export class ErrorIA extends Error {
   readonly reintentable: boolean;
   readonly noConfigurada: boolean;
@@ -58,6 +60,8 @@ export async function pedirJSON<T>(opciones: {
     }
 
     const datos = await res.json().catch(() => null);
+    // Lo que se ha pagado por esta respuesta cuenta aunque luego no sirva.
+    if (datos?.usage) sumarCoste(costeTokens(opciones.modelo, datos.usage));
     if (!res.ok) {
       const detalle = datos?.error?.message ?? `HTTP ${res.status}`;
       const sinSaldo = /credit balance|billing/i.test(String(detalle));

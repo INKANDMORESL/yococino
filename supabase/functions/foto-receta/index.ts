@@ -3,7 +3,8 @@
 // de verdad en casa, pero bonito. A Google solo se envía el nombre del plato y sus ingredientes.
 // Secreto en Supabase: GEMINI_API_KEY. Si no está, la app sigue mostrando el dibujo del tipo de comida.
 import { crearClientes, fallo, responder, servir } from '../_shared/http.ts';
-import { contarUso } from '../_shared/perfil.ts';
+import { FOTO_USD, sumarCoste } from '../_shared/costes.ts';
+import { permitirExtra } from '../_shared/perfil.ts';
 
 const MODELO_FOTO = Deno.env.get('MODELO_FOTO') || 'gemini-nano-banana-2.1';
 const MAX_FOTOS_DIA = 60;
@@ -116,7 +117,7 @@ async function foto(req: Request): Promise<Response> {
     .select('id');
   if (!bloqueo?.length) return responder({ ok: true, imagen: null, pendiente: true });
 
-  if (!(await contarUso(admin, user.id, 'foto', MAX_FOTOS_DIA))) {
+  if (await permitirExtra(admin, user.id, 'foto', MAX_FOTOS_DIA)) {
     await admin.from('recetas').update({ foto_pedida_at: null }).eq('id', receta.id);
     return responder({ ok: true, imagen: null, limite: true });
   }
@@ -127,6 +128,7 @@ async function foto(req: Request): Promise<Response> {
       .sort((a, b) => a.orden - b.orden)
       .map((i) => i.nombre);
     const { bytes, tipo } = await generar(promptDe(receta.nombre, ingredientes));
+    sumarCoste(FOTO_USD);
     const extension = tipo.includes('jpeg') ? 'jpg' : tipo.includes('webp') ? 'webp' : 'png';
     const ruta = `recetas/${receta.id}.${extension}`;
     const { error: errorSubida } = await admin.storage.from('fotos').upload(ruta, bytes, { contentType: tipo, upsert: true });
