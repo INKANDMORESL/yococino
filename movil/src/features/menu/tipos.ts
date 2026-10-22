@@ -53,7 +53,7 @@ export interface Comida {
   factor: number;
   kcal: number | null;
   hecha: boolean;
-  receta: { id: number; nombre: string; minutos: number | null; descripcion: string | null } | null;
+  receta: { id: number; nombre: string; minutos: number | null; descripcion: string | null; imagen: string | null } | null;
 }
 
 export const NOMBRE_ALERGENO: Record<string, string> = {

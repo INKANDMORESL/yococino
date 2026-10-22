@@ -19,3 +19,6 @@ verify_jwt = true
 
 [functions.cambiar-ingrediente]
 verify_jwt = true
+
+[functions.foto-receta]
+verify_jwt = true

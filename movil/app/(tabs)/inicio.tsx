@@ -5,7 +5,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Saltar, Tarjeta } from '../../src/components';
 import { ResumenPeso } from '../../src/features/progreso/ResumenPeso';
-import { ErrorMenu, cambiarPlato, cargarComidas, marcarHecha, perfilBasico, prepararMenu } from '../../src/features/menu/api';
+import { ErrorMenu, cambiarPlato, cargarComidas, fotoReceta, marcarHecha, perfilBasico, prepararMenu } from '../../src/features/menu/api';
 import { fechaLarga, hoyISO, nombreDia, sumarDias } from '../../src/features/menu/fechas';
 import { PreparandoMenu } from '../../src/features/menu/PreparandoMenu';
 import { SelectorDias } from '../../src/features/menu/SelectorDias';
@@ -138,6 +138,21 @@ export default function Inicio() {
   );
 
   const delDia = porDia.get(elegido) ?? [];
+
+  // Fotos de los platos del día elegido: se piden una a una la primera vez (luego quedan guardadas).
+  const fotosPedidas = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    const sinFoto = delDia.filter((c) => c.receta && !c.receta.imagen && !fotosPedidas.current.has(c.receta.id)).map((c) => c.receta!.id);
+    if (!sinFoto.length) return;
+    sinFoto.forEach((id) => fotosPedidas.current.add(id));
+    (async () => {
+      for (const id of sinFoto) {
+        const url = await fotoReceta(id).catch(() => null);
+        if (!url || !activo.current) continue;
+        setComidas((prev) => prev.map((c) => (c.receta?.id === id ? { ...c, receta: { ...c.receta, imagen: url } } : c)));
+      }
+    })();
+  }, [delDia]);
   const horaActual = new Date().getHours();
   const siguienteId = elegido === hoy ? delDia.find((c) => !c.hecha && (HORA_COMIDA[c.tipo_comida] ?? 0) + 2 > horaActual)?.id : undefined;
   const hechasHoy = (porDia.get(hoy) ?? []).filter((c) => c.hecha).length;

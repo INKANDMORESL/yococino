@@ -1,6 +1,6 @@
 // Una comida del día: tipo, plato, tiempo y casilla de "hecha".
 import { router } from 'expo-router';
-import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLatido } from '../../components/Animaciones';
 import { colors, radius, shadow, space } from '../../theme';
 import { kcalTexto } from './cantidades';
@@ -30,7 +30,11 @@ export function TarjetaComida({
     <View style={[s.tarjeta, siguiente && s.siguiente]}>
       <Pressable onPress={abrir} style={s.zona} accessibilityRole="button" accessibilityLabel={`${t.texto}: ${comida.receta?.nombre ?? ''}. Ver receta`}>
         <View style={[s.icono, { backgroundColor: t.fondo }]}>
-          <Text style={{ fontSize: 26 }}>{t.emoji}</Text>
+          {comida.receta?.imagen ? (
+            <Image source={{ uri: comida.receta.imagen }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          ) : (
+            <Text style={{ fontSize: 26 }}>{t.emoji}</Text>
+          )}
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[s.tipo, siguiente && { color: colors.olive }]}>
@@ -75,7 +79,7 @@ const s = StyleSheet.create({
   tarjeta: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.surface, borderRadius: radius.lg, padding: space.md, paddingRight: space.lg, ...shadow },
   siguiente: { borderWidth: 2, borderColor: colors.olive },
   zona: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md },
-  icono: { width: 58, height: 58, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  icono: { width: 58, height: 58, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   tipo: { fontSize: 13, fontWeight: '700', color: colors.muted },
   plato: { fontSize: 17, fontWeight: '600', color: colors.ink, lineHeight: 22, marginTop: 1 },
   platoHecho: { color: colors.muted },

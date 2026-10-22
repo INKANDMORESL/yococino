@@ -1,11 +1,11 @@
 // Receta paso a paso, con las cantidades ajustadas a la ración de la persona.
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Platform, Pressable, ScrollView, StyleSheet, Text, Vibration, View } from 'react-native';
+import { ActivityIndicator, Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, Vibration, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Saltar } from '../../src/components';
 import { useLatido } from '../../src/components/Animaciones';
-import { ErrorMenu, cambiarPlato, cargarComidas, cargarReceta, marcarHecha } from '../../src/features/menu/api';
+import { ErrorMenu, cambiarPlato, cargarComidas, cargarReceta, fotoReceta, marcarHecha } from '../../src/features/menu/api';
 import { CambiarIngrediente } from '../../src/features/menu/CambiarIngrediente';
 import { Peques } from '../../src/features/menu/Peques';
 import { anadirNoMeGusta, cambiarFavorita, esFavorita, pequesEnCasa } from '../../src/features/perfil/api';
@@ -70,6 +70,7 @@ export default function RecetaPantalla() {
   const [temporizadores, setTemporizadores] = useState<Map<number, Temporizador>>(new Map());
   const [ahora, setAhora] = useState(Date.now());
   const cocinar = useModoCocinar();
+  const [foto, setFoto] = useState<string | null>(null);
   const [peques, setPeques] = useState<{ hay: boolean; franjas: string[] }>({ hay: false, franjas: [] });
   const [cambiando, setCambiando] = useState<'catalogo' | 'nueva' | null>(null);
   const avisados = useRef<Set<number>>(new Set());
@@ -129,6 +130,8 @@ export default function RecetaPantalla() {
         const r = await cargarReceta(Number(id));
         if (!vivo) return;
         setReceta(r);
+        setFoto(r.imagen);
+        if (!r.imagen) fotoReceta(r.id).then((u) => vivo && u && setFoto(u)).catch(() => {});
         esFavorita(r.id).then((f) => vivo && setFavorita(f)).catch(() => {});
         pequesEnCasa().then((p) => vivo && setPeques(p)).catch(() => {});
         if (comidaParam) {
@@ -245,9 +248,13 @@ export default function RecetaPantalla() {
     <View style={s.pantalla}>
       <ScrollView contentContainerStyle={{ paddingBottom: comida ? 120 : space.xxl }}>
         <View style={[s.portada, { backgroundColor: t.fondo }]}>
-          <Saltar>
-            <Text style={s.emoji}>{t.emoji}</Text>
-          </Saltar>
+          {foto ? (
+            <Image source={{ uri: foto }} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityLabel={`Foto de ${receta.nombre}`} />
+          ) : (
+            <Saltar>
+              <Text style={s.emoji}>{t.emoji}</Text>
+            </Saltar>
+          )}
         </View>
 
         <View style={s.hoja}>
@@ -514,7 +521,7 @@ export default function RecetaPantalla() {
 const s = StyleSheet.create({
   pantalla: { flex: 1, backgroundColor: colors.bg },
   centro: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: space.xl, gap: space.lg },
-  portada: { height: 260, alignItems: 'center', justifyContent: 'center' },
+  portada: { height: 300, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   barra: { position: 'absolute', top: 0, left: 0, right: 0, padding: space.lg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   relojFlotante: { backgroundColor: colors.ink, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 16, ...shadow },
   relojFlotanteTexto: { color: '#fff', fontWeight: '800', fontSize: 15 },

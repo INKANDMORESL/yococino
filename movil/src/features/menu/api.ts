@@ -16,7 +16,7 @@ export class ErrorMenu extends Error {
 export async function cargarComidas(desde: string, hasta: string): Promise<Comida[]> {
   const { data, error } = await supabase
     .from('comidas')
-    .select('id, fecha, orden, tipo_comida, receta_id, factor, kcal, hecha, receta:recetas(id, nombre, minutos, descripcion)')
+    .select('id, fecha, orden, tipo_comida, receta_id, factor, kcal, hecha, receta:recetas(id, nombre, minutos, descripcion, imagen)')
     .gte('fecha', desde)
     .lte('fecha', hasta)
     .order('fecha')
@@ -74,6 +74,13 @@ export const cambiarIngrediente = (recetaId: number, ingrediente: string, por: s
     { receta_id: recetaId, ingrediente, por, comida_id: comidaId },
     'No hemos podido adaptar la receta.',
   );
+
+// Foto del plato: la genera el servidor la primera vez. Devuelve null si aún no hay (o no están activadas).
+export async function fotoReceta(recetaId: number): Promise<string | null> {
+  const { data, error } = await supabase.functions.invoke('foto-receta', { body: { receta_id: recetaId } });
+  if (error) return null;
+  return (data as { imagen?: string | null } | null)?.imagen ?? null;
+}
 
 // Crea una receta con lo que hay en casa.
 export const cocinarCon = (ingredientes: string[], tipo: string) =>
