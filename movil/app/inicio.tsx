@@ -54,14 +54,14 @@ export default function Inicio() {
     return lista;
   }, [dias]);
 
-  // Pide días al servidor hasta completar el mes. Primero 2 (rápido) y luego de 4 en 4.
+  // Pide días al servidor hasta completar el mes. Primero 1 (rápido) y luego de 2 en 2.
   const completarMes = useCallback(async () => {
     if (enMarcha.current) return;
     enMarcha.current = true;
     setPreparando(true);
     setError(null);
     try {
-      let lote = 2;
+      let lote = 1;
       let fallosSeguidos = 0;
       while (activo.current) {
         try {
@@ -69,7 +69,7 @@ export default function Inicio() {
           fallosSeguidos = 0;
           await recargar();
           if (r.pendientes === 0) break;
-          lote = 4;
+          lote = 2;
         } catch (e) {
           const codigo = e instanceof ErrorMenu ? e.codigo : 'red';
           const base = e instanceof Error ? e.message : 'No hemos podido preparar tu menú.';

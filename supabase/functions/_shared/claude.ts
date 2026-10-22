@@ -1,4 +1,6 @@
-// Llamada a la API de Claude obligando a responder con una herramienta (JSON con esquema fijo).
+// Llamada a la API de Claude pidiendo la respuesta en JSON con un esquema fijo ("structured outputs").
+// Los modelos actuales (Sonnet 5.5, Opus 5.5) no permiten forzar una herramienta, así que se usa
+// output_config.format, que garantiza que la respuesta cumple el esquema.
 // La clave se guarda como secreto de Supabase: ANTHROPIC_API_KEY.
 
 export class ErrorIA extends Error {
@@ -11,19 +13,13 @@ export class ErrorIA extends Error {
   }
 }
 
-interface Herramienta {
-  name: string;
-  description: string;
-  input_schema: Record<string, unknown>;
-}
-
 const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export async function pedirConHerramienta<T>(opciones: {
+export async function pedirJSON<T>(opciones: {
   modelo: string;
   sistema: string;
   mensaje: string;
-  herramienta: Herramienta;
+  esquema: Record<string, unknown>;
   maxTokens?: number;
   timeoutMs?: number;
 }): Promise<T> {
@@ -32,11 +28,10 @@ export async function pedirConHerramienta<T>(opciones: {
 
   const cuerpo = JSON.stringify({
     model: opciones.modelo,
-    max_tokens: opciones.maxTokens ?? 4000,
+    max_tokens: opciones.maxTokens ?? 8000,
     system: opciones.sistema,
     messages: [{ role: 'user', content: opciones.mensaje }],
-    tools: [opciones.herramienta],
-    tool_choice: { type: 'tool', name: opciones.herramienta.name },
+    output_config: { format: { type: 'json_schema', schema: opciones.esquema } },
   });
 
   let ultimoError = '';
@@ -47,7 +42,7 @@ export async function pedirConHerramienta<T>(opciones: {
         method: 'POST',
         headers: { 'x-api-key': clave, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
         body: cuerpo,
-        signal: AbortSignal.timeout(opciones.timeoutMs ?? 90_000),
+        signal: AbortSignal.timeout(opciones.timeoutMs ?? 120_000),
       });
     } catch (e) {
       ultimoError = `sin respuesta (${e instanceof Error ? e.message : e})`;
@@ -65,18 +60,23 @@ export async function pedirConHerramienta<T>(opciones: {
     const datos = await res.json().catch(() => null);
     if (!res.ok) {
       const detalle = datos?.error?.message ?? `HTTP ${res.status}`;
-      // 401/403: clave incorrecta o sin saldo; se trata como "no configurada".
       const sinSaldo = /credit balance|billing/i.test(String(detalle));
       throw new ErrorIA(`La IA rechazó la petición: ${detalle}`, {
         noConfigurada: res.status === 401 || res.status === 403 || sinSaldo,
       });
     }
-    const bloque = (datos?.content ?? []).find(
-      (b: { type: string; name?: string }) => b.type === 'tool_use' && b.name === opciones.herramienta.name,
-    );
-    if (!bloque) throw new ErrorIA('La IA no devolvió el formato esperado.', { reintentable: true });
-    if (datos.stop_reason === 'max_tokens') throw new ErrorIA('La respuesta de la IA quedó cortada.', { reintentable: true });
-    return bloque.input as T;
+    if (datos?.stop_reason === 'max_tokens') throw new ErrorIA('La respuesta de la IA quedó cortada.', { reintentable: true });
+    if (datos?.stop_reason === 'refusal') throw new ErrorIA('La IA no quiso responder a esta petición.', { reintentable: true });
+
+    const textoRespuesta = (datos?.content ?? [])
+      .filter((b: { type: string }) => b.type === 'text')
+      .map((b: { text: string }) => b.text)
+      .join('');
+    try {
+      return JSON.parse(textoRespuesta) as T;
+    } catch {
+      throw new ErrorIA('La IA no devolvió un JSON válido.', { reintentable: true });
+    }
   }
   throw new ErrorIA(`No se pudo contactar con la IA: ${ultimoError}`, { reintentable: true });
 }

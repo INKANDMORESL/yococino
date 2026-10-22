@@ -10,7 +10,7 @@
 // - Nunca se escriben datos de salud en los registros (logs).
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { ALERGENOS_UE, describirRestricciones, motivosNoApta, restriccionesDe, type Restricciones } from '../_shared/alergenos.ts';
-import { ErrorIA, pedirConHerramienta } from '../_shared/claude.ts';
+import { ErrorIA, pedirJSON } from '../_shared/claude.ts';
 import {
   AJUSTES_POR_DEFECTO,
   comidasDelDia,
@@ -29,8 +29,8 @@ import { normalizar } from '../_shared/texto.ts';
 const MODELO_MENU = Deno.env.get('MODELO_MENU') || 'claude-sonnet-5-5';
 const MODELO_RECETA = Deno.env.get('MODELO_RECETA') || 'claude-sonnet-5-5';
 const DIAS_VENTANA = 30;
-const MAX_DIAS_POR_LLAMADA = 4;
-const RECETAS_EN_PARALELO = 4;
+const MAX_DIAS_POR_LLAMADA = 3;
+const RECETAS_EN_PARALELO = 6;
 
 type Nivel = 'facil' | 'medio' | 'elaborado';
 const MINUTOS_NIVEL: Record<Nivel, number> = { facil: 20, medio: 40, elaborado: 75 };
@@ -157,33 +157,34 @@ interface MenuIA {
 
 const COLUMNAS_RECETA = 'id, nombre, tipo_comida, kcal, alergenos, ingredientes(nombre, nota)';
 
-// ---------- Herramientas para la IA ----------
+// ---------- Esquemas JSON de las respuestas de la IA ----------
+// Requisitos de "structured outputs": todos los objetos con additionalProperties: false
+// y, para no complicar el esquema, todos los campos obligatorios (los opcionales admiten null).
 
-const herramientaMenu = (tipos: TipoComida[]) => ({
-  name: 'proponer_menu',
-  description: 'Guarda los platos elegidos para cada día y comida.',
-  input_schema: {
-    type: 'object',
-    required: ['dias'],
-    properties: {
-      dias: {
-        type: 'array',
-        items: {
-          type: 'object',
-          required: ['fecha', 'comidas'],
-          properties: {
-            fecha: { type: 'string', description: 'AAAA-MM-DD' },
-            comidas: {
-              type: 'array',
-              items: {
-                type: 'object',
-                required: ['tipo_comida'],
-                properties: {
-                  tipo_comida: { type: 'string', enum: tipos },
-                  receta_id: { type: 'integer', description: 'Id de una receta del catálogo, si reutilizas una.' },
-                  plato: { type: 'string', description: 'Nombre de un plato nuevo (si no reutilizas una receta).' },
-                  descripcion: { type: 'string', description: 'Una línea sobre el plato nuevo.' },
-                },
+const esquemaMenu = (tipos: TipoComida[]) => ({
+  type: 'object',
+  additionalProperties: false,
+  required: ['dias'],
+  properties: {
+    dias: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['fecha', 'comidas'],
+        properties: {
+          fecha: { type: 'string', description: 'AAAA-MM-DD' },
+          comidas: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['tipo_comida', 'receta_id', 'plato', 'descripcion'],
+              properties: {
+                tipo_comida: { type: 'string', enum: tipos },
+                receta_id: { type: ['integer', 'null'], description: 'Id de una receta del catálogo si reutilizas una; si no, null.' },
+                plato: { type: ['string', 'null'], description: 'Nombre del plato nuevo; null si reutilizas una receta.' },
+                descripcion: { type: ['string', 'null'], description: 'Una línea sobre el plato nuevo; null si reutilizas una receta.' },
               },
             },
           },
@@ -193,48 +194,47 @@ const herramientaMenu = (tipos: TipoComida[]) => ({
   },
 });
 
-const HERRAMIENTA_RECETA = {
-  name: 'guardar_receta',
-  description: 'Guarda la ficha completa de la receta.',
-  input_schema: {
-    type: 'object',
-    required: ['nombre', 'descripcion', 'minutos', 'nivel', 'ingredientes', 'pasos', 'nutricion', 'alergenos'],
-    properties: {
-      nombre: { type: 'string', description: 'Nombre apetecible del plato, sin cantidades.' },
-      descripcion: { type: 'string', description: 'Una frase que invite a cocinarlo.' },
-      minutos: { type: 'integer', description: 'Tiempo total de preparación.' },
-      nivel: { type: 'string', enum: ['facil', 'medio', 'elaborado'] },
-      ingredientes: {
-        type: 'array',
-        items: {
-          type: 'object',
-          required: ['nombre', 'unidad', 'seccion'],
-          properties: {
-            nombre: { type: 'string' },
-            cantidad: { type: ['number', 'null'] },
-            unidad: { type: 'string', enum: UNIDADES },
-            nota: { type: 'string', description: 'Por ejemplo: en crudo, picado fino.' },
-            seccion: { type: 'string', enum: SECCIONES, description: 'Sección del supermercado. El huevo va en carne_pescado.' },
-          },
-        },
-      },
-      pasos: { type: 'array', items: { type: 'string' } },
-      consejos: { type: 'array', items: { type: 'string' } },
-      sustituciones: { type: 'array', items: { type: 'string' } },
-      nutricion: {
+const ESQUEMA_RECETA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['nombre', 'descripcion', 'minutos', 'nivel', 'ingredientes', 'pasos', 'consejos', 'sustituciones', 'nutricion', 'alergenos', 'etiquetas'],
+  properties: {
+    nombre: { type: 'string', description: 'Nombre apetecible del plato, sin cantidades.' },
+    descripcion: { type: 'string', description: 'Una frase que invite a cocinarlo.' },
+    minutos: { type: 'integer', description: 'Tiempo total de preparación.' },
+    nivel: { type: 'string', enum: ['facil', 'medio', 'elaborado'] },
+    ingredientes: {
+      type: 'array',
+      items: {
         type: 'object',
-        required: ['kcal', 'proteinas', 'hidratos', 'grasas', 'fibra'],
+        additionalProperties: false,
+        required: ['nombre', 'cantidad', 'unidad', 'nota', 'seccion'],
         properties: {
-          kcal: { type: 'number' },
-          proteinas: { type: 'number', description: 'gramos' },
-          hidratos: { type: 'number', description: 'gramos' },
-          grasas: { type: 'number', description: 'gramos' },
-          fibra: { type: 'number', description: 'gramos' },
+          nombre: { type: 'string' },
+          cantidad: { type: ['number', 'null'], description: 'null solo con la unidad "al gusto".' },
+          unidad: { type: 'string', enum: UNIDADES },
+          nota: { type: 'string', description: 'Por ejemplo: en crudo, picado fino. Vacío si no hace falta.' },
+          seccion: { type: 'string', enum: SECCIONES, description: 'Sección del supermercado. El huevo va en carne_pescado.' },
         },
       },
-      alergenos: { type: 'array', items: { type: 'string', enum: ALERGENOS_UE }, description: 'Todos los alérgenos UE presentes.' },
-      etiquetas: { type: 'array', items: { type: 'string' }, description: 'Por ejemplo: sin gluten, sin lactosa, vegetariana.' },
     },
+    pasos: { type: 'array', items: { type: 'string' } },
+    consejos: { type: 'array', items: { type: 'string' } },
+    sustituciones: { type: 'array', items: { type: 'string' } },
+    nutricion: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['kcal', 'proteinas', 'hidratos', 'grasas', 'fibra'],
+      properties: {
+        kcal: { type: 'number' },
+        proteinas: { type: 'number', description: 'gramos' },
+        hidratos: { type: 'number', description: 'gramos' },
+        grasas: { type: 'number', description: 'gramos' },
+        fibra: { type: 'number', description: 'gramos' },
+      },
+    },
+    alergenos: { type: 'array', items: { type: 'string', enum: ALERGENOS_UE }, description: 'Todos los alérgenos UE presentes.' },
+    etiquetas: { type: 'array', items: { type: 'string' }, description: 'Por ejemplo: sin gluten, sin lactosa, vegetariana.' },
   },
 };
 
@@ -387,12 +387,12 @@ async function crearReceta(
   for (let intento = 0; intento < 2; intento++) {
     let r: RecetaIA;
     try {
-      r = await pedirConHerramienta<RecetaIA>({
+      r = await pedirJSON<RecetaIA>({
         modelo: MODELO_RECETA,
         sistema: sistemaReceta(tipo, nivel, restr),
         mensaje,
-        herramienta: HERRAMIENTA_RECETA,
-        maxTokens: 3000,
+        esquema: ESQUEMA_RECETA,
+        maxTokens: 8000,
       });
     } catch (e) {
       if (e instanceof ErrorIA && e.reintentable && intento === 0) continue;
@@ -529,12 +529,12 @@ ${yaPuestos.length ? yaPuestos.join(', ') : '(ninguno todavía)'}
 Catálogo reutilizable (id · tipo · nombre):
 ${lineasCatalogo}`;
 
-  const menu = await pedirConHerramienta<MenuIA>({
+  const menu = await pedirJSON<MenuIA>({
     modelo: MODELO_MENU,
     sistema: sistemaMenu,
     mensaje: mensajeMenu,
-    herramienta: herramientaMenu(tipos),
-    maxTokens: 3000,
+    esquema: esquemaMenu(tipos),
+    maxTokens: 8000,
   });
 
   // 5. Resolver cada comida: receta del catálogo, receta existente con el mismo nombre o receta nueva.
