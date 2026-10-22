@@ -1,7 +1,7 @@
 // Contactar con Yococino: conversación con el equipo. Las respuestas llegan desde el panel de gestión.
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState, type ComponentRef } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aviso } from '../src/components';
 import { cargarMensajes, enviarMensaje, marcarLeidos, type Mensaje } from '../src/features/contacto/api';
@@ -66,6 +66,16 @@ export default function Contacto() {
           <Text style={type.small}>Te respondemos aquí mismo, normalmente en 24-48 horas.</Text>
         </View>
       </View>
+      <Pressable
+        onPress={() => Linking.openURL('https://www.instagram.com/yococino.app/').catch(() => {})}
+        accessibilityRole="link"
+        accessibilityLabel="Síguenos en Instagram"
+        style={s.instagram}
+      >
+        <Text style={{ fontSize: 20 }}>📸</Text>
+        <Text style={s.instagramTexto}>Síguenos en Instagram: @yococino.app</Text>
+        <Text style={s.instagramFlecha}>›</Text>
+      </Pressable>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView ref={lista} contentContainerStyle={s.contenido} onContentSizeChange={() => lista.current?.scrollToEnd({ animated: false })}>
@@ -115,6 +125,9 @@ const s = StyleSheet.create({
   cabecera: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.xl, paddingVertical: space.md, borderBottomWidth: 1, borderBottomColor: colors.line },
   volver: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow },
   flecha: { fontSize: 28, lineHeight: 30, color: colors.ink, marginTop: -2 },
+  instagram: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginHorizontal: space.xl, marginTop: space.md, paddingHorizontal: space.lg, paddingVertical: space.md, borderRadius: radius.lg, backgroundColor: colors.surface, ...shadow },
+  instagramTexto: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.ink },
+  instagramFlecha: { fontSize: 22, color: colors.muted },
   contenido: { padding: space.xl, gap: space.sm, flexGrow: 1 },
   vacio: { alignItems: 'center', gap: space.md, paddingVertical: space.xxl },
   burbuja: { maxWidth: '84%', borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md, gap: 4 },

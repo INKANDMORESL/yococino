@@ -48,7 +48,7 @@ const pie = (raiz) => `
   <footer>
     <div class="contenedor">
       <div>© ${new Date().getFullYear()} Yococino. Menús orientativos: no sustituyen el consejo de un profesional sanitario.</div>
-      <div><a href="${raiz}recetas/">Recetas</a><a href="${raiz}privacidad.html">Privacidad</a><a href="${raiz}condiciones.html">Condiciones</a><a href="${raiz}aviso-legal.html">Aviso legal</a><a href="mailto:info@yococino.app">Contacto</a></div>
+      <div><a href="${raiz}recetas/">Recetas</a><a href="${raiz}privacidad.html">Privacidad</a><a href="${raiz}condiciones.html">Condiciones</a><a href="${raiz}aviso-legal.html">Aviso legal</a><a href="mailto:info@yococino.app">Contacto</a><a href="https://www.instagram.com/yococino.app/" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>Instagram</a></div>
     </div>
   </footer>`;
 
@@ -209,7 +209,7 @@ function portada(plantilla, destacadas) {
     : '';
   html = html.replace('<!--RECETAS-->', seccion);
   const datos = [
-    { '@context': 'https://schema.org', '@type': 'Organization', name: 'Yococino', url: DOMINIO, logo: `${DOMINIO}/logo.png`, email: 'info@yococino.app' },
+    { '@context': 'https://schema.org', '@type': 'Organization', name: 'Yococino', url: DOMINIO, logo: `${DOMINIO}/logo.png`, email: 'info@yococino.app', sameAs: ['https://www.instagram.com/yococino.app/'] },
     {
       '@context': 'https://schema.org',
       '@type': 'SoftwareApplication',
