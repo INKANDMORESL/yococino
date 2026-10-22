@@ -10,12 +10,14 @@
   <meta property="og:image" content="https://yococino.app/logo.png">
   <meta property="og:url" content="https://yococino.app/">
   <meta name="theme-color" content="#FBFAF6">
+  <link rel="canonical" href="https://yococino.app/">
   <link rel="icon" href="favicon.png">
   <link rel="apple-touch-icon" href="icono.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="estilo.css?v=1">
+  <link rel="stylesheet" href="estilo.css?v=2">
+  <!--DATOS_ESTRUCTURADOS-->
 </head>
 <body>
   <header>
@@ -24,6 +26,7 @@
       <nav class="menu" aria-label="Principal">
         <a href="#funciones">Qué hace</a>
         <a href="#como">Cómo funciona</a>
+        <a href="recetas/">Recetas</a>
         <a href="#precios">Precios</a>
         <a href="#preguntas">Preguntas</a>
         <a class="boton" href="https://yococino.expo.app">Pruébala gratis</a>
@@ -48,10 +51,10 @@
             <div class="hola">Buenos días, Ana</div>
             <div class="muted">jueves 22 de octubre · 1 de 5 comidas hechas</div>
             <div class="tarjeta-plato">
-              <div class="foto">🍲</div>
+              <!--FOTO_PORTADA--><div class="foto">🍲</div><!--/FOTO_PORTADA-->
               <div class="cuerpo">
                 <div class="cuando">Próxima comida, a las 14:00</div>
-                <div class="nombre">Lentejas estofadas con verduras de temporada</div>
+                <div class="nombre"><!--NOMBRE_PORTADA-->Lentejas estofadas con verduras de temporada<!--/NOMBRE_PORTADA--></div>
                 <div class="botones"><span>Ver receta</span><span>Hecha</span></div>
               </div>
             </div>
@@ -80,6 +83,8 @@
         </div>
       </div>
     </section>
+
+    <!--RECETAS-->
 
     <section id="como">
       <div class="contenedor">
@@ -159,7 +164,7 @@
   <footer>
     <div class="contenedor">
       <div>© 2026 Yococino. Menús orientativos: no sustituyen el consejo de un profesional sanitario.</div>
-      <div><a href="privacidad.html">Privacidad</a><a href="condiciones.html">Condiciones</a><a href="mailto:info@yococino.app">Contacto</a></div>
+      <div><a href="recetas/">Recetas</a><a href="privacidad.html">Privacidad</a><a href="condiciones.html">Condiciones</a><a href="mailto:info@yococino.app">Contacto</a></div>
     </div>
   </footer>
 </body>

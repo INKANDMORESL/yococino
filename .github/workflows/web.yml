@@ -13,6 +13,9 @@ on:
     branches: [main]
     paths: ['web/**', 'panel/**', '.github/workflows/web.yml']
   workflow_dispatch:
+  # Cada día a las 9:13 (hora de España en invierno): se publica la receta del día y se regenera la web.
+  schedule:
+    - cron: '13 8 * * *'
 
 jobs:
   publicar:
@@ -28,12 +31,22 @@ jobs:
           if [ -z "$URL" ] || [ -z "$CLAVE" ]; then echo "::error title=Panel::Faltan las variables SUPABASE_URL y SUPABASE_ANON_KEY"; exit 1; fi
           printf 'window.YOCOCINO = { url: %s, clave: %s };\n' "$(jq -Rn --arg v "$URL" '$v')" "$(jq -Rn --arg v "$CLAVE" '$v')" > panel/config.js
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generar la web con las recetas
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: node web/generar.mjs
+
       - name: Guardar copias para FileZilla
         uses: actions/upload-artifact@v4
         with:
           name: webs-yococino
           path: |
-            web
+            publicar/web
             panel
 
       - name: Subir a IONOS
@@ -68,6 +81,6 @@ jobs:
             fi
           }
           FALLO=0
-          subir web "$WEB_HOST" "$WEB_USUARIO" "$WEB_CONTRASENA" "$WEB_CARPETA" web
+          subir publicar/web "$WEB_HOST" "$WEB_USUARIO" "$WEB_CONTRASENA" "$WEB_CARPETA" web
           subir panel "$PANEL_HOST" "$PANEL_USUARIO" "$PANEL_CONTRASENA" "$PANEL_CARPETA" panel
           exit $FALLO

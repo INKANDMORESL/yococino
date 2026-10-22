@@ -148,11 +148,16 @@
         <dt>Gasto IA este mes</dt><dd>${euros(c.gasto_mes_eur)}</dd>
         <dt>Gasto IA en el año</dt><dd>${euros(c.gasto_ano_eur)} de 9,00 €</dd>
       </dl>
-      <h2>Suscripción manual</h2>
-      <p class="muted peq">Mientras no estén conectados los pagos de las tiendas, puedes dar o quitar la suscripción a mano (por ejemplo, a quien te pague por otro medio o a probadores).</p>
-      <div class="fila"><input type="date" id="hasta" value="${esc((c.suscripcion_hasta || '').slice(0, 10) || enUnAno)}">
+      <h2>Regalar o cambiar la suscripción</h2>
+      <p class="muted peq">Para un amigo, un probador o alguien que te paga por otro medio. No pasa por las tiendas ni se le cobra nada.</p>
+      <div class="fila" style="margin-bottom:10px">
+        <button class="boton suave" data-regalo="1">Regalar 1 año</button>
+        <button class="boton suave" data-regalo="5">5 años</button>
+        <button class="boton suave" data-regalo="siempre">Para siempre</button>
+      </div>
+      <div class="fila"><label class="peq">O hasta el día <input type="date" id="hasta" value="${esc((c.suscripcion_hasta || '').slice(0, 10) || enUnAno)}"></label>
         <label class="fila peq"><input type="checkbox" id="peques"> Con Peques</label>
-        <button class="boton" id="dar">Guardar suscripción</button>
+        <button class="boton" id="dar">Guardar</button>
         <button class="boton peligro" id="quitar">Quitar</button></div>
       <div id="resultado"></div>
       <h2>Mensajes</h2>
@@ -167,12 +172,19 @@
       const r = velo.querySelector('#resultado');
       try {
         await pedir('suscripcion', { user_id: c.id, hasta, peques: velo.querySelector('#peques').checked });
-        r.innerHTML = `<div class="aviso ok">${hasta ? `Suscripción activa hasta el ${fecha(hasta)}.` : 'Suscripción quitada.'}</div>`;
+        r.innerHTML = `<div class="aviso ok">${hasta ? (hasta.startsWith('2099') ? 'Suscripción regalada para siempre.' : `Suscripción activa hasta el ${fecha(hasta)}.`) : 'Suscripción quitada.'}</div>`;
       } catch (e) {
         r.innerHTML = `<div class="aviso error">${esc(e.message)}</div>`;
       }
     };
     velo.querySelector('#dar').onclick = () => guardar(velo.querySelector('#hasta').value);
+    velo.querySelectorAll('[data-regalo]').forEach((b) => (b.onclick = () => {
+      const v = b.dataset.regalo;
+      const d = new Date();
+      const hasta = v === 'siempre' ? '2099-12-31' : new Date(d.getFullYear() + Number(v), d.getMonth(), d.getDate()).toISOString().slice(0, 10);
+      velo.querySelector('#hasta').value = hasta;
+      guardar(hasta);
+    }));
     velo.querySelector('#quitar').onclick = () => confirm('¿Quitar la suscripción a este cliente?') && guardar(null);
     velo.querySelector('#ver-mensajes').onclick = () => {
       cerrar();
