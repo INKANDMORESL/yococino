@@ -16,19 +16,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="estilo.css?v=2">
+  <link rel="stylesheet" href="estilo.css?v=3">
   <!--DATOS_ESTRUCTURADOS-->
 </head>
 <body>
   <header>
     <div class="contenedor">
       <a class="marca" href="#"><img src="icono.png" alt=""><span><span class="yo">yo</span><span class="cocino">cocino</span></span></a>
-      <nav class="menu" aria-label="Principal">
+      <button class="abrir-menu" aria-label="Abrir el menú" aria-expanded="false" aria-controls="menu-principal"><span></span><span></span><span></span></button>
+      <nav class="menu" id="menu-principal" aria-label="Principal">
         <a href="#funciones">Qué hace</a>
-        <a href="#como">Cómo funciona</a>
+        <a href="#peques">Peques</a>
         <a href="recetas/">Recetas</a>
         <a href="#precios">Precios</a>
-        <a href="#preguntas">Preguntas</a>
         <a class="boton" href="https://yococino.expo.app">Pruébala gratis</a>
       </nav>
     </div>
@@ -36,8 +36,10 @@
 
   <main>
     <section class="portada">
+      <div class="decorado" aria-hidden="true"><span class="mancha m1"></span><span class="mancha m2"></span><span class="mancha m3"></span></div>
       <div class="contenedor">
-        <div>
+        <div class="entrada">
+          <span class="antetitulo">Menús caseros · Recetas paso a paso · Lista de la compra</span>
           <h1>Tu menú del mes, <em>hecho para ti</em>.</h1>
           <p class="sub">Yococino prepara lo que vas a comer cada día según tu objetivo, tus gustos y tus alergias. Con recetas paso a paso y la lista de la compra para toda la casa. Sin complicarte.</p>
           <div class="acciones">
@@ -46,7 +48,7 @@
           </div>
           <p class="nota">Muy pronto en App Store y Google Play. Mientras tanto, úsala desde el navegador del móvil.</p>
         </div>
-        <div class="movil" aria-hidden="true">
+        <div class="movil flota" aria-hidden="true">
           <div class="pantalla">
             <div class="hola">Buenos días, Ana</div>
             <div class="muted">jueves 22 de octubre · 1 de 5 comidas hechas</div>
@@ -64,13 +66,20 @@
       </div>
     </section>
 
+    <div class="confianza">
+      <div class="contenedor">
+        <span>🌿 Recetas de temporada</span><span>🚫 Alergias siempre fuera</span><span>👨‍👩‍👧 Para toda la casa</span><span>🔒 Datos en la UE</span>
+      </div>
+    </div>
+
     <section id="funciones" class="crema">
       <div class="contenedor">
-        <div class="titulo">
+        <div class="titulo aparece">
+          <span class="antetitulo">Qué hace</span>
           <h2>Todo lo que necesitas para comer bien</h2>
           <p>Del menú a la compra, sin pensar qué cocinar cada día.</p>
         </div>
-        <div class="rejilla">
+        <div class="rejilla escalonado">
           <div class="funcion"><div class="icono">📅</div><h3>Menú de 30 días</h3><p>Siempre tienes el mes por delante: desayuno, comida, cena y lo que tomes entre horas, con productos de temporada.</p></div>
           <div class="funcion"><div class="icono" style="background:var(--lemon-soft)">👩‍🍳</div><h3>Recetas paso a paso</h3><p>Con las cantidades de tu ración, temporizadores y modo cocinar para que la pantalla no se apague.</p></div>
           <div class="funcion"><div class="icono" style="background:#E3EFF1">🔁</div><h3>A tu gusto</h3><p>¿No te apetece? Cambia el plato o un ingrediente y la receta se adapta. Lo que no te gusta, no vuelve a salir.</p></div>
@@ -78,18 +87,57 @@
           <div class="funcion"><div class="icono">🛒</div><h3>La compra, sola</h3><p>La lista sale de tu menú, ordenada por pasillos y con las cantidades para todos los que coméis en casa.</p></div>
           <div class="funcion"><div class="icono" style="background:var(--lemon-soft)">📈</div><h3>Tu progreso</h3><p>Apunta tu peso y medidas y mira tu evolución semana a semana. También puedes añadir a tu familia.</p></div>
         </div>
-        <div class="rejilla" style="grid-template-columns:1fr;margin-top:18px">
-          <div class="funcion" style="display:flex;gap:18px;align-items:center"><div class="icono" style="margin:0;flex:none">🧒</div><div><h3>Yococino Peques</h3><p>La versión para los niños de cada receta, con los mismos ingredientes: qué hacer distinto, consejos por edad y avisos de seguridad. Para que coman lo mismo que la familia. Nunca es una dieta.</p></div></div>
-        </div>
+        <a class="aviso-peques aparece" href="#peques"><span class="icono">🧒</span><span><b>¿Hay niños en casa?</b> Descubre Yococino Peques: el mismo plato, adaptado a cada edad.</span><span class="flecha">→</span></a>
       </div>
     </section>
 
     <!--RECETAS-->
 
+    <section id="peques" class="peques">
+      <div class="contenedor">
+        <div class="peques-cabecera aparece">
+          <div>
+            <span class="antetitulo">Yococino Peques</span>
+            <h2>Que coman lo mismo que tú, adaptado a su edad</h2>
+            <p class="sub">Nada de cocinar dos menús. Cada receta de tu plan tiene su versión para los niños de casa, con los mismos ingredientes: qué hacer distinto, cómo servírselo según su edad y los avisos de seguridad que importan.</p>
+            <p class="nunca">💚 Nunca es una dieta: no contamos calorías ni hablamos de peso. Los peques comen según su hambre.</p>
+          </div>
+          <div class="ejemplo aparece">
+            <div class="ejemplo-titulo">Ejemplo: merluza al horno con calabaza</div>
+            <ul>
+              <li><b>Antes de salar,</b> aparta su ración.</li>
+              <li><b>De 1 a 3 años:</b> desmiga la merluza, revisa que no quede ninguna espina y aplasta la calabaza con un tenedor.</li>
+              <li><b>De 4 a 8 años:</b> calabaza en bastones para comer con la mano y la merluza en trocitos.</li>
+              <li><b>Para que les apetezca:</b> déjales espolvorear el perejil.</li>
+            </ul>
+            <div class="ojo">⚠️ Ojo con las espinas: revisa bien cada trozo.</div>
+          </div>
+        </div>
+
+        <div class="rejilla escalonado" style="margin-top:36px">
+          <div class="funcion"><div class="icono">🥕</div><h3>Los mismos ingredientes</h3><p>Una sola compra y una sola cocina. Solo cambian la textura, el corte y el momento de echar la sal o el picante.</p></div>
+          <div class="funcion"><div class="icono" style="background:var(--lemon-soft)">🎂</div><h3>Según su edad</h3><p>Consejos distintos para cada etapa, con las edades que indicas al registrarte.</p></div>
+          <div class="funcion"><div class="icono" style="background:#F6E5E1">🛡️</div><h3>Segura</h3><p>Avisos de atragantamiento, espinas y alimentos a vigilar, y nada de ingredientes que no estén en el plato.</p></div>
+        </div>
+
+        <div class="edades escalonado">
+          <div class="edad"><b>1 a 3 años</b><span>Texturas blandas y trozos que pueda coger con la mano. Sin sal añadida.</span></div>
+          <div class="edad"><b>4 a 8 años</b><span>La comida de la familia en formatos divertidos para que se animen a probar.</span></div>
+          <div class="edad"><b>9 a 13 años</b><span>Raciones según su hambre e ideas para que te ayuden en la cocina.</span></div>
+          <div class="edad"><b>14 a 17 años</b><span>El mismo plato que los adultos, con trucos para que no piquen entre horas.</span></div>
+        </div>
+
+        <div class="peques-precio aparece">
+          <div><b>Complemento Peques: 9,99 € al año</b><span>Se añade a tu suscripción. La lista de la compra ya cuenta a los peques que comen en casa.</span></div>
+          <a class="boton" href="https://yococino.expo.app">Probar con mis peques</a>
+        </div>
+      </div>
+    </section>
+
     <section id="como">
       <div class="contenedor">
-        <div class="titulo"><h2>Así de fácil</h2></div>
-        <div class="pasos">
+        <div class="titulo aparece"><span class="antetitulo">Cómo funciona</span><h2>Así de fácil</h2></div>
+        <div class="pasos escalonado">
           <div class="paso"><h3>Cuéntanos de ti</h3><p>Una encuesta de 2 minutos: tu objetivo, tu actividad, tus alergias, lo que no te gusta y cuánto tiempo tienes para cocinar.</p></div>
           <div class="paso"><h3>Recibe tu menú</h3><p>En unos segundos tienes tus primeros días preparados, y cada día se añade uno nuevo.</p></div>
           <div class="paso"><h3>Cocina y disfruta</h3><p>Sigue las recetas paso a paso, marca lo que comes y haz la compra con la lista ya hecha.</p></div>
@@ -147,6 +195,8 @@
           <details><summary>¿Sirve para toda la familia?</summary><p>Sí. La lista de la compra calcula las cantidades para todos los que coméis en casa, puedes seguir el progreso de hasta 4 personas más y, con el complemento Peques, cada receta tiene su versión para niños.</p></details>
           <details><summary>¿Qué incluye la prueba gratis?</summary><p>Durante 7 días tienes tu menú de esa semana, las recetas, la lista de la compra y puedes probar las funciones con IA. Si te gusta, te suscribes para tener siempre el mes por delante.</p></details>
           <details><summary>¿Puedo cancelar cuando quiera?</summary><p>Sí. La suscripción se gestiona desde tu cuenta de App Store o Google Play, y puedes cancelarla cuando quieras.</p></details>
+          <details><summary>¿Cómo funciona Yococino Peques?</summary><p>Si nos dices que hay niños en casa y sus edades, cada receta de tu menú tiene un apartado «Versión Peques». Te explica qué hacer distinto con los mismos ingredientes (por ejemplo, apartar su ración antes de salar), cómo servírselo según su edad, ideas para que les apetezca y los avisos de seguridad del plato.</p></details>
+          <details><summary>¿La versión Peques es una dieta para niños?</summary><p>No, nunca. No hablamos de calorías ni de peso: el objetivo es que coman lo mismo que la familia, rico y seguro. Si un peque tiene alergias o una necesidad especial, consulta siempre con su pediatra.</p></details>
           <details><summary>¿Es para menores de edad?</summary><p>Los menús personalizados son solo para mayores de 18 años. Para los niños de casa está Yococino Peques, que adapta las recetas familiares sin convertirlas nunca en una dieta.</p></details>
         </div>
       </div>
@@ -167,5 +217,6 @@
       <div><a href="recetas/">Recetas</a><a href="privacidad.html">Privacidad</a><a href="condiciones.html">Condiciones</a><a href="mailto:info@yococino.app">Contacto</a></div>
     </div>
   </footer>
+  <script src="animaciones.js?v=1" defer></script>
 </body>
 </html>

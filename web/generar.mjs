@@ -33,8 +33,10 @@ const cabecera = (raiz) => `
   <header>
     <div class="contenedor">
       <a class="marca" href="${raiz}"><img src="${raiz}icono.png" alt=""><span><span class="yo">yo</span><span class="cocino">cocino</span></span></a>
-      <nav class="menu" aria-label="Principal">
+      <button class="abrir-menu" aria-label="Abrir el menú" aria-expanded="false" aria-controls="menu-principal"><span></span><span></span><span></span></button>
+      <nav class="menu" id="menu-principal" aria-label="Principal">
         <a href="${raiz}#funciones">Qué hace</a>
+        <a href="${raiz}#peques">Peques</a>
         <a href="${raiz}recetas/">Recetas</a>
         <a href="${raiz}#precios">Precios</a>
         <a class="boton" href="${ENLACE_APP}">Pruébala gratis</a>
@@ -69,13 +71,14 @@ const pagina = ({ titulo, descripcion, url, imagen, raiz, cuerpo, datos }) => `<
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="${raiz}estilo.css?v=2">
+  <link rel="stylesheet" href="${raiz}estilo.css?v=3">
   ${datos ? `<script type="application/ld+json">${JSON.stringify(datos).replace(/</g, '\\u003c')}</script>` : ''}
 </head>
 <body>
 ${cabecera(raiz)}
   <main>${cuerpo}</main>
 ${pie(raiz)}
+  <script src="${raiz}animaciones.js?v=1" defer></script>
 </body>
 </html>
 `;
@@ -195,7 +198,7 @@ function portada(plantilla, destacadas) {
   const seccion = destacadas.length
     ? `<section id="recetas">
       <div class="contenedor">
-        <div class="titulo"><h2>Conoce nuestras recetas</h2><p>Caseras, de temporada y pensadas para tu día a día. Así son algunos de los platos de tu menú.</p></div>
+        <div class="titulo"><span class="antetitulo">Recetas</span><h2>Conoce nuestras recetas</h2><p>Caseras, de temporada y pensadas para tu día a día. Así son algunos de los platos de tu menú.</p></div>
         <div class="recetas-rejilla">
         ${destacadas.map((r) => tarjeta(r, '')).join('\n        ')}
         </div>
