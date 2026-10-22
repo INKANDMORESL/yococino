@@ -31,3 +31,6 @@ verify_jwt = true
 
 [functions.sembrar-recetas]
 verify_jwt = true
+
+[functions.admin]
+verify_jwt = true

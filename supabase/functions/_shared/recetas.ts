@@ -141,6 +141,7 @@ export async function cargarCatalogo(admin: Cliente, tipos: TipoComida[], nivel:
     .select(COLUMNAS_RECETA)
     .in('tipo_comida', tipos)
     .in('nivel', NIVELES_PERMITIDOS[nivel])
+    .eq('oculta', false)
     .order('created_at', { ascending: false })
     .limit(800);
   if (error) throw error;

@@ -39,7 +39,7 @@ async function buscar(req: Request): Promise<Response> {
     if (!ids.length) return responder({ ok: true, recetas: [] });
   }
 
-  let consulta = admin.from('recetas').select(COLUMNAS).neq('tipo_comida', 'otro');
+  let consulta = admin.from('recetas').select(COLUMNAS).neq('tipo_comida', 'otro').eq('oculta', false);
   if (ids) consulta = consulta.in('id', ids.slice(0, 300));
   if (tipo) consulta = consulta.eq('tipo_comida', tipo);
   const { data, error } = await consulta.order('created_at', { ascending: false }).limit(300);

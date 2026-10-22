@@ -15,6 +15,7 @@ import { TIPOS, type TipoComida } from '../../src/features/menu/tipos';
 import { aEncuesta, borrarCuenta, cargarFavoritas, cargarPerfil, guardarPreferencias } from '../../src/features/perfil/api';
 import { esAdmin } from '../../src/features/menu/api';
 import { SembrarRecetas } from '../../src/features/perfil/SembrarRecetas';
+import { respuestasSinLeer } from '../../src/features/contacto/api';
 import { useAuth } from '../../src/lib/auth';
 import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../../src/theme';
@@ -55,6 +56,7 @@ export default function Perfil() {
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
   const [borrando, setBorrando] = useState(false);
   const [admin, setAdmin] = useState(false);
+  const [sinLeer, setSinLeer] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -69,6 +71,7 @@ export default function Perfil() {
           }
           setFavoritas(favs);
           esAdmin().then(setAdmin).catch(() => {});
+          respuestasSinLeer().then(setSinLeer).catch(() => {});
         } catch (err) {
           setError(err instanceof Error ? err.message : 'No hemos podido cargar tu perfil.');
         }
@@ -230,6 +233,18 @@ export default function Perfil() {
                 <Text style={[s.filaTitulo, { flex: 1 }]}>Mi suscripción</Text>
                 <Text style={s.chevron}>›</Text>
               </Pressable>
+              <Pressable onPress={() => router.push('/contacto')} accessibilityRole="button" style={[s.fila, s.separador]}>
+                <View style={s.icono}>
+                  <Text style={{ fontSize: 18 }}>💬</Text>
+                </View>
+                <Text style={[s.filaTitulo, { flex: 1 }]}>Contacta con nosotros</Text>
+                {sinLeer ? (
+                  <View style={s.globo}>
+                    <Text style={s.globoTexto}>{sinLeer}</Text>
+                  </View>
+                ) : null}
+                <Text style={s.chevron}>›</Text>
+              </Pressable>
               <Pressable onPress={() => router.push('/tutorial')} accessibilityRole="button" style={[s.fila, s.separador]}>
                 <View style={s.icono}>
                   <Text style={{ fontSize: 18 }}>🧭</Text>
@@ -272,6 +287,8 @@ const s = StyleSheet.create({
   icono: { width: 38, height: 38, borderRadius: radius.sm, backgroundColor: colors.leaf, alignItems: 'center', justifyContent: 'center' },
   filaTitulo: { fontSize: 16, fontWeight: '600', color: colors.ink },
   chevron: { fontSize: 22, color: '#C3C0B5' },
+  globo: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: colors.rose, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  globoTexto: { color: '#fff', fontSize: 12, fontWeight: '800' },
   editor: { paddingHorizontal: space.lg, paddingBottom: space.xl },
   enlaceBorrar: { alignSelf: 'center', padding: space.md },
   enlaceBorrarTexto: { color: colors.rose, fontWeight: '600', fontSize: 15 },
