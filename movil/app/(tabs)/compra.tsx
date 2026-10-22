@@ -3,7 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Aparecer, Aviso, BarraProgreso, Chip, Tarjeta } from '../../src/components';
+import { Aparecer, Aviso, BarraProgreso, Chip, Contador, Tarjeta } from '../../src/components';
 import { borrarMarcas, cargarComensales, cargarIngredientes, cargarMarcas, guardarComensales, guardarMarca } from '../../src/features/compra/api';
 import { SECCIONES, agruparCompra, cantidadCompra, type Articulo, type ComidaConIngredientes, type Comensales } from '../../src/features/compra/lista';
 import { hoyISO, sumarDias } from '../../src/features/menu/fechas';
@@ -16,35 +16,6 @@ const RANGOS = [
   { clave: '3d', texto: 'Próximos 3 días', dias: 3 },
   { clave: 'semana', texto: 'Esta semana', dias: 7 },
 ] as const;
-
-function Contador({ texto, valor, min, max, cambiar }: { texto: string; valor: number; min: number; max: number; cambiar: (v: number) => void }) {
-  return (
-    <View style={s.contador}>
-      <Text style={[type.body, { flex: 1, color: colors.ink }]}>{texto}</Text>
-      <Pressable
-        onPress={() => valor > min && cambiar(valor - 1)}
-        disabled={valor <= min}
-        accessibilityRole="button"
-        accessibilityLabel={`Quitar uno: ${texto}`}
-        style={[s.boton, valor <= min && { opacity: 0.35 }]}
-      >
-        <Text style={s.botonTexto}>−</Text>
-      </Pressable>
-      <Text style={s.valor} accessibilityLiveRegion="polite">
-        {valor}
-      </Text>
-      <Pressable
-        onPress={() => valor < max && cambiar(valor + 1)}
-        disabled={valor >= max}
-        accessibilityRole="button"
-        accessibilityLabel={`Añadir uno: ${texto}`}
-        style={[s.boton, valor >= max && { opacity: 0.35 }]}
-      >
-        <Text style={s.botonTexto}>+</Text>
-      </Pressable>
-    </View>
-  );
-}
 
 export default function Compra() {
   const { sesion } = useAuth();

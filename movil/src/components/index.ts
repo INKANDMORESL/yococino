@@ -5,6 +5,7 @@ export { Boton } from './Boton';
 export { Campo, type CampoRef } from './Campo';
 export { Casilla } from './Casilla';
 export { Chip } from './Chip';
+export { Contador } from './Contador';
 export { Logo } from './Logo';
 export { Opcion } from './Opcion';
 export { Separador } from './Separador';

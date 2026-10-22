@@ -3,7 +3,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, Vibration, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Aparecer, Aviso, Boton, Saltar } from '../../src/components';
+import { Aparecer, Aviso, Boton, Contador, Saltar } from '../../src/components';
+import { cargarComensales } from '../../src/features/compra/api';
+import { RACION_PEQUE, type Comensales } from '../../src/features/compra/lista';
+import { leerCache } from '../../src/lib/cache';
 import { useLatido } from '../../src/components/Animaciones';
 import { ErrorMenu, cambiarPlato, cargarComidas, cargarReceta, marcarHecha } from '../../src/features/menu/api';
 import { faltaFoto, pedirFoto } from '../../src/features/menu/fotos';
@@ -152,6 +155,14 @@ export default function RecetaPantalla() {
   }, [id, comidaParam]);
 
   const factor = comida?.factor ?? 1;
+  // Para cuántos se cocina: empieza con los comensales de casa (los de la lista de la compra) y se puede cambiar aquí.
+  const [casa, setCasa] = useState<Comensales | null>(leerCache<Comensales>('compra:casa') ?? null);
+  useEffect(() => {
+    if (!casa) cargarComensales().then(setCasa).catch(() => setCasa({ adultos: 1, peques: 0 }));
+  }, [casa]);
+  const comensales = casa ?? { adultos: 1, peques: 0 };
+  // Tu ración va ajustada a tu plan; cada adulto más, una ración normal; cada peque, algo más de media.
+  const factorTotal = factor + Math.max(0, comensales.adultos - 1) + comensales.peques * RACION_PEQUE;
   const nutricion = useMemo(() => {
     const n = receta?.nutricion;
     if (!n) return [];
@@ -301,6 +312,14 @@ export default function RecetaPantalla() {
 
           <Aparecer retraso={80}>
             <Text style={s.seccion}>Ingredientes</Text>
+            <View style={s.comensales}>
+              <Text style={s.comensalesTitulo}>¿Para cuántos cocinas?</Text>
+              <Contador texto="Adultos" valor={comensales.adultos} min={1} max={12} cambiar={(v) => setCasa({ ...comensales, adultos: v })} />
+              <Contador texto="Peques" valor={comensales.peques} min={0} max={10} cambiar={(v) => setCasa({ ...comensales, peques: v })} />
+              {comensales.adultos > 1 || comensales.peques > 0 ? (
+                <Text style={type.small}>Cantidades para todos: tu ración ajustada a tu plan, ración normal para los demás adultos y algo más de media por peque.</Text>
+              ) : null}
+            </View>
             <View style={s.caja}>
               {receta.ingredientes.map((ing, i) => {
                 const hecho = ingHechos.has(i);
@@ -317,7 +336,7 @@ export default function RecetaPantalla() {
                       {ing.nombre.charAt(0).toUpperCase() + ing.nombre.slice(1)}
                       {ing.nota ? <Text style={s.ingNota}> ({ing.nota})</Text> : null}
                     </Text>
-                    <Text style={[s.ingCantidad, hecho && s.tachado]}>{cantidadTexto(ing.cantidad, ing.unidad, factor)}</Text>
+                    <Text style={[s.ingCantidad, hecho && s.tachado]}>{cantidadTexto(ing.cantidad, ing.unidad, factorTotal)}</Text>
                   </Pressable>
                 );
               })}
@@ -540,6 +559,8 @@ const s = StyleSheet.create({
   relojBoton: { backgroundColor: colors.surface, borderRadius: radius.pill, paddingVertical: 8, paddingHorizontal: 12 },
   relojBotonTexto: { fontWeight: '700', fontSize: 14, color: colors.ink },
   corazon: { fontSize: 22, color: colors.ink },
+  comensales: { backgroundColor: colors.leafSoft, borderRadius: radius.lg, padding: space.lg, gap: space.md, marginBottom: space.md },
+  comensalesTitulo: { fontSize: 16, fontWeight: '700', color: colors.ink },
   enlace: { alignSelf: 'center', padding: space.md },
   enlaceTexto: { color: colors.olive, fontWeight: '700', fontSize: 15, textAlign: 'center' },
   cocinar: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.lg, padding: space.lg, borderRadius: radius.lg, backgroundColor: colors.surface, ...shadow },
