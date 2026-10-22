@@ -149,7 +149,7 @@ export default function Inicio() {
       for (const id of sinFoto) {
         const url = await fotoReceta(id).catch(() => null);
         if (!url || !activo.current) continue;
-        setComidas((prev) => prev.map((c) => (c.receta?.id === id ? { ...c, receta: { ...c.receta, imagen: url } } : c)));
+        setComidas((prev) => prev.map((c) => (c.receta && c.receta.id === id ? { ...c, receta: { ...c.receta, imagen: url } } : c)));
       }
     })();
   }, [delDia]);
