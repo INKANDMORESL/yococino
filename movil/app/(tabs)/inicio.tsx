@@ -1,4 +1,5 @@
-// Inicio: qué toca comer hoy y los próximos 30 días. Mientras faltan días, los va preparando.
+// Inicio: la próxima comida, el menú de hoy (con acceso al menú completo), cocina con lo que tienes y el progreso.
+// Mientras faltan días para tener 30 por delante, los va preparando.
 import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -6,9 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Saltar, Tarjeta } from '../../src/components';
 import { ResumenPeso } from '../../src/features/progreso/ResumenPeso';
 import { ErrorMenu, cambiarPlato, cargarComidas, fotoReceta, marcarHecha, perfilBasico, prepararMenu } from '../../src/features/menu/api';
-import { fechaLarga, hoyISO, nombreDia, sumarDias } from '../../src/features/menu/fechas';
+import { fechaLarga, hoyISO, sumarDias } from '../../src/features/menu/fechas';
 import { PreparandoMenu } from '../../src/features/menu/PreparandoMenu';
-import { SelectorDias } from '../../src/features/menu/SelectorDias';
+import { ProximaComida, proximaComida } from '../../src/features/menu/ProximaComida';
 import { TarjetaComida } from '../../src/features/menu/TarjetaComida';
 import type { Comida } from '../../src/features/menu/tipos';
 import { useAuth } from '../../src/lib/auth';
@@ -16,7 +17,6 @@ import { guardarEncuestaPendiente } from '../../src/lib/perfil';
 import { colors, radius, space, type } from '../../src/theme';
 
 const DIAS = 30;
-const HORA_COMIDA: Record<string, number> = { desayuno: 8, media_manana: 11, almuerzo: 14, merienda: 17, cena: 21 };
 
 const saludo = () => {
   const h = new Date().getHours();
@@ -35,7 +35,6 @@ export default function Inicio() {
   const dias = useMemo(() => Array.from({ length: DIAS }, (_, i) => sumarDias(hoy, i)), [hoy]);
   const [estado, setEstado] = useState<Estado>({ tipo: 'cargando' });
   const [comidas, setComidas] = useState<Comida[]>([]);
-  const [elegido, setElegido] = useState(hoy);
   const [preparando, setPreparando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refrescando, setRefrescando] = useState(false);
@@ -132,17 +131,14 @@ export default function Inicio() {
     return m;
   }, [comidas]);
   const listos = useMemo(() => new Set(porDia.keys()), [porDia]);
-  const completos = useMemo(
-    () => new Set([...porDia.entries()].filter(([, l]) => l.length > 0 && l.every((c) => c.hecha)).map(([d]) => d)),
-    [porDia],
-  );
+  const delDia = porDia.get(hoy) ?? [];
+  const proxima = useMemo(() => proximaComida(comidas), [comidas]);
 
-  const delDia = porDia.get(elegido) ?? [];
-
-  // Fotos de los platos del día elegido: se piden una a una la primera vez (luego quedan guardadas).
+  // Fotos de la próxima comida y de los platos de hoy: se piden una a una la primera vez (luego quedan guardadas).
   const fotosPedidas = useRef<Set<number>>(new Set());
   useEffect(() => {
-    const sinFoto = delDia.filter((c) => c.receta && !c.receta.imagen && !fotosPedidas.current.has(c.receta.id)).map((c) => c.receta!.id);
+    const candidatas = proxima ? [proxima.comida, ...delDia] : delDia;
+    const sinFoto = [...new Set(candidatas.filter((c) => c.receta && !c.receta.imagen && !fotosPedidas.current.has(c.receta.id)).map((c) => c.receta!.id))];
     if (!sinFoto.length) return;
     sinFoto.forEach((id) => fotosPedidas.current.add(id));
     (async () => {
@@ -152,9 +148,8 @@ export default function Inicio() {
         setComidas((prev) => prev.map((c) => (c.receta && c.receta.id === id ? { ...c, receta: { ...c.receta, imagen: url } } : c)));
       }
     })();
-  }, [delDia]);
-  const horaActual = new Date().getHours();
-  const siguienteId = elegido === hoy ? delDia.find((c) => !c.hecha && (HORA_COMIDA[c.tipo_comida] ?? 0) + 2 > horaActual)?.id : undefined;
+  }, [delDia, proxima]);
+  const siguienteId = proxima?.comida.fecha === hoy ? proxima.comida.id : undefined;
   const hechasHoy = (porDia.get(hoy) ?? []).filter((c) => c.hecha).length;
   const totalHoy = (porDia.get(hoy) ?? []).length;
 
@@ -243,16 +238,23 @@ export default function Inicio() {
           </Text>
         </Aparecer>
 
-        <Aparecer retraso={80}>
-          <SelectorDias dias={dias} elegido={elegido} onElegir={setElegido} listos={listos} completos={completos} />
-        </Aparecer>
-
         <View style={s.contenido}>
           {preparando ? <PreparandoMenu listos={listos.size} total={DIAS} /> : null}
           {error ? <Aviso tono="rosa" texto={error} /> : null}
           {error && !preparando ? <Boton texto="Reintentar" variante="suave" onPress={completarMes} /> : null}
 
-          <Text style={[type.title, { marginTop: space.sm }]}>{nombreDia(elegido)}</Text>
+          {proxima ? (
+            <Aparecer retraso={60}>
+              <ProximaComida comida={proxima.comida} cuando={proxima.cuando} onMarcar={() => marcar(proxima.comida)} />
+            </Aparecer>
+          ) : null}
+
+          <View style={s.filaHoy}>
+            <Text style={type.title}>Hoy</Text>
+            <Pressable onPress={() => router.push('/menu')} accessibilityRole="button" style={s.verMenu}>
+              <Text style={s.verMenuTexto}>Ver menú completo</Text>
+            </Pressable>
+          </View>
 
           {estado.tipo === 'cargando' ? (
             <Tarjeta style={s.vacio}>
@@ -264,7 +266,7 @@ export default function Inicio() {
               <Text style={[type.body, s.centrado]}>{preparando ? 'Estamos preparando este día. Aparecerá en unos segundos.' : 'Este día aún no tiene menú.'}</Text>
             </Tarjeta>
           ) : (
-            <View key={elegido} style={{ gap: space.md }}>
+            <View style={{ gap: space.md }}>
               {delDia.map((c, i) => (
                 <Aparecer key={c.id} retraso={i * 60} desde={12}>
                   <TarjetaComida
@@ -321,6 +323,9 @@ const s = StyleSheet.create({
   aviso: { textAlign: 'center', marginTop: space.lg },
   salir: { alignSelf: 'center', padding: space.md },
   salirTexto: { color: colors.muted, fontWeight: '600', fontSize: 15 },
+  filaHoy: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: space.lg },
+  verMenu: { borderWidth: 1.5, borderColor: colors.line, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: colors.surface },
+  verMenuTexto: { fontSize: 14, fontWeight: '700', color: colors.ink },
   nevera: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.md, padding: space.lg, borderRadius: radius.lg, backgroundColor: colors.ink },
   neveraTitulo: { fontSize: 17, fontWeight: '700', color: '#fff' },
   neveraTexto: { fontSize: 14, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
