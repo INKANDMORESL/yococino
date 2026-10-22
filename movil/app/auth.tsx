@@ -8,7 +8,7 @@ import { supabase } from '../src/lib/supabase';
 import { colors, space, type } from '../src/theme';
 
 export default function Auth() {
-  const { sesion } = useAuth();
+  const { sesion, recuperando } = useAuth();
   const { code } = useLocalSearchParams<{ code?: string }>();
   const [error, setError] = useState<string | null>(null);
 
@@ -21,6 +21,7 @@ export default function Auth() {
     }
   }, [code, sesion]);
 
+  if (sesion && recuperando) return <Redirect href="/nueva-contrasena" />;
   if (sesion) return <Redirect href="/inicio" />;
 
   return (

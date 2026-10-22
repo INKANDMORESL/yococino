@@ -17,6 +17,10 @@ interface Auth {
   entrarConEmail: (email: string, contrasena: string) => Promise<void>;
   entrarConGoogle: () => Promise<void>;
   salir: () => Promise<void>;
+  // Recuperar contraseña: se envía un enlace al email; al volver, `recuperando` pide la nueva.
+  recuperarContrasena: (email: string) => Promise<void>;
+  cambiarContrasena: (nueva: string) => Promise<void>;
+  recuperando: boolean;
 }
 
 const Ctx = createContext<Auth | null>(null);
@@ -40,6 +44,7 @@ export function mensajeError(e: unknown): string {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [sesion, setSesion] = useState<Session | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [recuperando, setRecuperando] = useState(false);
 
   useEffect(() => {
     if (!supabaseConfigurado) {
@@ -50,8 +55,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .getSession()
       .then(({ data }) => setSesion(data.session))
       .finally(() => setCargando(false));
-    const { data } = supabase.auth.onAuthStateChange((_evento, nueva) => {
+    const { data } = supabase.auth.onAuthStateChange((evento, nueva) => {
       setSesion(nueva);
+      if (evento === 'PASSWORD_RECOVERY') setRecuperando(true);
       // Al entrar por primera vez, guardar la encuesta que se rellenó antes de registrarse.
       if (nueva) guardarEncuestaPendiente(nueva.user.id).catch(() => {});
     });
@@ -88,12 +94,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error: e2 } = await supabase.auth.exchangeCodeForSession(codigo);
         if (e2) throw e2;
       },
+      recuperando,
+      async recuperarContrasena(email) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: urlVuelta() });
+        if (error) throw error;
+      },
+      async cambiarContrasena(nueva) {
+        const { error } = await supabase.auth.updateUser({ password: nueva });
+        if (error) throw error;
+        setRecuperando(false);
+      },
       async salir() {
         vaciarCache();
         await supabase.auth.signOut();
       },
     }),
-    [sesion, cargando],
+    [sesion, cargando, recuperando],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

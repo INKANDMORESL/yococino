@@ -101,7 +101,7 @@ function Barra({ state, descriptors }: PropsBarra) {
 }
 
 export default function Pestanas() {
-  const { sesion, cargando } = useAuth();
+  const { sesion, cargando, recuperando } = useAuth();
 
   // Paso a paso de la primera vez: en cuanto hay sesión, si en este dispositivo aún no se ha visto.
   const comprobado = useRef(false);
@@ -116,6 +116,7 @@ export default function Pestanas() {
   }, [sesion]);
 
   if (!cargando && !sesion) return <Redirect href="/" />;
+  if (sesion && recuperando) return <Redirect href="/nueva-contrasena" />;
 
   return (
     <Tabs tabBar={(props) => <Barra {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}>

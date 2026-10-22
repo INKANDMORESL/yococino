@@ -1,7 +1,7 @@
 // Entrar con una cuenta existente.
-import { Redirect } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Campo, Separador, useSacudida } from '../src/components';
 import { Cabecera } from '../src/features/cuenta/Cabecera';
@@ -64,6 +64,9 @@ export default function Entrar() {
             <Campo etiqueta="Email" grande={false} value={email} onChangeText={setEmail} placeholder="tu@email.com" keyboardType="email-address" autoCapitalize="none" autoComplete="email" textContentType="emailAddress" />
             <Campo etiqueta="Contraseña" grande={false} value={contrasena} onChangeText={setContrasena} secureTextEntry autoCapitalize="none" autoComplete="current-password" textContentType="password" onSubmitEditing={conEmail} />
           </Aparecer>
+          <Pressable onPress={() => router.push({ pathname: '/recuperar', params: email ? { email: email.trim() } : {} })} accessibilityRole="link" style={s.olvido}>
+            <Text style={s.olvidoTexto}>¿Olvidaste tu contraseña?</Text>
+          </Pressable>
           {error ? <Aviso texto={error} tono="rosa" x={x} /> : null}
         </ScrollView>
         <View style={s.pie}>
@@ -77,5 +80,7 @@ export default function Entrar() {
 const s = StyleSheet.create({
   pantalla: { flex: 1, backgroundColor: colors.bg },
   lista: { padding: space.xl, gap: space.xl, paddingBottom: space.xxl },
+  olvido: { alignSelf: 'flex-end', paddingVertical: space.xs },
+  olvidoTexto: { color: colors.olive, fontWeight: '700', fontSize: 15 },
   pie: { padding: space.xl, paddingTop: space.md, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.bg },
 });

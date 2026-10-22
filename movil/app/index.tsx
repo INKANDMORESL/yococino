@@ -21,11 +21,8 @@ export default function Bienvenida() {
       <View style={s.arriba}>
         <Aparecer desde={24}>
           <Flotar>
-            <Logo />
+            <Logo tamano={190} />
           </Flotar>
-        </Aparecer>
-        <Aparecer retraso={120} desde={20}>
-          <Text style={[type.display, { marginTop: space.xl }]}>Yococino</Text>
         </Aparecer>
         <Aparecer retraso={220} desde={20}>
           <Text style={[type.body, s.lema]}>Tu menú del mes, tus recetas paso a paso y tu lista de la compra. Sin complicarte.</Text>

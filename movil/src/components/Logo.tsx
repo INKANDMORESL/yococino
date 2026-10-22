@@ -1,19 +1,14 @@
-import { StyleSheet, View } from 'react-native';
-import { colors } from '../theme';
+import { Image } from 'react-native';
 
-// Logotipo de Yococino: un cuenco con una hoja, dibujado con formas.
-export function Logo({ tamano = 76 }: { tamano?: number }) {
-  const k = tamano / 76;
+// Logotipo de Yococino (la olla con hojas y el nombre), a partir del logo oficial.
+export function Logo({ tamano = 120 }: { tamano?: number }) {
   return (
-    <View accessibilityRole="image" accessibilityLabel="Logotipo de Yococino" style={[s.fondo, { width: tamano, height: tamano, borderRadius: 22 * k }]}>
-      <View style={[s.cuenco, { bottom: 18 * k, width: 44 * k, height: 22 * k, borderBottomLeftRadius: 22 * k, borderBottomRightRadius: 22 * k }]} />
-      <View style={[s.hoja, { top: 16 * k, right: 22 * k, width: 16 * k, height: 24 * k, borderRadius: 12 * k }]} />
-    </View>
+    <Image
+      source={require('../../assets/logo.png')}
+      style={{ width: tamano, height: tamano * (514 / 512) }}
+      resizeMode="contain"
+      accessibilityRole="image"
+      accessibilityLabel="Logotipo de Yococino"
+    />
   );
 }
-
-const s = StyleSheet.create({
-  fondo: { backgroundColor: colors.olive, alignItems: 'center', justifyContent: 'center' },
-  cuenco: { position: 'absolute', backgroundColor: colors.bg },
-  hoja: { position: 'absolute', backgroundColor: colors.lemon, transform: [{ rotate: '20deg' }] },
-});
