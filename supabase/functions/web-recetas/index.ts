@@ -83,6 +83,9 @@ const publica = (r: Receta) => ({
   pasos_total: (r.pasos ?? []).length,
 });
 
+// En la web (y en Instagram) solo salen comidas y cenas.
+const PRINCIPALES = ['almuerzo', 'cena'];
+
 async function publicar(admin: Cliente) {
   const hoy = hoyEspana();
   const { data: hechas } = await admin.from('blog_recetas').select('receta_id, publicada_el').limit(5000);
@@ -95,7 +98,7 @@ async function publicar(admin: Cliente) {
     .from('recetas')
     .select(COLUMNAS)
     .eq('oculta', false)
-    .neq('tipo_comida', 'otro')
+    .in('tipo_comida', PRINCIPALES)
     .order('created_at', { ascending: true })
     .limit(1500);
   const libres = ((candidatas ?? []) as unknown as Receta[]).filter((r) => !yaPublicadas.has(r.id) && (r.pasos ?? []).length >= 3);
@@ -103,14 +106,8 @@ async function publicar(admin: Cliente) {
   const conFoto = libres.filter((r) => r.imagen);
   const lista = conFoto.length >= cuantas ? conFoto : [...conFoto, ...libres.filter((r) => !r.imagen)];
   if (!lista.length) return { publicada: false, motivo: 'no hay recetas sin publicar' };
-  // Mezcla de tipos: dos comidas o cenas por cada desayuno o merienda.
-  const principales = lista.filter((r) => ['almuerzo', 'cena'].includes(r.tipo_comida));
-  const otras = lista.filter((r) => !['almuerzo', 'cena'].includes(r.tipo_comida));
-  const elegidas: Receta[] = [];
-  for (let i = 0; elegidas.length < cuantas && (principales.length || otras.length); i++) {
-    const de = (total + i) % 3 === 2 ? (otras.length ? otras : principales) : principales.length ? principales : otras;
-    elegidas.push(de.shift() as Receta);
-  }
+  // Solo comidas y cenas: los desayunos, medias mañanas y meriendas no se publican en la web.
+  const elegidas = lista.slice(0, cuantas);
   const hechasAhora: string[] = [];
   await enParalelo(elegidas, 5, async (r) => {
     try {
@@ -162,7 +159,7 @@ async function listar(admin: Cliente) {
     .order('publicada_el', { ascending: false })
     .limit(2000);
   const ids = (posts ?? []).map((p) => p.receta_id as number);
-  const { data: recetasPosts } = ids.length ? await admin.from('recetas').select(COLUMNAS).in('id', ids) : { data: [] };
+  const { data: recetasPosts } = ids.length ? await admin.from('recetas').select(COLUMNAS).in('id', ids).in('tipo_comida', PRINCIPALES) : { data: [] };
   const porId = new Map(((recetasPosts ?? []) as unknown as Receta[]).map((r) => [r.id, r]));
   const articulos = (posts ?? [])
     .filter((p) => porId.has(p.receta_id as number))
@@ -174,7 +171,7 @@ async function listar(admin: Cliente) {
     .select(COLUMNAS)
     .eq('oculta', false)
     .not('imagen', 'is', null)
-    .in('tipo_comida', ['almuerzo', 'cena', 'desayuno', 'merienda'])
+    .in('tipo_comida', PRINCIPALES)
     .order('created_at', { ascending: false })
     .limit(30);
   const destacadas = [
