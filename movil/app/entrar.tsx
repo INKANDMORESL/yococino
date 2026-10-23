@@ -8,6 +8,7 @@ import { Cabecera } from '../src/features/cuenta/Cabecera';
 import { emailValido } from '../src/features/cuenta/validar';
 import { mensajeError, useAuth } from '../src/lib/auth';
 import { colors, space } from '../src/theme';
+import { EnlacesLegales } from '../src/features/cuenta/Legal';
 
 export default function Entrar() {
   const { sesion, entrarConEmail, entrarConGoogle } = useAuth();
@@ -71,6 +72,7 @@ export default function Entrar() {
         </ScrollView>
         <View style={s.pie}>
           <Boton texto="Entrar" cargando={ocupado === 'email'} desactivado={ocupado === 'google'} onPress={conEmail} />
+          <EnlacesLegales />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

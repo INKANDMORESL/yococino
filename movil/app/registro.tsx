@@ -5,6 +5,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Campo, Casilla, Saltar, Separador, useSacudida } from '../src/components';
 import { Cabecera } from '../src/features/cuenta/Cabecera';
+import { EnlaceLegal, EnlacesLegales, InfoProteccionDatos } from '../src/features/cuenta/Legal';
 import { emailValido, errorContrasena } from '../src/features/cuenta/validar';
 import { evaluar } from '../src/features/encuesta/modelo';
 import { useEncuesta } from '../src/features/encuesta/store';
@@ -148,8 +149,9 @@ export default function Registro() {
               Puedo retirarlo y borrar mi cuenta cuando quiera.
             </Casilla>
             <Casilla marcada={condiciones} onPress={() => setCondiciones(!condiciones)}>
-              Tengo 18 años o más y acepto las condiciones de uso y la política de privacidad.
+              Tengo 18 años o más y acepto las <EnlaceLegal pagina="condiciones" /> y la <EnlaceLegal pagina="privacidad" />.
             </Casilla>
+            <InfoProteccionDatos />
           </Aparecer>
 
           {error ? <Aviso texto={error} tono="rosa" x={x} /> : null}
@@ -162,6 +164,7 @@ export default function Registro() {
               ¿Ya tienes cuenta? <Text style={s.enlaceTexto}>Entra</Text>
             </Text>
           </Pressable>
+          <EnlacesLegales />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

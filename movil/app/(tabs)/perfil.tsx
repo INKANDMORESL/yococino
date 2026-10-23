@@ -16,6 +16,7 @@ import { aEncuesta, borrarCuenta, cargarFavoritas, cargarPerfil, guardarPreferen
 import { esAdmin } from '../../src/features/menu/api';
 import { SembrarRecetas } from '../../src/features/perfil/SembrarRecetas';
 import { respuestasSinLeer } from '../../src/features/contacto/api';
+import { abrirLegal } from '../../src/features/cuenta/Legal';
 import { useAuth } from '../../src/lib/auth';
 import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../../src/theme';
@@ -252,6 +253,21 @@ export default function Perfil() {
                 <Text style={[s.filaTitulo, { flex: 1 }]}>Ver el paso a paso de la app</Text>
                 <Text style={s.chevron}>›</Text>
               </Pressable>
+              {(
+                [
+                  ['🔒', 'Política de privacidad', 'privacidad'],
+                  ['📄', 'Condiciones de uso', 'condiciones'],
+                  ['⚖️', 'Aviso legal', 'aviso'],
+                ] as const
+              ).map(([emoji, texto, pagina]) => (
+                <Pressable key={pagina} onPress={() => abrirLegal(pagina)} accessibilityRole="link" style={[s.fila, s.separador]}>
+                  <View style={s.icono}>
+                    <Text style={{ fontSize: 18 }}>{emoji}</Text>
+                  </View>
+                  <Text style={[s.filaTitulo, { flex: 1 }]}>{texto}</Text>
+                  <Text style={s.chevron}>↗</Text>
+                </Pressable>
+              ))}
             </View>
             <Boton texto="Cerrar sesión" variante="linea" onPress={salir} />
             {!confirmarBorrado ? (
