@@ -250,8 +250,8 @@ async function estado(admin: Cliente) {
     try {
       await admin.from('lotes_ia').update({ revisado_at: new Date().toISOString() }).eq('id', lote.id);
       const r = lote.tipo === 'recetas' ? await recogerRecetas(admin, lote as never) : await recogerFotos(admin, lote as never);
-      if (r && 'pendiente' in r) {
-        google[lote.id as number] = r.google;
+      if (r && 'pendiente' in r && r.pendiente) {
+        google[lote.id as number] = String(r.google ?? '');
         continue;
       }
       if (r && 'creadas' in r && r.creadas > 0) fotosNuevas = true;
