@@ -1,0 +1,33 @@
+# Diagnóstico de solo lectura: estado de los lotes de recetas y fotos y registros recientes de las funciones.
+# No muestra datos personales ni de salud. Se lanza a mano.
+name: Diagnóstico
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnostico:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - name: Lotes y fotos
+        run: |
+          Q="select json_build_object(
+            'recetas', (select count(*) from public.recetas where not oculta),
+            'con_foto', (select count(*) from public.recetas where not oculta and imagen is not null),
+            'en_lote', (select count(*) from public.recetas where foto_en_lote),
+            'lotes', (select json_agg(l) from (select id, tipo, estado, proveedor_id, json_array_length(coalesce(datos->'recetas','[]'::json)) as n, resultado, created_at, terminado_at from public.lotes_ia order by created_at desc limit 12) l)
+          ) as r"
+          jq -n --arg q "$Q" '{query: $q, read_only: true}' > q.json
+          curl -sS -w '\nHTTP %{http_code}\n' -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @q.json | tee r.txt
+          echo "::notice title=Lotes::$(head -c 3500 r.txt | tr '\n' ' ')"
+
+      - name: Registros de sembrar-recetas
+        run: |
+          SQL="select datetime(timestamp) as t, event_message from function_logs where metadata.function_id is not null and event_message like '%sembrar%' or event_message like '%lote%' or event_message like '%Gemini%' order by timestamp desc limit 30"
+          curl -sS -G -w '\nHTTP %{http_code}\n' "https://api.supabase.com/v1/projects/$REF/analytics/endpoints/logs.all" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" --data-urlencode "sql=$SQL" | tee l.txt
+          echo "::notice title=Registros::$(head -c 3500 l.txt | tr '\n' ' ')"
