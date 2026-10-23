@@ -1,0 +1,51 @@
+# Prepara la app de Android para Google Play (archivo .aab) en los servidores de Expo.
+# Se lanza a mano desde GitHub → Actions → «App Android» → Run workflow.
+# La primera vez Expo crea y guarda la clave de firma de la app: no hay que hacer nada más.
+name: App Android
+
+on:
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: movil
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Comprobar el acceso a Expo
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then echo "::error title=Expo::Falta el secreto EXPO_TOKEN en GitHub."; exit 1; fi
+
+      - name: Instalar dependencias
+        run: |
+          for intento in 1 2 3; do
+            npm install --no-audit --no-fund > instalar.txt 2>&1 && exit 0
+            sleep 15
+          done
+          cat instalar.txt | tail -n 30
+          exit 1
+
+      - name: Enlazar con el proyecto de Expo
+        run: |
+          npx --yes eas-cli@latest init --non-interactive --force
+          npx --yes eas-cli@latest update:configure --platform all --non-interactive
+
+      - name: Datos públicos del servidor para la app
+        run: |
+          jq --arg url "${{ vars.SUPABASE_URL }}" --arg clave "${{ vars.SUPABASE_ANON_KEY }}" \
+            '.build.production.env = {EXPO_PUBLIC_SUPABASE_URL: $url, EXPO_PUBLIC_SUPABASE_ANON_KEY: $clave}' eas.json > eas.tmp && mv eas.tmp eas.json
+
+      - name: Crear la app de Android (.aab)
+        run: |
+          npx --yes eas-cli@latest build --platform android --profile production --non-interactive --no-wait --json > build.json || (cat build.json; exit 1)
+          ID=$(node -e "const b=require('./build.json'); console.log((Array.isArray(b)?b[0]:b).id)")
+          echo "::notice title=App Android::Se está creando en Expo (tarda unos 15-30 minutos). Cuando acabe, el archivo .aab se descarga desde https://expo.dev/accounts/[cuenta]/projects/yococino/builds/$ID"
