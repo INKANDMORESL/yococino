@@ -62,6 +62,7 @@
     ['clientes', 'Clientes'],
     ['mensajes', 'Mensajes'],
     ['suscripciones', 'Suscripciones'],
+    ['promociones', 'Promociones'],
     ['facturacion', 'Facturación'],
     ['recetas', 'Recetas'],
     ['gastos', 'Gastos de IA'],
@@ -128,6 +129,38 @@
       cargarSeccion('clientes', new FormData(ev.target).get('q'));
     };
     document.querySelectorAll('tr[data-id]').forEach((tr) => (tr.onclick = () => fichaCliente(lista.find((c) => c.id === tr.dataset.id))));
+  };
+
+  V.promociones = async () => {
+    const r = await pedir('promociones');
+    const lista = r.lista;
+    marco('promociones', `
+      <div class="fila entre"><div><h1>Promociones</h1><p class="sub">${lista.length} ${lista.length === 1 ? 'persona ha aceptado' : 'personas han aceptado'} recibir novedades y promociones por email${r.bajas ? ` · ${r.bajas} se han dado de baja` : ''}.</p></div>
+      <div class="fila"><button class="boton suave" id="copiar">Copiar emails</button><button class="boton" id="csv">Descargar para Mailchimp (CSV)</button></div></div>
+      <div id="res-promo"></div>
+      <p class="peq muted">Solo aparecen quienes lo han marcado. Si alguien se da de baja desde la app, desaparece de esta lista al momento: descarga la lista justo antes de cada envío.</p>
+      <table><thead><tr><th>Email</th><th>Nombre</th><th>Aceptó el</th></tr></thead><tbody>
+      ${lista.map((p) => `<tr><td>${esc(p.email)}</td><td>${esc(p.nombre || '—')}</td><td>${fecha(p.desde)}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">Todavía nadie.</td></tr>'}
+      </tbody></table>`);
+    const res = document.getElementById('res-promo');
+    document.getElementById('copiar').onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(lista.map((p) => p.email).join(', '));
+        res.innerHTML = '<div class="aviso ok">Emails copiados.</div>';
+      } catch {
+        res.innerHTML = '<div class="aviso error">No se han podido copiar. Usa la descarga.</div>';
+      }
+    };
+    document.getElementById('csv').onclick = () => {
+      const celda = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const filas = [['Email Address', 'First Name', 'Fecha consentimiento'], ...lista.map((p) => [p.email, p.nombre, p.desde ? String(p.desde).slice(0, 10) : ''])];
+      const blob = new Blob(['\ufeff' + filas.map((f) => f.map(celda).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `yococino-promociones-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
   };
 
   function fichaCliente(c) {

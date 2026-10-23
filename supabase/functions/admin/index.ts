@@ -125,6 +125,23 @@ const acciones: Record<string, (admin: Cliente, d: Datos, yo: string) => Promise
     return { ok: true };
   },
 
+  // Personas que han dado permiso para recibir novedades y promociones (para enviarles emails o pasarlas a Mailchimp).
+  async promociones(admin) {
+    const { data, error } = await admin
+      .from('profiles')
+      .select('id, nombre, promociones_at')
+      .eq('promociones', true)
+      .order('promociones_at', { ascending: false })
+      .limit(20000);
+    if (error) throw error;
+    const emails = new Map((await usuarios(admin)).map((u) => [u.id, u.email]));
+    const { count: bajas } = await admin.from('profiles').select('id', { count: 'exact', head: true }).eq('promociones', false).not('promociones_baja_at', 'is', null);
+    return {
+      bajas: bajas ?? 0,
+      lista: (data ?? []).map((p) => ({ email: emails.get(p.id as string) ?? '', nombre: p.nombre ?? '', desde: p.promociones_at })).filter((p) => p.email),
+    };
+  },
+
   async suscripciones(admin) {
     const { data } = await admin.from('suscripciones').select('user_id, plan_anual, peques, activa_hasta, updated_at').order('updated_at', { ascending: false }).limit(500);
     const emails = new Map((await usuarios(admin)).map((u) => [u.id, u.email]));

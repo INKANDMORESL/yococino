@@ -21,6 +21,7 @@ export default function Registro() {
   const [ver, setVer] = useState(false);
   const [consentimiento, setConsentimiento] = useState(false);
   const [condiciones, setCondiciones] = useState(false);
+  const [promociones, setPromociones] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<'email' | 'google' | null>(null);
   const [enviadoA, setEnviadoA] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export default function Registro() {
     if (!comprobarPermisos()) return;
     setOcupado('google');
     try {
-      await dejarEncuestaPendiente(encuesta, consentimiento);
+      await dejarEncuestaPendiente(encuesta, consentimiento, promociones);
       await entrarConGoogle();
     } catch (e) {
       fallo(mensajeError(e));
@@ -69,7 +70,7 @@ export default function Registro() {
     if (!comprobarPermisos()) return;
     setOcupado('email');
     try {
-      await dejarEncuestaPendiente(encuesta, consentimiento);
+      await dejarEncuestaPendiente(encuesta, consentimiento, promociones);
       const { necesitaConfirmar } = await registrarConEmail(email.trim(), contrasena);
       if (necesitaConfirmar) setEnviadoA(email.trim());
     } catch (e) {
@@ -150,6 +151,9 @@ export default function Registro() {
             </Casilla>
             <Casilla marcada={condiciones} onPress={() => setCondiciones(!condiciones)}>
               Tengo 18 años o más y acepto las <EnlaceLegal pagina="condiciones" /> y la <EnlaceLegal pagina="privacidad" />.
+            </Casilla>
+            <Casilla marcada={promociones} onPress={() => setPromociones(!promociones)}>
+              (Opcional) Quiero recibir por email novedades, recetas y promociones de Yococino. Puedo darme de baja cuando quiera desde Perfil.
             </Casilla>
             <InfoProteccionDatos />
           </Aparecer>

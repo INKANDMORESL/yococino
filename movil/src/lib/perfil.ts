@@ -7,8 +7,8 @@ import { supabase } from './supabase';
 
 const CLAVE = 'yococino:encuesta-pendiente';
 
-export async function dejarEncuestaPendiente(e: Encuesta, consentimientoSalud: boolean) {
-  await AsyncStorage.setItem(CLAVE, JSON.stringify({ e, consentimientoSalud, at: new Date().toISOString() }));
+export async function dejarEncuestaPendiente(e: Encuesta, consentimientoSalud: boolean, promociones = false) {
+  await AsyncStorage.setItem(CLAVE, JSON.stringify({ e, consentimientoSalud, promociones, at: new Date().toISOString() }));
 }
 
 export function aPerfil(e: Encuesta, consentimientoAt: string | null) {
@@ -36,10 +36,10 @@ export function aPerfil(e: Encuesta, consentimientoAt: string | null) {
 export async function guardarEncuestaPendiente(userId: string) {
   const texto = await AsyncStorage.getItem(CLAVE);
   if (!texto) return;
-  const { e, consentimientoSalud, at } = JSON.parse(texto) as { e: Encuesta; consentimientoSalud: boolean; at: string };
+  const { e, consentimientoSalud, promociones, at } = JSON.parse(texto) as { e: Encuesta; consentimientoSalud: boolean; promociones?: boolean; at: string };
   const { error } = await supabase
     .from('profiles')
-    .upsert({ id: userId, ...aPerfil(e, consentimientoSalud ? at : null) });
+    .upsert({ id: userId, ...aPerfil(e, consentimientoSalud ? at : null), ...(promociones ? { promociones: true, promociones_at: at } : {}) });
   if (error) throw error;
   await AsyncStorage.removeItem(CLAVE);
 }
@@ -48,4 +48,14 @@ export async function guardarEncuestaPendiente(userId: string) {
 export async function guardarEncuesta(userId: string, e: Encuesta) {
   const { error } = await supabase.from('profiles').upsert({ id: userId, ...aPerfil(e, new Date().toISOString()) });
   if (error) throw error;
+}
+
+// Permiso opcional para recibir novedades y promociones por email (se puede dar o retirar en Perfil).
+export async function cambiarPromociones(userId: string, si: boolean) {
+  const ahora = new Date().toISOString();
+  const { error } = await supabase
+    .from('profiles')
+    .update(si ? { promociones: true, promociones_at: ahora, promociones_baja_at: null } : { promociones: false, promociones_baja_at: ahora })
+    .eq('id', userId);
+  if (error) throw new Error('No hemos podido guardar tu elección. Inténtalo de nuevo.');
 }

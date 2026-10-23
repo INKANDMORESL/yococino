@@ -1,7 +1,7 @@
 // Perfil: preferencias del plan, alergias, gustos, peques, favoritas y cuenta.
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Campo, Tarjeta } from '../../src/components';
 import { erroresPaso, type Encuesta } from '../../src/features/encuesta/modelo';
@@ -18,6 +18,7 @@ import { SembrarRecetas } from '../../src/features/perfil/SembrarRecetas';
 import { respuestasSinLeer } from '../../src/features/contacto/api';
 import { abrirLegal } from '../../src/features/cuenta/Legal';
 import { useAuth } from '../../src/lib/auth';
+import { cambiarPromociones } from '../../src/lib/perfil';
 import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../../src/theme';
 
@@ -58,6 +59,7 @@ export default function Perfil() {
   const [borrando, setBorrando] = useState(false);
   const [admin, setAdmin] = useState(false);
   const [sinLeer, setSinLeer] = useState(0);
+  const [promociones, setPromociones] = useState<boolean | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -71,6 +73,7 @@ export default function Perfil() {
             setE(enc);
           }
           setFavoritas(favs);
+          setPromociones(!!(perfil as { promociones?: boolean } | null)?.promociones);
           esAdmin().then(setAdmin).catch(() => {});
           respuestasSinLeer().then(setSinLeer).catch(() => {});
         } catch (err) {
@@ -268,6 +271,33 @@ export default function Perfil() {
                   <Text style={s.chevron}>↗</Text>
                 </Pressable>
               ))}
+              {promociones !== null ? (
+                <View style={[s.fila, s.separador]}>
+                  <View style={s.icono}>
+                    <Text style={{ fontSize: 18 }}>📧</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.filaTitulo}>Novedades y promociones</Text>
+                    <Text style={type.small}>{promociones ? 'Las recibes por email. Desactívalo para darte de baja.' : 'No recibes emails promocionales.'}</Text>
+                  </View>
+                  <Switch
+                    value={promociones}
+                    accessibilityLabel="Recibir novedades y promociones por email"
+                    trackColor={{ true: colors.olive, false: colors.line }}
+                    onValueChange={async (si) => {
+                      if (!sesion) return;
+                      setPromociones(si);
+                      try {
+                        await cambiarPromociones(sesion.user.id, si);
+                        setAviso(si ? 'Listo: te avisaremos de novedades y promociones.' : 'Listo: ya no recibirás emails promocionales.');
+                      } catch (err) {
+                        setPromociones(!si);
+                        setError(err instanceof Error ? err.message : 'No hemos podido guardar tu elección.');
+                      }
+                    }}
+                  />
+                </View>
+              ) : null}
             </View>
             <Boton texto="Cerrar sesión" variante="linea" onPress={salir} />
             {!confirmarBorrado ? (
