@@ -5,7 +5,7 @@
 import { restriccionesDe } from '../_shared/alergenos.ts';
 import { crearClientes, fallo, hoyEspana, responder, servir, sumarDias } from '../_shared/http.ts';
 import { comidasDelDia, factorRacion, KCAL_RACION_ESTANDAR, type TipoComida } from '../_shared/nutricion.ts';
-import { energiaDe, perfilSeguro, permitirExtra } from '../_shared/perfil.ts';
+import { apuntarRecetaNueva, energiaDe, perfilSeguro, permitirExtra } from '../_shared/perfil.ts';
 import { planDe, respuestaSuscripcion } from '../_shared/plan.ts';
 import { cargarCatalogo, crearReceta, type Nivel, type RecetaGuardada } from '../_shared/recetas.ts';
 import { mesDe } from '../_shared/temporada.ts';
@@ -61,7 +61,7 @@ async function cambiar(req: Request): Promise<Response> {
     if (candidatas.length) receta = candidatas[Math.floor(Math.random() * Math.min(candidatas.length, 15))];
   }
   if (!receta) {
-    const bloqueo = await permitirExtra(admin, user.id, 'cambiar', MAX_NUEVAS_DIA);
+    const bloqueo = await permitirExtra(admin, user.id, 'cambiar', MAX_NUEVAS_DIA, { creaReceta: true });
     if (bloqueo) return bloqueo;
     receta = await crearReceta(
       admin,
@@ -73,6 +73,7 @@ async function cambiar(req: Request): Promise<Response> {
       nombresUsados.length ? `No repitas ninguno de estos platos: ${nombresUsados.join(', ')}.` : '',
       mesDe(comida.fecha),
     );
+    if (receta) await apuntarRecetaNueva(admin, user.id);
   }
   if (!receta) return fallo(502, 'ia', 'No hemos encontrado un plato que encaje contigo. Prueba otra vez en un momento.', 'sin receta apta');
 

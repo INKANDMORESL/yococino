@@ -25,3 +25,10 @@ export async function presupuestoPruebaEur(admin: Cliente): Promise<number> {
   const { data } = await admin.from('ajustes_planes').select('presupuesto_prueba_eur').eq('id', 1).maybeSingle();
   return Number(data?.presupuesto_prueba_eur) || 0.5;
 }
+
+// Máximo de platos nuevos que se pueden crear durante la prueba gratis (por defecto 10).
+export async function recetasPrueba(admin: Cliente): Promise<number> {
+  const { data } = await admin.from('ajustes_planes').select('recetas_prueba').eq('id', 1).maybeSingle();
+  const n = Number(data?.recetas_prueba);
+  return Number.isFinite(n) && n >= 0 ? n : 10;
+}

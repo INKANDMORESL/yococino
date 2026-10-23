@@ -4,7 +4,7 @@
 import { motivosNoApta, restriccionesDe } from '../_shared/alergenos.ts';
 import { crearClientes, fallo, hoyEspana, responder, servir } from '../_shared/http.ts';
 import type { TipoComida } from '../_shared/nutricion.ts';
-import { perfilSeguro, permitirExtra } from '../_shared/perfil.ts';
+import { apuntarRecetaNueva, perfilSeguro, permitirExtra } from '../_shared/perfil.ts';
 import { crearReceta, esApta, type Nivel, type RecetaGuardada } from '../_shared/recetas.ts';
 import { planDe, respuestaSuscripcion } from '../_shared/plan.ts';
 import { contieneAlimento } from '../_shared/texto.ts';
@@ -88,7 +88,7 @@ async function cocinar(req: Request): Promise<Response> {
     if (sugerencias.length) return responder({ ok: true, sugerencias, descartados });
   }
 
-  const bloqueo = await permitirExtra(admin, user.id, 'cocinar', MAX_USOS_DIA);
+  const bloqueo = await permitirExtra(admin, user.id, 'cocinar', MAX_USOS_DIA, { creaReceta: true });
   if (bloqueo) return bloqueo;
 
   const receta = await crearReceta(
@@ -102,6 +102,7 @@ async function cocinar(req: Request): Promise<Response> {
 Usa como base esos ingredientes (no hace falta usarlos todos). Solo puedes añadir básicos de despensa: aceite de oliva, sal, pimienta, especias, hierbas, ajo, cebolla, limón, vinagre y agua. No añadas nada más.`,
   );
   if (!receta) return fallo(502, 'ia', 'No hemos podido crear una receta apta con esos ingredientes. Prueba con otros.', 'sin receta apta');
+  await apuntarRecetaNueva(admin, user.id);
   return responder({ ok: true, receta_id: receta.id, nombre: receta.nombre, descartados });
 }
 

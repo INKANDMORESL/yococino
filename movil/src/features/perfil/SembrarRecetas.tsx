@@ -42,6 +42,15 @@ export function SembrarRecetas() {
 
   const abiertos = datos?.lotes.filter((l) => l.estado === 'enviado').length ?? 0;
 
+  // Mientras haya lotes en marcha, se recoge lo terminado cada minuto (con la pantalla abierta).
+  useEffect(() => {
+    if (!abiertos) return;
+    const t = setInterval(() => {
+      sembrarRecetas('estado').then(setDatos).catch(() => {});
+    }, 60_000);
+    return () => clearInterval(t);
+  }, [abiertos]);
+
   return (
     <Tarjeta style={{ gap: space.md }}>
       <Text style={type.heading}>Llenar el recetario</Text>
@@ -61,7 +70,7 @@ export function SembrarRecetas() {
         ))}
       </View>
       <Boton texto="Crear recetas (lote)" variante="suave" cargando={ocupado === 'enviar'} desactivado={!!ocupado} onPress={() => hacer('enviar', cantidad)} />
-      <Boton texto="Hacer 20 fotos que faltan (lote)" variante="linea" cargando={ocupado === 'fotos'} desactivado={!!ocupado} onPress={() => hacer('fotos', 20)} />
+      <Boton texto="Hacer todas las fotos que faltan (lote)" variante="linea" cargando={ocupado === 'fotos'} desactivado={!!ocupado} onPress={() => hacer('fotos', 0)} />
 
       {mensaje ? <Aviso tono="hoja" texto={mensaje} /> : null}
 

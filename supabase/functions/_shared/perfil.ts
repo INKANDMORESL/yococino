@@ -2,7 +2,7 @@
 // Seguridad (no negociable, ver CLAUDE.md): solo mayores de 18, con consentimiento de datos de salud
 // y sin situaciones que requieran un profesional.
 import { cobrarA, gastoEur, motivoSinExtras } from './costes.ts';
-import { planDe, presupuestoPruebaEur, respuestaSuscripcion } from './plan.ts';
+import { planDe, presupuestoPruebaEur, recetasPrueba, respuestaSuscripcion } from './plan.ts';
 import { fallo, type Cliente } from './http.ts';
 import { AJUSTES_POR_DEFECTO, edadEn, energiaDiaria, type Actividad, type Ajustes, type Energia, type Objetivo, type Sexo } from './nutricion.ts';
 import type { Nivel } from './recetas.ts';
@@ -90,7 +90,7 @@ export async function permitirExtra(
   userId: string,
   tipo: string,
   maximoDia: number,
-  opciones: { enPrueba?: boolean } = {},
+  opciones: { enPrueba?: boolean; creaReceta?: boolean } = {},
 ): Promise<Response | null> {
   cobrarA(userId, tipo);
   const plan = await planDe(admin, userId);
@@ -100,10 +100,32 @@ export async function permitirExtra(
     if ((await gastoEur(admin, userId, 3650)) >= (await presupuestoPruebaEur(admin))) {
       return fallo(402, 'suscripcion', 'Durante la prueba gratis ya has usado todas las funciones con IA. Suscríbete para seguir disfrutándolas.');
     }
+    // En la prueba se usan las recetas que ya existen; platos nuevos, solo unos pocos (ajustes_planes.recetas_prueba).
+    if (opciones.creaReceta) {
+      const [{ data: p }, maximo] = await Promise.all([
+        admin.from('pruebas').select('recetas_nuevas').eq('user_id', userId).maybeSingle(),
+        recetasPrueba(admin),
+      ]);
+      if ((Number(p?.recetas_nuevas) || 0) >= maximo) {
+        return fallo(
+          402,
+          'suscripcion',
+          `Durante la prueba gratis puedes crear hasta ${maximo} platos nuevos y ya los has usado. Suscríbete para seguir creando platos a tu gusto.`,
+        );
+      }
+    }
   }
   const desde = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const { count } = await admin.from('usos_ia').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('tipo', tipo).gte('created_at', desde);
   if ((count ?? 0) >= maximoDia) return fallo(429, 'limite', 'Hoy ya has usado mucho esta función. Mañana podrás volver a usarla.');
   const motivo = await motivoSinExtras(admin, userId);
   return motivo ? fallo(429, 'limite', motivo) : null;
+}
+
+// Apunta un plato nuevo creado durante la prueba gratis (para el máximo de la prueba).
+export async function apuntarRecetaNueva(admin: Cliente, userId: string): Promise<void> {
+  if ((await planDe(admin, userId)).estado !== 'prueba') return;
+  await admin.from('pruebas').upsert({ user_id: userId }, { onConflict: 'user_id', ignoreDuplicates: true });
+  const { error } = await admin.rpc('sumar_receta_prueba', { p_user: userId });
+  if (error) console.error('no se apuntó la receta de la prueba:', error.message);
 }

@@ -5,7 +5,7 @@
 import { motivosNoApta, restriccionesDe } from '../_shared/alergenos.ts';
 import { crearClientes, fallo, hoyEspana, responder, servir } from '../_shared/http.ts';
 import { comidasDelDia, factorRacion, KCAL_RACION_ESTANDAR, type TipoComida } from '../_shared/nutricion.ts';
-import { energiaDe, perfilSeguro, permitirExtra } from '../_shared/perfil.ts';
+import { apuntarRecetaNueva, energiaDe, perfilSeguro, permitirExtra } from '../_shared/perfil.ts';
 import { COLUMNAS_RECETA, crearReceta, esApta, type Nivel, type RecetaGuardada } from '../_shared/recetas.ts';
 import { planDe, respuestaSuscripcion } from '../_shared/plan.ts';
 import { mesDe } from '../_shared/temporada.ts';
@@ -93,7 +93,7 @@ async function cambiar(req: Request): Promise<Response> {
   }
 
   if (!nueva) {
-    const bloqueo = await permitirExtra(admin, user.id, 'ingrediente', MAX_USOS_DIA);
+    const bloqueo = await permitirExtra(admin, user.id, 'ingrediente', MAX_USOS_DIA, { creaReceta: true });
     if (bloqueo) return bloqueo;
 
     const lineas = ingredientes.map((i) => `- ${i.cantidad ?? ''} ${i.unidad ?? ''} ${i.nombre}${i.nota ? ` (${i.nota})` : ''}`.replace(/\s+/g, ' ')).join('\n');
@@ -116,6 +116,7 @@ Cambia «${original.nombre}» por «${por}». Ajusta todo lo necesario para que 
       mesDe(comida?.fecha ?? hoy),
     );
     if (!nueva) return fallo(502, 'ia', 'No hemos podido adaptar la receta con ese ingrediente. Prueba con otro.', 'sin receta apta');
+    await apuntarRecetaNueva(admin, user.id);
     await admin
       .from('variantes_receta')
       .upsert({ receta_id: receta.id, original: claveOriginal, por: clavePor, nueva_id: nueva.id }, { onConflict: 'receta_id,original,por' });

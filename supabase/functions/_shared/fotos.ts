@@ -2,6 +2,7 @@
 // A Google solo se envía el nombre del plato y sus ingredientes.
 import { Image } from 'https://deno.land/x/imagescript@1.3.0/mod.ts';
 import type { Cliente } from './http.ts';
+import { FOTO_USD, sumarCoste } from './costes.ts';
 
 export const MODELO_FOTO = Deno.env.get('MODELO_FOTO') || 'gemini-nano-banana-2.1';
 export const BASE = 'https://generativelanguage.googleapis.com/v1beta';
@@ -171,4 +172,25 @@ export async function estadoLoteFotos(nombre: string): Promise<{ estado: 'pendie
     if (clave) fotos.set(clave, imagen ? { bytes: bytesDe(imagen.datos), tipo: imagen.tipo.startsWith('image/') ? imagen.tipo : 'image/png' } : null);
   }
   return { estado: 'terminado', fotos };
+}
+
+// Foto de una receta recién creada para alguien (no del administrador): se hace a la vez que la receta,
+// para que el plato nuevo ya salga con foto. Si tarda demasiado o falla, la receta se guarda igual
+// y la foto se podrá hacer después. Su coste se suma a la persona que pidió la receta.
+const ESPERA_FOTO_MS = 45_000;
+export async function fotoAlCrear(admin: Cliente, recetaId: number, nombre: string, ingredientes: string[]): Promise<void> {
+  if (!Deno.env.get('GEMINI_API_KEY')) return;
+  await admin.from('recetas').update({ foto_pedida_at: new Date().toISOString() }).eq('id', recetaId).is('imagen', null);
+  try {
+    const { bytes, tipo } = await Promise.race([
+      generar(promptDe(nombre, ingredientes)),
+      new Promise<never>((_, mal) => setTimeout(() => mal(new ErrorFoto('La foto ha tardado demasiado')), ESPERA_FOTO_MS)),
+    ]);
+    sumarCoste(FOTO_USD);
+    const { imagen, imagenMini } = await guardarVersiones(admin, recetaId, bytes, tipo);
+    await admin.from('recetas').update({ imagen, imagen_mini: imagenMini, foto_modelo: MODELO_FOTO }).eq('id', recetaId);
+  } catch (e) {
+    console.error('foto al crear la receta:', e instanceof Error ? e.message : e);
+    await admin.from('recetas').update({ foto_pedida_at: null }).eq('id', recetaId).is('imagen', null);
+  }
 }

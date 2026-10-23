@@ -29,6 +29,8 @@ const MODELO_IDEAS = Deno.env.get('MODELO_MENU') || 'claude-haiku-5-5';
 const MAX_POR_LOTE = 200;
 const IDEAS_POR_LLAMADA = 50;
 const FOTOS_POR_LOTE = 20;
+// «Hacer todas las fotos que faltan»: varios lotes de 20 de una vez (como mucho 30 lotes por pulsación).
+const MAX_LOTES_FOTOS = 30;
 const TIPOS: TipoComida[] = ['desayuno', 'media_manana', 'almuerzo', 'merienda', 'cena'];
 // Reparto aproximado del recetario: más comidas y cenas, que son las que más variedad necesitan.
 const REPARTO: [TipoComida, number][] = [['desayuno', 0.18], ['media_manana', 0.14], ['almuerzo', 0.28], ['merienda', 0.14], ['cena', 0.26]];
@@ -131,8 +133,10 @@ async function enviarRecetas(admin: Cliente, pedidas: number) {
   return { enviadas: ideas.length };
 }
 
+// Manda a lotes las fotos que faltan. pedidas = 0 (o sin número): todas las que faltan, en lotes de 20.
 async function enviarFotos(admin: Cliente, pedidas: number) {
-  const cantidad = Math.min(FOTOS_POR_LOTE, Math.max(1, Math.round(pedidas) || FOTOS_POR_LOTE));
+  const todas = !Number.isFinite(pedidas) || pedidas <= 0;
+  const cantidad = todas ? FOTOS_POR_LOTE * MAX_LOTES_FOTOS : Math.min(FOTOS_POR_LOTE * MAX_LOTES_FOTOS, Math.round(pedidas));
   const { data } = await admin
     .from('recetas')
     .select('id, nombre, ingredientes(nombre, orden, unidad)')
@@ -143,15 +147,20 @@ async function enviarFotos(admin: Cliente, pedidas: number) {
     .limit(cantidad);
   const recetas = (data ?? []) as { id: number; nombre: string; ingredientes: { nombre: string; orden: number; unidad: string | null }[] }[];
   if (!recetas.length) return { enviadas: 0, aviso: 'Todas las recetas tienen ya su foto (o están en un lote).' };
-  const nombre = await crearLoteFotos(
-    recetas.map((r) => ({
-      clave: `f${r.id}`,
-      prompt: promptDe(r.nombre, [...(r.ingredientes ?? [])].filter((i) => i.unidad !== 'al gusto').sort((a, b) => a.orden - b.orden).map((i) => i.nombre)),
-    })),
-  );
-  await admin.from('recetas').update({ foto_en_lote: true }).in('id', recetas.map((r) => r.id));
-  await admin.from('lotes_ia').insert({ tipo: 'fotos', proveedor_id: nombre, datos: { recetas: recetas.map((r) => r.id) } });
-  return { enviadas: recetas.length };
+  let enviadas = 0;
+  for (let i = 0; i < recetas.length; i += FOTOS_POR_LOTE) {
+    const grupo = recetas.slice(i, i + FOTOS_POR_LOTE);
+    const nombre = await crearLoteFotos(
+      grupo.map((r) => ({
+        clave: `f${r.id}`,
+        prompt: promptDe(r.nombre, [...(r.ingredientes ?? [])].filter((x) => x.unidad !== 'al gusto').sort((a, b) => a.orden - b.orden).map((x) => x.nombre)),
+      })),
+    );
+    await admin.from('recetas').update({ foto_en_lote: true }).in('id', grupo.map((r) => r.id));
+    await admin.from('lotes_ia').insert({ tipo: 'fotos', proveedor_id: nombre, datos: { recetas: grupo.map((r) => r.id) } });
+    enviadas += grupo.length;
+  }
+  return { enviadas };
 }
 
 // Recoge un lote de recetas terminado: revisa cada receta (alergias) y la guarda.
@@ -224,17 +233,27 @@ async function recogerFotos(admin: Cliente, lote: { id: number; proveedor_id: st
 }
 
 async function estado(admin: Cliente) {
-  const { data: abiertos } = await admin.from('lotes_ia').select('id, tipo, proveedor_id, datos').eq('estado', 'enviado').order('created_at').limit(3);
+  const { data: abiertos } = await admin.from('lotes_ia').select('id, tipo, proveedor_id, datos').eq('estado', 'enviado').order('created_at').limit(4);
   const errores: string[] = [];
+  let fotosNuevas = false;
   for (const lote of abiertos ?? []) {
     try {
       const r = lote.tipo === 'recetas' ? await recogerRecetas(admin, lote as never) : await recogerFotos(admin, lote as never);
+      if (r && 'creadas' in r && r.creadas > 0) fotosNuevas = true;
       if (r) {
         await admin
           .from('lotes_ia')
           .update({ estado: 'fallido' in r && r.fallido ? 'fallido' : 'terminado', resultado: r, terminado_at: new Date().toISOString() })
           .eq('id', lote.id);
       }
+    } catch (e) {
+      errores.push(mensajeTecnico(e));
+    }
+  }
+  // Las recetas nuevas del recetario tienen su foto desde el principio: se piden solas, también por lotes.
+  if (fotosNuevas) {
+    try {
+      await enviarFotos(admin, 0);
     } catch (e) {
       errores.push(mensajeTecnico(e));
     }

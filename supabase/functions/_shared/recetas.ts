@@ -6,6 +6,7 @@ import type { Cliente } from './http.ts';
 import { KCAL_RACION_ESTANDAR, type TipoComida } from './nutricion.ts';
 import { frutasDelMes, frutasFueraDeTemporada } from './temporada.ts';
 import { limpiarNombre, normalizar } from './texto.ts';
+import { fotoAlCrear } from './fotos.ts';
 
 // Límite global de recetas nuevas al mes (ver migración cupo_recetas): si se llega, no se crean más.
 export class ErrorCupo extends Error {
@@ -281,6 +282,7 @@ export async function crearReceta(
   restr: Restricciones,
   extra = '',
   mes: number | null = null,
+  conFoto = true,
 ): Promise<RecetaGuardada | null> {
   if ((await cupoRecetas(admin)).quedan <= 0) throw new ErrorCupo();
   let mensaje = mensajeReceta(plato, descripcion, tipo, extra);
@@ -313,7 +315,17 @@ export async function crearReceta(
       mensaje += `\n\nLa propuesta anterior usaba fruta fuera de temporada (${fueraTemporada.join(', ')}). Cámbiala por fruta de temporada: ${frutasDelMes(mes as number).join(', ')}.`;
       continue;
     }
-    if (motivos.length === 0) return await guardarReceta(admin, r, tipo, restr, modelo);
+    if (motivos.length === 0) {
+      const guardada = await guardarReceta(admin, r, tipo, restr, modelo);
+      // El plato nuevo sale ya con su foto (si ya existía una receta igual con foto, no se repite).
+      if (conFoto) {
+        const { data: f } = await admin.from('recetas').select('imagen').eq('id', guardada.id).maybeSingle();
+        if (!f?.imagen) {
+          await fotoAlCrear(admin, guardada.id, guardada.nombre, r.ingredientes.filter((i) => i.unidad !== 'al gusto').map((i) => i.nombre));
+        }
+      }
+      return guardada;
+    }
     mensaje += `\n\nLa propuesta anterior NO era apta (${motivos.join('; ')}). Crea una versión que lo evite por completo.`;
   }
   return null;
