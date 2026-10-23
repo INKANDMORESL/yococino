@@ -20,12 +20,14 @@ export default function Bienvenida() {
     <SafeAreaView style={s.pantalla}>
       <View style={s.arriba}>
         <Aparecer desde={24}>
-          <Flotar>
-            <Logo tamano={190} />
-          </Flotar>
+          <View style={{ alignItems: 'center' }}>
+            <Flotar>
+              <Logo tamano={150} />
+            </Flotar>
+          </View>
         </Aparecer>
         <Aparecer retraso={220} desde={20}>
-          <Text style={[type.body, s.lema]}>Tu menú del mes, tus recetas paso a paso y tu lista de la compra. Sin complicarte.</Text>
+          <Text style={[type.body, s.lema, { textAlign: 'center' }]}>Tu menú del mes, tus recetas paso a paso y tu lista de la compra. Sin complicarte.</Text>
         </Aparecer>
       </View>
 
