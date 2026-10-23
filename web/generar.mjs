@@ -48,7 +48,7 @@ const pie = (raiz) => `
   <footer>
     <div class="contenedor">
       <div>© ${new Date().getFullYear()} Yococino. Menús orientativos: no sustituyen el consejo de un profesional sanitario.</div>
-      <div><a href="${raiz}recetas/">Recetas</a><a href="${raiz}privacidad.html">Privacidad</a><a href="${raiz}condiciones.html">Condiciones</a><a href="${raiz}aviso-legal.html">Aviso legal</a><a href="mailto:info@yococino.app">Contacto</a><a href="https://www.instagram.com/yococino.app/" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>Instagram</a></div>
+      <div><a href="${raiz}recetas/">Recetas</a><a href="${raiz}privacidad.html">Privacidad</a><a href="${raiz}condiciones.html">Condiciones</a><a href="${raiz}aviso-legal.html">Aviso legal</a><a href="${raiz}cookies.html" data-cookies>Cookies</a><a href="mailto:info@yococino.app">Contacto</a><a href="https://www.instagram.com/yococino.app/" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>Instagram</a></div>
     </div>
   </footer>`;
 
@@ -71,7 +71,7 @@ const pagina = ({ titulo, descripcion, url, imagen, raiz, cuerpo, datos }) => `<
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="${raiz}estilo.css?v=3">
+  <link rel="stylesheet" href="${raiz}estilo.css?v=4">
   ${datos ? `<script type="application/ld+json">${JSON.stringify(datos).replace(/</g, '\\u003c')}</script>` : ''}
 </head>
 <body>
@@ -79,6 +79,7 @@ ${cabecera(raiz)}
   <main>${cuerpo}</main>
 ${pie(raiz)}
   <script src="${raiz}animaciones.js?v=1" defer></script>
+  <script src="${raiz}cookies.js?v=1" data-raiz="${raiz}"></script>
 </body>
 </html>
 `;
@@ -260,6 +261,7 @@ async function principal() {
     { loc: `${DOMINIO}/privacidad.html`, prioridad: '0.2' },
     { loc: `${DOMINIO}/condiciones.html`, prioridad: '0.2' },
     { loc: `${DOMINIO}/aviso-legal.html`, prioridad: '0.1' },
+    { loc: `${DOMINIO}/cookies.html`, prioridad: '0.1' },
   ];
   writeFileSync(
     join(SALIDA, 'sitemap.xml'),
