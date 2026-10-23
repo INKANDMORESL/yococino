@@ -22,9 +22,41 @@ const FILTROS: { clave: string | null; texto: string }[] = [
   { clave: 'media_manana', texto: 'Media mañana' },
 ];
 
+// Filtros por ingrediente principal y, para carne y pescado, por tipo.
+const CATEGORIAS: { clave: string; texto: string; subs?: { clave: string; texto: string }[] }[] = [
+  {
+    clave: 'carne',
+    texto: '🍗 Carne',
+    subs: [
+      { clave: 'pollo', texto: 'Pollo' },
+      { clave: 'pavo', texto: 'Pavo' },
+      { clave: 'ternera', texto: 'Ternera' },
+      { clave: 'cerdo', texto: 'Cerdo' },
+      { clave: 'cordero', texto: 'Cordero' },
+      { clave: 'conejo', texto: 'Conejo' },
+    ],
+  },
+  {
+    clave: 'pescado',
+    texto: '🐟 Pescado',
+    subs: [
+      { clave: 'blanco', texto: 'Pescado blanco' },
+      { clave: 'azul', texto: 'Pescado azul' },
+    ],
+  },
+  { clave: 'marisco', texto: '🦐 Marisco' },
+  { clave: 'huevos', texto: '🥚 Huevos' },
+  { clave: 'legumbres', texto: '🫘 Legumbres' },
+  { clave: 'vegetal', texto: '🥦 Sin carne ni pescado' },
+  { clave: 'pasta_arroz', texto: '🍝 Pasta y arroz' },
+];
+
 export default function Recetas() {
   const [texto, setTexto] = useState('');
   const [filtro, setFiltro] = useState<string | null>(null);
+  const [categoria, setCategoria] = useState<string | null>(null);
+  const [sub, setSub] = useState<string | null>(null);
+  const subs = CATEGORIAS.find((c) => c.clave === categoria)?.subs ?? [];
   const [recetas, setRecetas] = useState<RecetaResumen[] | null>(leerCache<RecetaResumen[]>('recetas:|') ?? null);
   const [favs, setFavs] = useState<{ id: number; nombre: string; tipo_comida: string }[]>(leerCache('favoritas') ?? []);
   const favoritas = new Set(favs.map((f) => f.id));
@@ -44,7 +76,7 @@ export default function Recetas() {
   useEffect(() => {
     const mio = ++turno.current;
     const tipo = filtro && filtro !== 'favoritas' ? filtro : null;
-    const clave = `recetas:${texto.trim().toLowerCase()}|${tipo ?? ''}`;
+    const clave = `recetas:${texto.trim().toLowerCase()}|${tipo ?? ''}${categoria ? `|${categoria}|${sub ?? ''}` : ''}`;
     const enMemoria = leerCache<RecetaResumen[]>(clave);
     if (enMemoria) setRecetas(enMemoria);
     const t = setTimeout(
@@ -52,7 +84,7 @@ export default function Recetas() {
         setCargando(true);
         setError(null);
         try {
-          const r = guardarCache(clave, await buscarRecetas(texto.trim(), tipo));
+          const r = guardarCache(clave, await buscarRecetas(texto.trim(), tipo, categoria, sub));
           if (mio === turno.current) setRecetas(r);
         } catch (e) {
           if (mio === turno.current) setError(e instanceof ErrorMenu ? e.message : 'No hemos podido buscar recetas.');
@@ -63,7 +95,7 @@ export default function Recetas() {
       enMemoria ? 0 : texto ? 400 : 250,
     );
     return () => clearTimeout(t);
-  }, [texto, filtro]);
+  }, [texto, filtro, categoria, sub]);
 
   // Favoritas: se muestran todas las guardadas (filtradas por el texto, si lo hay).
   const lista: RecetaResumen[] =
@@ -109,6 +141,29 @@ export default function Recetas() {
               <Chip key={f.clave ?? 'todas'} texto={f.texto} elegido={filtro === f.clave} onPress={() => setFiltro(f.clave)} />
             ))}
           </ScrollView>
+          {filtro !== 'favoritas' ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filtros}>
+              {CATEGORIAS.map((c) => (
+                <Chip
+                  key={c.clave}
+                  texto={c.texto}
+                  elegido={categoria === c.clave}
+                  onPress={() => {
+                    setCategoria(categoria === c.clave ? null : c.clave);
+                    setSub(null);
+                  }}
+                />
+              ))}
+            </ScrollView>
+          ) : null}
+          {filtro !== 'favoritas' && subs.length ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filtros}>
+              <Chip texto="Todos" elegido={!sub} onPress={() => setSub(null)} />
+              {subs.map((x) => (
+                <Chip key={x.clave} texto={x.texto} elegido={sub === x.clave} onPress={() => setSub(sub === x.clave ? null : x.clave)} />
+              ))}
+            </ScrollView>
+          ) : null}
         </View>
 
         {error ? <Aviso tono="rosa" texto={error} /> : null}
@@ -121,7 +176,7 @@ export default function Recetas() {
           <View style={s.centro}>
             <Text style={{ fontSize: 40 }}>🔎</Text>
             <Text style={[type.body, { textAlign: 'center' }]}>
-              {filtro === 'favoritas' ? 'Aún no tienes favoritas aquí. Toca el corazón ♡ en una receta.' : 'No hay recetas con esa búsqueda. Prueba con otra palabra.'}
+              {filtro === 'favoritas' ? 'Aún no tienes favoritas aquí. Toca el corazón ♡ en una receta.' : categoria ? 'No hay recetas con ese filtro. Prueba con otro o quítalo.' : 'No hay recetas con esa búsqueda. Prueba con otra palabra.'}
             </Text>
           </View>
         ) : (

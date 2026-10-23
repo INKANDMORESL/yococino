@@ -206,3 +206,29 @@ export async function fotoAlCrear(admin: Cliente, recetaId: number, nombre: stri
     await admin.from('recetas').update({ foto_pedida_at: null }).eq('id', recetaId).is('imagen', null);
   }
 }
+
+// ---------- Aligerar en segundo plano (función aligerar-fotos) ----------
+
+export function claveSecreta(): string {
+  const directa = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (directa) return directa;
+  try {
+    const d = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}') as Record<string, string>;
+    return d.default ?? Object.values(d)[0] ?? '';
+  } catch {
+    return '';
+  }
+}
+
+// Lanza la siguiente vuelta de aligerar-fotos sin esperar a que termine.
+export function seguirAligerando(salto = 0) {
+  const url = `${Deno.env.get('SUPABASE_URL')}/functions/v1/aligerar-fotos`;
+  const tarea = fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-clave-interna': claveSecreta() },
+    body: JSON.stringify({ salto }),
+  }).catch((e) => console.error('aligerar-fotos: no se pudo seguir:', e instanceof Error ? e.message : e));
+  // deno-lint-ignore no-explicit-any
+  const er = (globalThis as any).EdgeRuntime;
+  if (er?.waitUntil) er.waitUntil(tarea);
+}

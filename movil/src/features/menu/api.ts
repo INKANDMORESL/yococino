@@ -109,8 +109,8 @@ export interface RecetaResumen {
 }
 
 // Recetario: solo devuelve recetas aptas para la persona.
-export const buscarRecetas = (texto: string, tipo: string | null) =>
-  llamar<{ recetas: RecetaResumen[] }>('buscar-recetas', { texto, tipo }, 'No hemos podido buscar recetas.').then((r) => r.recetas);
+export const buscarRecetas = (texto: string, tipo: string | null, categoria: string | null = null, sub: string | null = null) =>
+  llamar<{ recetas: RecetaResumen[] }>('buscar-recetas', { texto, tipo, categoria, sub }, 'No hemos podido buscar recetas.').then((r) => r.recetas);
 
 // Pone una receta en un día y una comida del menú.
 export const asignarReceta = (recetaId: number, fecha: string, tipoComida: string) =>

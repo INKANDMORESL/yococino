@@ -3,6 +3,7 @@ import { motivosNoApta, restriccionesDe, textoIncumple } from './alergenos.ts';
 import { comidasDelDia, edadEn, energiaDiaria, factorRacion } from './nutricion.ts';
 import { frutasDelMes, frutasFueraDeTemporada } from './temporada.ts';
 import { contieneAlimento, contienePalabra, limpiarNombre } from './texto.ts';
+import { categoriasDe } from './categorias.ts';
 
 type Caso = [string, () => boolean];
 
@@ -14,6 +15,12 @@ export const CASOS: Caso[] = [
   ['"coliflores" encuentra "coliflor"', () => contieneAlimento('coliflor al horno', 'coliflores')],
   ['"nueces" encuentra "nuez"', () => contieneAlimento('nuez picada', 'nueces')],
   ['"aguacates" encuentra "aguacate"', () => contieneAlimento('aguacate maduro', 'aguacates')],
+  ['categoría: pollo al horno es carne y pollo', () => { const c = categoriasDe({ nombre: 'Pollo al horno con patatas' }); return c.categorias.includes('carne') && c.sub.includes('pollo') && !c.categorias.includes('vegetal'); }],
+  ['categoría: lomo de salmón es pescado azul, no cerdo', () => { const c = categoriasDe({ nombre: 'Lomo de salmón a la plancha' }); return c.sub.includes('azul') && !c.sub.includes('cerdo'); }],
+  ['categoría: jamón de pavo es pavo, no cerdo', () => { const c = categoriasDe({ nombre: 'Tostada', ingredientes: [{ nombre: 'jamón de pavo' }] }); return c.sub.includes('pavo') && !c.sub.includes('cerdo'); }],
+  ['categoría: lentejas con verduras es legumbre y vegetal', () => { const c = categoriasDe({ nombre: 'Lentejas estofadas con verduras' }); return c.categorias.includes('legumbres') && c.categorias.includes('vegetal'); }],
+  ['categoría: merluza es pescado blanco', () => categoriasDe({ nombre: 'Merluza en salsa verde' }).sub.includes('blanco')],
+  ['categoría: mejillones son marisco', () => categoriasDe({ nombre: 'Mejillones al vapor' }).categorias.includes('marisco')],
   ['nombre: quita "(sin pescado)"', () => limpiarNombre('Pollo al horno con pisto (sin pescado)') === 'Pollo al horno con pisto'],
   ['nombre: quita "(sin gluten 2)" y "(variante)"', () => limpiarNombre('Tostada con tomate (sin gluten 2)') === 'Tostada con tomate' && limpiarNombre('Crema de calabaza (variante)') === 'Crema de calabaza'],
   ['nombre: respeta "sin anchoas" y otros paréntesis', () => limpiarNombre('Ensalada César sin anchoas') === 'Ensalada César sin anchoas' && limpiarNombre('Huevos rotos (estilo casero)') === 'Huevos rotos (estilo casero)'],

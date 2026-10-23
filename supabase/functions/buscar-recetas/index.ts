@@ -4,6 +4,7 @@ import { restriccionesDe } from '../_shared/alergenos.ts';
 import { crearClientes, fallo, responder, servir } from '../_shared/http.ts';
 import { esApta, type RecetaGuardada } from '../_shared/recetas.ts';
 import { normalizar } from '../_shared/texto.ts';
+import { CATEGORIAS, categoriasDe, SUBCATEGORIAS } from '../_shared/categorias.ts';
 
 const TIPOS = ['desayuno', 'media_manana', 'almuerzo', 'merienda', 'cena'];
 const MAX_RESULTADOS = 60;
@@ -15,7 +16,9 @@ async function buscar(req: Request): Promise<Response> {
   const user = auth?.user;
   if (!user) return fallo(401, 'no_autenticado', 'Vuelve a entrar en tu cuenta.');
 
-  const cuerpo = (await req.json().catch(() => ({}))) as { texto?: string; tipo?: string | null };
+  const cuerpo = (await req.json().catch(() => ({}))) as { texto?: string; tipo?: string | null; categoria?: string | null; sub?: string | null };
+  const categoria = (CATEGORIAS as readonly string[]).includes(cuerpo.categoria ?? '') ? (cuerpo.categoria as string) : null;
+  const sub = categoria && SUBCATEGORIAS[categoria]?.[cuerpo.sub ?? ''] ? (cuerpo.sub as string) : null;
   const q = normalizar(String(cuerpo.texto ?? '')).slice(0, 60);
   const tipo = TIPOS.includes(cuerpo.tipo ?? '') ? (cuerpo.tipo as string) : null;
 
@@ -42,11 +45,17 @@ async function buscar(req: Request): Promise<Response> {
   let consulta = admin.from('recetas').select(COLUMNAS).neq('tipo_comida', 'otro').eq('oculta', false);
   if (ids) consulta = consulta.in('id', ids.slice(0, 300));
   if (tipo) consulta = consulta.eq('tipo_comida', tipo);
-  const { data, error } = await consulta.order('created_at', { ascending: false }).limit(300);
+  // Con filtro de categoría se miran más recetas, porque la categoría se calcula aquí a partir de los ingredientes.
+  const { data, error } = await consulta.order('created_at', { ascending: false }).limit(categoria ? 2000 : 300);
   if (error) throw error;
 
   const recetas = ((data ?? []) as unknown as (RecetaGuardada & Record<string, unknown>)[])
     .filter((r) => esApta(r, restr))
+    .filter((r) => {
+      if (!categoria) return true;
+      const c = categoriasDe(r);
+      return (c.categorias as string[]).includes(categoria) && (!sub || c.sub.includes(sub));
+    })
     .slice(0, MAX_RESULTADOS)
     .map(({ id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini }) => ({ id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini }));
   return responder({ ok: true, recetas });

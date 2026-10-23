@@ -7,7 +7,7 @@ import { restriccionesDe } from '../_shared/alergenos.ts';
 import { crearLote, estadoLote, leerJSON, pedirJSON, resultadosLote } from '../_shared/claude.ts';
 import { costeTokens, FOTO_USD } from '../_shared/costes.ts';
 import { crearClientes, fallo, hoyEspana, mensajeTecnico, responder, servir, type Cliente } from '../_shared/http.ts';
-import { crearLoteFotos, estadoLoteFotos, guardarOriginal, MODELO_FOTO, promptDe } from '../_shared/fotos.ts';
+import { crearLoteFotos, estadoLoteFotos, guardarOriginal, MODELO_FOTO, promptDe, seguirAligerando } from '../_shared/fotos.ts';
 import type { TipoComida } from '../_shared/nutricion.ts';
 import {
   cupoRecetas,
@@ -264,6 +264,17 @@ async function estado(admin: Cliente) {
     } catch (e) {
       errores.push(mensajeTecnico(e));
     }
+  }
+  // Fotos guardadas tal cual: se aligeran en segundo plano (si no hay ya una tanda en marcha).
+  try {
+    const hace = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+    const [{ count: pendientes }, { count: enMarcha }] = await Promise.all([
+      admin.from('recetas').select('id', { count: 'exact', head: true }).not('imagen', 'is', null).is('imagen_mini', null),
+      admin.from('recetas').select('id', { count: 'exact', head: true }).not('imagen', 'is', null).is('imagen_mini', null).gt('foto_pedida_at', hace),
+    ]);
+    if ((pendientes ?? 0) > 0 && !(enMarcha ?? 0)) seguirAligerando(0);
+  } catch (e) {
+    errores.push(mensajeTecnico(e));
   }
   // Las recetas nuevas del recetario tienen su foto desde el principio: se piden solas, también por lotes.
   if (fotosNuevas) {
