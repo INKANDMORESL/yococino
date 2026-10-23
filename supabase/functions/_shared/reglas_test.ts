@@ -2,7 +2,7 @@
 import { motivosNoApta, restriccionesDe, textoIncumple } from './alergenos.ts';
 import { comidasDelDia, edadEn, energiaDiaria, factorRacion } from './nutricion.ts';
 import { frutasDelMes, frutasFueraDeTemporada } from './temporada.ts';
-import { contieneAlimento, contienePalabra } from './texto.ts';
+import { contieneAlimento, contienePalabra, limpiarNombre } from './texto.ts';
 
 type Caso = [string, () => boolean];
 
@@ -14,6 +14,9 @@ export const CASOS: Caso[] = [
   ['"coliflores" encuentra "coliflor"', () => contieneAlimento('coliflor al horno', 'coliflores')],
   ['"nueces" encuentra "nuez"', () => contieneAlimento('nuez picada', 'nueces')],
   ['"aguacates" encuentra "aguacate"', () => contieneAlimento('aguacate maduro', 'aguacates')],
+  ['nombre: quita "(sin pescado)"', () => limpiarNombre('Pollo al horno con pisto (sin pescado)') === 'Pollo al horno con pisto'],
+  ['nombre: quita "(sin gluten 2)" y "(variante)"', () => limpiarNombre('Tostada con tomate (sin gluten 2)') === 'Tostada con tomate' && limpiarNombre('Crema de calabaza (variante)') === 'Crema de calabaza'],
+  ['nombre: respeta "sin anchoas" y otros paréntesis', () => limpiarNombre('Ensalada César sin anchoas') === 'Ensalada César sin anchoas' && limpiarNombre('Huevos rotos (estilo casero)') === 'Huevos rotos (estilo casero)'],
 
   // Gluten
   ['gluten: "pan integral" no es apto', () => textoIncumple('pan integral', 'gluten')],
@@ -115,3 +118,4 @@ if (denoGlobal) {
     });
   }
 }
+

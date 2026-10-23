@@ -36,3 +36,12 @@ export function variantes(palabra: string): string[] {
 export function contieneAlimento(texto: string, palabraUsuario: string): boolean {
   return variantes(palabraUsuario).some((v) => contienePalabra(texto, v));
 }
+
+// Nombre de plato limpio para enseñar: quita las notas internas entre paréntesis que a veces añade la IA
+// o el sistema, como "(sin pescado)", "(sin gluten)" o "(variante 2)". "Pollo al horno (sin pescado)" -> "Pollo al horno"
+export function limpiarNombre(nombre: string): string {
+  return nombre
+    .replace(/\s*\((?:sin|apt[oa]s?|variante|version|versión|para)\b[^)]*\)/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}

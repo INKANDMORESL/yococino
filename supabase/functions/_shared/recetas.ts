@@ -5,7 +5,7 @@ import { ErrorIA, pedirJSON } from './claude.ts';
 import type { Cliente } from './http.ts';
 import { KCAL_RACION_ESTANDAR, type TipoComida } from './nutricion.ts';
 import { frutasDelMes, frutasFueraDeTemporada } from './temporada.ts';
-import { normalizar } from './texto.ts';
+import { limpiarNombre, normalizar } from './texto.ts';
 
 // Límite global de recetas nuevas al mes (ver migración cupo_recetas): si se llega, no se crean más.
 export class ErrorCupo extends Error {
@@ -173,14 +173,15 @@ Reglas:
 - Descripción: una sola frase corta.
 - Nutrición por ración, estimada con criterio.
 - Alérgenos: marca TODOS los de la lista de la UE presentes en cualquier ingrediente, incluidos pan, salsas, caldos y productos elaborados.
-- Esta receta debe ser apta por completo para alguien que no puede tomar: ${describirRestricciones(restr)}. Usa sustitutos aptos (por ejemplo, pan sin gluten o yogur sin lactosa) y, si el plato cambia, dilo en el nombre ("sin gluten").
+- Esta receta debe ser apta por completo para alguien que no puede tomar: ${describirRestricciones(restr)}. Usa sustitutos aptos (por ejemplo, pan sin gluten o yogur sin lactosa).
+- Nombre: el del plato tal cual, apetecible y natural. No menciones en el nombre lo que se ha quitado ni las restricciones, y no uses paréntesis (nada de "sin pescado" o "sin gluten"): eso va en las etiquetas.
 - Español de España, tono cercano. Sin consejos médicos.${
     mes ? `\n- Si lleva fruta fresca, que sea de temporada en España este mes: ${frutasDelMes(mes).join(', ')}.` : ''
   }`;
 }
 
 export async function guardarReceta(admin: Cliente, r: RecetaIA, tipo: TipoComida, restr: Restricciones, modelo = MODELO_RECETA): Promise<RecetaGuardada> {
-  const base = texto(r.nombre, 80);
+  const base = limpiarNombre(texto(r.nombre, 80)) || texto(r.nombre, 80);
   const sufijo = (r.etiquetas ?? []).map((e) => texto(e, 30)).find((e) => normalizar(e).startsWith('sin ')) ?? 'variante';
   const ingredientes = r.ingredientes
     .map((i, orden) => ({
@@ -201,12 +202,14 @@ export async function guardarReceta(admin: Cliente, r: RecetaIA, tipo: TipoComid
   };
 
   for (let intento = 0; intento < 4; intento++) {
-    const nombre = intento === 0 ? base : intento === 1 ? `${base} (${sufijo})` : `${base} (${sufijo} ${intento})`;
+    // El nombre que se ve es siempre el limpio; si ya existe otro plato igual que no es apto, solo cambia la clave interna.
+    const nombre = base;
+    const clave = normalizar(intento === 0 ? base : intento === 1 ? `${base} ${sufijo}` : `${base} ${sufijo} ${intento}`);
     const { data, error } = await admin
       .from('recetas')
       .insert({
         nombre,
-        nombre_norm: normalizar(nombre),
+        nombre_norm: clave,
         descripcion: texto(r.descripcion, 200) || null,
         tipo_comida: tipo,
         nivel: (['facil', 'medio', 'elaborado'] as const).includes(r.nivel) ? r.nivel : 'facil',
@@ -226,7 +229,7 @@ export async function guardarReceta(admin: Cliente, r: RecetaIA, tipo: TipoComid
 
     if (error?.code === '23505') {
       // Ya hay una receta con ese nombre: si es apta para esta persona, se usa; si no, se prueba otro nombre.
-      const existente = await recetaPorNombre(admin, normalizar(nombre));
+      const existente = await recetaPorNombre(admin, clave);
       if (existente && existente.tipo_comida === tipo && esApta(existente, restr)) return existente;
       continue;
     }
