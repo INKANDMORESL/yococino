@@ -77,6 +77,16 @@ export async function generar(prompt: string): Promise<{ bytes: Uint8Array; tipo
 
 // Versión grande (1024 px, JPEG) y miniatura (360 px) para que la app cargue rápido.
 // Si algo falla al convertir, se guarda la original y la miniatura es la misma.
+// Guarda la foto tal como llega, sin convertirla (casi no gasta CPU). La versión ligera se hace después,
+// la primera vez que alguien abre la receta (foto-receta ve que falta la miniatura y la prepara).
+export async function guardarOriginal(admin: Cliente, recetaId: number, bytes: Uint8Array, tipo: string): Promise<string> {
+  const ext = tipo.includes('jpeg') || tipo.includes('jpg') ? 'jpg' : tipo.includes('webp') ? 'webp' : 'png';
+  const ruta = `recetas/${recetaId}.${ext}`;
+  const { error } = await admin.storage.from('fotos').upload(ruta, bytes, { contentType: tipo, upsert: true });
+  if (error) throw error;
+  return admin.storage.from('fotos').getPublicUrl(ruta).data.publicUrl;
+}
+
 export async function guardarVersiones(admin: Cliente, recetaId: number, original: Uint8Array, tipo: string) {
   let grande = original;
   let mini = original;
@@ -156,14 +166,16 @@ function buscar(v: unknown, clave: string): unknown {
   return undefined;
 }
 
-export async function estadoLoteFotos(nombre: string): Promise<{ estado: 'pendiente' | 'terminado' | 'fallido'; fotos: Map<string, { bytes: Uint8Array; tipo: string } | null> }> {
+export async function estadoLoteFotos(
+  nombre: string,
+): Promise<{ estado: 'pendiente' | 'terminado' | 'fallido'; fotos: Map<string, { bytes: Uint8Array; tipo: string } | null>; google: string }> {
   const r = await fetch(`${BASE}/${nombre}`, { headers: { 'x-goog-api-key': claveGemini() } });
   const datos = await r.json().catch(() => null);
   if (!r.ok) throw new ErrorFoto(`Google ${r.status}: ${JSON.stringify(datos).slice(0, 200)}`);
   const estado = String(buscar(datos, 'state') ?? '');
   const fotos = new Map<string, { bytes: Uint8Array; tipo: string } | null>();
-  if (/FAILED|CANCELLED|EXPIRED/.test(estado)) return { estado: 'fallido', fotos };
-  if (!/SUCCEEDED/.test(estado) && buscar(datos, 'done') !== true) return { estado: 'pendiente', fotos };
+  if (/FAILED|CANCELLED|EXPIRED/.test(estado)) return { estado: 'fallido', fotos, google: estado };
+  if (!/SUCCEEDED/.test(estado) && buscar(datos, 'done') !== true) return { estado: 'pendiente', fotos, google: estado };
   let lista = buscar(datos, 'inlinedResponses');
   if (lista && !Array.isArray(lista)) lista = buscar(lista, 'inlinedResponses');
   for (const item of (Array.isArray(lista) ? lista : []) as Record<string, unknown>[]) {
@@ -171,7 +183,7 @@ export async function estadoLoteFotos(nombre: string): Promise<{ estado: 'pendie
     const imagen = item.response ? buscarImagen(item.response) : null;
     if (clave) fotos.set(clave, imagen ? { bytes: bytesDe(imagen.datos), tipo: imagen.tipo.startsWith('image/') ? imagen.tipo : 'image/png' } : null);
   }
-  return { estado: 'terminado', fotos };
+  return { estado: 'terminado', fotos, google: estado };
 }
 
 // Foto de una receta recién creada para alguien (no del administrador): se hace a la vez que la receta,

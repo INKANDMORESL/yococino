@@ -87,7 +87,9 @@ export function SembrarRecetas() {
               </Text>
               <Text style={type.small}>
                 {l.estado === 'enviado'
-                  ? 'En la cola…'
+                  ? l.tipo === 'fotos'
+                    ? 'Google las está haciendo. Suele tardar unas horas (como mucho 24 h); se guardan solas al volver aquí.'
+                    : 'La IA las está preparando. Suele tardar unas horas (como mucho 24 h); se guardan solas al volver aquí.'
                   : l.estado === 'fallido'
                     ? 'No se completó (se puede volver a pedir).'
                     : l.tipo === 'recetas'
