@@ -2,7 +2,7 @@
 // Llega por «Compartir → Yococino», o desde «Mis recetas» pegando el enlace (parámetro url).
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Saltar } from '../src/components';
 import { ErrorMenu, importarReceta, type ResultadoImportar } from '../src/features/menu/api';
@@ -21,26 +21,37 @@ export default function Importar() {
   const [estado, setEstado] = useState<'esperando' | 'leyendo' | 'listo' | 'error'>('esperando');
   const [resultado, setResultado] = useState<ResultadoImportar | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pedirTexto, setPedirTexto] = useState(false);
+  const [descripcion, setDescripcion] = useState('');
   const hecho = useRef(false);
 
   const compartido = valores.map((v) => enlaceDe(v)).find(Boolean) ?? null;
   const url = enlaceDe(typeof params.url === 'string' ? params.url : null) ?? compartido;
 
-  useEffect(() => {
-    if (!sesion || !url || hecho.current) return;
-    hecho.current = true;
+  const intentar = (texto?: string) => {
+    if (!url) return;
     setEstado('leyendo');
-    importarReceta(url)
+    setSegundos(0);
+    setError(null);
+    importarReceta(url, texto)
       .then((r) => {
         setResultado(r);
         setEstado('listo');
+        setPedirTexto(false);
         borrarCache('mis-recetas');
       })
       .catch((e) => {
         setError(e instanceof ErrorMenu ? e.message : 'No hemos podido guardar esa receta. Vuelve a intentarlo en un momento.');
+        setPedirTexto(e instanceof ErrorMenu && e.codigo === 'pegar_texto');
         setEstado('error');
       })
       .finally(() => limpiar());
+  };
+
+  useEffect(() => {
+    if (!sesion || !url || hecho.current) return;
+    hecho.current = true;
+    intentar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sesion, url]);
 
@@ -81,6 +92,28 @@ export default function Importar() {
             ) : null}
             {resultado.no_apta ? <Aviso tono="rosa" texto={resultado.no_apta} /> : null}
           </Aparecer>
+        ) : estado === 'error' && pedirTexto ? (
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView contentContainerStyle={{ gap: space.md }} keyboardShouldPersistTaps="handled">
+              <Text style={{ fontSize: 48, textAlign: 'center' }}>📋</Text>
+              <Text style={[type.title, s.centrado]}>Pega el texto de la receta</Text>
+              <Text style={[type.body, s.centrado]}>{error}</Text>
+              <Text style={[type.small, s.centrado]}>
+                En Instagram: abre el reel, toca «… más» en la descripción, mantén pulsado el texto y elige «Copiar». El vídeo seguirá enlazado en la receta.
+              </Text>
+              <TextInput
+                value={descripcion}
+                onChangeText={setDescripcion}
+                placeholder="Pega aquí la descripción con los ingredientes y los pasos"
+                placeholderTextColor={colors.muted}
+                multiline
+                maxLength={6000}
+                style={s.texto}
+                accessibilityLabel="Texto de la receta"
+              />
+              <Boton texto="Guardar con este texto" onPress={() => intentar(descripcion.trim())} desactivado={descripcion.trim().length < 20} />
+            </ScrollView>
+          </KeyboardAvoidingView>
         ) : estado === 'error' ? (
           <Aparecer style={s.bloque}>
             <Text style={{ fontSize: 56 }}>🙅</Text>
@@ -110,4 +143,5 @@ const s = StyleSheet.create({
   centro: { flex: 1, justifyContent: 'center' },
   bloque: { alignItems: 'center', gap: space.md },
   centrado: { textAlign: 'center' },
+  texto: { minHeight: 160, maxHeight: 300, borderRadius: 16, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, padding: space.md, fontSize: 16, color: colors.ink, textAlignVertical: 'top' },
 });

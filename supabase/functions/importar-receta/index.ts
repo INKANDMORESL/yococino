@@ -8,7 +8,7 @@ import { motivosNoApta, restriccionesDe, describirRestricciones, ALERGENOS_UE } 
 import { pedirJSON } from '../_shared/claude.ts';
 import { fotoAlCrear } from '../_shared/fotos.ts';
 import { crearClientes, fallo, hoyEspana, responder, servir } from '../_shared/http.ts';
-import { avisosNutricion, extraerUrl, MENSAJE_NO_VALIDA, normalizarUrl, textoAvisos, urlPermitida } from '../_shared/importar_reglas.ts';
+import { avisosNutricion, embedDe, extraerUrl, MENSAJE_NO_VALIDA, normalizarUrl, plataformaDe, textoAvisos, urlPermitida } from '../_shared/importar_reglas.ts';
 import { perfilSeguro, permitirExtra } from '../_shared/perfil.ts';
 import { planDe, respuestaSuscripcion } from '../_shared/plan.ts';
 import { leerPublicacion } from '../_shared/publicacion.ts';
@@ -57,7 +57,9 @@ async function importar(req: Request): Promise<Response> {
   const user = auth?.user;
   if (!user) return fallo(401, 'no_autenticado', 'Vuelve a entrar en tu cuenta.');
 
-  const cuerpo = (await req.json().catch(() => ({}))) as { url?: string; texto?: string };
+  const cuerpo = (await req.json().catch(() => ({}))) as { url?: string; texto?: string; descripcion?: string };
+  // Texto de la receta pegado por la persona (cuando la red no deja leer la publicación, como pasa con Instagram).
+  const descripcion = String(cuerpo.descripcion ?? '').trim().slice(0, 6000);
   const url = extraerUrl(String(cuerpo.url ?? '')) ?? extraerUrl(String(cuerpo.texto ?? ''));
   if (!url || !urlPermitida(url)) return fallo(400, 'enlace', 'No encontramos un enlace válido. Copia el enlace de la publicación y vuelve a intentarlo.');
   const clave = normalizarUrl(url);
@@ -73,7 +75,7 @@ async function importar(req: Request): Promise<Response> {
 
   // ¿Ya se analizó este enlace? Se reutiliza sin gastar IA (y sin contar para el límite de la prueba).
   const { data: previa } = await admin.from('importaciones').select('clase, receta_id, publica, avisos').eq('url_norm', clave).maybeSingle();
-  if (previa && previa.clase !== 'receta') return respuestaNoValida(previa.clase as string);
+  if (previa && previa.clase !== 'receta' && !descripcion) return respuestaNoValida(previa.clase as string);
   if (previa?.receta_id && previa.publica) {
     return await terminar(admin, user.id, previa.receta_id as number, url, (previa.avisos as string[]) ?? [], true, restr);
   }
@@ -96,9 +98,25 @@ async function importar(req: Request): Promise<Response> {
   const bloqueo = await permitirExtra(admin, user.id, 'importar', MAX_DIA);
   if (bloqueo) return bloqueo;
 
-  const pub = await leerPublicacion(url);
+  const leida = await leerPublicacion(url);
+  const pub = descripcion
+    ? {
+        plataforma: leida?.plataforma ?? plataformaDe(url),
+        url,
+        titulo: leida?.titulo ?? '',
+        texto: [descripcion, leida?.texto].filter(Boolean).join('\n\n').slice(0, 7000),
+        autor: leida?.autor ?? '',
+        imagen: leida?.imagen ?? null,
+        video: leida?.video ?? embedDe(url),
+      }
+    : leida;
   if (!pub || (!pub.texto && !pub.imagen)) {
-    return fallo(422, 'sin_datos', 'No hemos podido leer esa publicación (puede ser privada). Prueba con otro enlace.');
+    // Algunas redes (sobre todo Instagram) no dejan leer sus publicaciones desde fuera: se pide el texto a la persona.
+    return fallo(
+      422,
+      'pegar_texto',
+      'Esta red social no nos deja leer la publicación. Abre la publicación, copia su descripción (donde vienen los ingredientes y los pasos) y pégala aquí debajo.',
+    );
   }
 
   const peticion = {

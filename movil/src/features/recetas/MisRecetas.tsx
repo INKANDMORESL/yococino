@@ -66,6 +66,7 @@ export function MisRecetas() {
           <View style={{ gap: space.sm }}>
             <Text style={type.small}>⚠️ Si tiene mucho azúcar, grasa, sal o calorías, te avisamos para que la tomes de vez en cuando.</Text>
             <Text style={type.small}>🙅 Si la publicación no es de comida o no encaja con los valores de Yococino, no se guarda.</Text>
+            <Text style={type.small}>Instagram a veces no deja leer sus publicaciones: si pasa, te pediremos que pegues el texto de la descripción.</Text>
             <Text style={type.small}>La escribimos con nuestras palabras y le hacemos una foto propia: no copiamos el vídeo ni las fotos del autor.</Text>
             <Text style={type.small}>En la prueba gratis puedes guardar 1 receta. Con la suscripción, todas las que quieras dentro de tu plan.</Text>
           </View>

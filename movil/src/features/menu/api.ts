@@ -184,8 +184,8 @@ export interface ResultadoImportar {
   aviso: string | null;
   no_apta: string | null;
 }
-export const importarReceta = (url: string) =>
-  llamar<ResultadoImportar>('importar-receta', { url }, 'No hemos podido guardar esa receta. Vuelve a intentarlo en un momento.');
+export const importarReceta = (url: string, descripcion?: string) =>
+  llamar<ResultadoImportar>('importar-receta', { url, descripcion }, 'No hemos podido guardar esa receta. Vuelve a intentarlo en un momento.');
 
 export interface MiReceta extends RecetaResumen {
   origen_url: string | null;
