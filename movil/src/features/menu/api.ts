@@ -126,7 +126,7 @@ export interface LoteIA {
   tipo: 'recetas' | 'fotos';
   estado: 'enviado' | 'terminado' | 'fallido';
   cantidad: number;
-  resultado: { creadas?: number; descartadas?: number; guardadas?: number; fallidas?: number; coste_usd?: number } | null;
+  resultado: { creadas?: number; descartadas?: number; guardadas?: number; fallidas?: number; coste_usd?: number; cancelado?: boolean } | null;
   created_at: string;
   terminado_at: string | null;
 }

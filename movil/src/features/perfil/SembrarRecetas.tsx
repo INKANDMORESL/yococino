@@ -97,7 +97,7 @@ export function SembrarRecetas() {
                   ? l.tipo === 'fotos'
                     ? 'Google las está haciendo. Suele tardar unas horas (como mucho 24 h); se guardan solas al volver aquí.'
                     : 'La IA las está preparando. Suele tardar unas horas (como mucho 24 h); se guardan solas al volver aquí.'
-                  : l.estado === 'cancelado'
+                  : l.resultado?.cancelado
                     ? 'Sustituido: estas fotos se hacen ahora en segundo plano, de una en una.'
                   : l.estado === 'fallido'
                     ? 'No se completó (se puede volver a pedir).'
