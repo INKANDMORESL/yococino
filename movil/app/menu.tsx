@@ -2,7 +2,7 @@
 // Se abre desde Inicio ("Ver menú completo"). Cubre hasta 30 días por delante y, hacia atrás, medio año
 // (para ver lo que se ha comido).
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aviso } from '../src/components';
@@ -87,7 +87,7 @@ export default function Menu() {
   const { dia } = useLocalSearchParams<{ dia?: string }>();
   const diaInicial = typeof dia === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : hoy;
   const [lunes, setLunes] = useState(lunesDe(diaInicial));
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const posiciones = useRef(new Map<string, number>());
   const yaBajado = useRef(false);
   const [desde, setDesde] = useState(primerLunes);
