@@ -29,7 +29,7 @@ import { TIPICAS } from '../_shared/tipicas.ts';
 
 const MODELO_IDEAS = Deno.env.get('MODELO_MENU') || 'claude-haiku-5-5';
 const MAX_POR_LOTE = 200;
-const IDEAS_POR_LLAMADA = 50;
+const IDEAS_POR_LLAMADA = 40;
 const TIPOS: TipoComida[] = ['desayuno', 'media_manana', 'almuerzo', 'merienda', 'cena'];
 // Reparto aproximado del recetario: más comidas y cenas, que son las que más variedad necesitan.
 const REPARTO: [TipoComida, number][] = [['desayuno', 0.18], ['media_manana', 0.14], ['almuerzo', 0.28], ['merienda', 0.14], ['cena', 0.26]];
@@ -88,7 +88,7 @@ No repitas ninguno de los platos que ya existen. Nombres cortos, sin cantidades.
 Platos que ya existen (no los repitas):
 ${[...ideas.map((i) => i.plato), ...filas.slice(0, 400).map((f) => f.nombre)].join(', ') || '(ninguno)'}`,
       esquema: ESQUEMA,
-      maxTokens: 6000,
+      maxTokens: 16000,
     });
     for (const i of r.platos ?? []) {
       const clave = normalizar(texto(i.plato, 80));
