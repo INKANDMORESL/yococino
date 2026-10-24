@@ -28,7 +28,7 @@ import { normalizar } from '../_shared/texto.ts';
 import { TIPICAS } from '../_shared/tipicas.ts';
 
 const MODELO_IDEAS = Deno.env.get('MODELO_MENU') || 'claude-haiku-5-5';
-const MAX_POR_LOTE = 200;
+const MAX_POR_LOTE = 100;
 const IDEAS_POR_LLAMADA = 40;
 const TIPOS: TipoComida[] = ['desayuno', 'media_manana', 'almuerzo', 'merienda', 'cena'];
 // Reparto aproximado del recetario: más comidas y cenas, que son las que más variedad necesitan.
@@ -164,17 +164,29 @@ async function enviarFotos(admin: Cliente, _pedidas: number) {
   return { enviadas: count, aviso: `Haciendo ${count} fotos en segundo plano (unas 3 por minuto). Las recetas nuevas aparecen al tener su foto.` };
 }
 
-// Recoge un lote de recetas terminado: revisa cada receta (alergias) y la guarda.
-async function recogerRecetas(admin: Cliente, lote: { id: number; proveedor_id: string; datos: { ideas?: Record<string, Idea> } }) {
+// Recoge un lote de recetas terminado: revisa cada receta (alergias) y la guarda. Por tandas de POR_TANDA,
+// para no pasarse del límite de CPU de la función; lo que falta se sigue en la siguiente llamada (se llama sola).
+const POR_TANDA = 12;
+async function recogerRecetas(
+  admin: Cliente,
+  lote: { id: number; proveedor_id: string; datos: { ideas?: Record<string, Idea>; hechas?: string[] }; resultado?: Record<string, number> | null },
+) {
   const estado = await estadoLote(lote.proveedor_id);
   if (!estado.terminado || !estado.urlResultados) return null;
   const resultados = await resultadosLote(estado.urlResultados);
   const ideas = lote.datos.ideas ?? {};
-  let creadas = 0;
-  let descartadas = 0;
-  let costeUsd = 0;
+  const hechas = new Set(lote.datos.hechas ?? []);
+  const previo = lote.resultado ?? {};
+  let creadas = Number(previo.creadas) || 0;
+  let descartadas = Number(previo.descartadas) || 0;
+  let costeUsd = Number(previo.coste_usd) || 0;
   let quedan = (await cupoRecetas(admin)).quedan;
+  let enEsta = 0;
   for (const [clave, mensaje] of resultados) {
+    if (hechas.has(clave)) continue;
+    if (enEsta >= POR_TANDA) break;
+    enEsta++;
+    hechas.add(clave);
     const idea = ideas[clave];
     if (!idea || !mensaje) {
       descartadas++;
@@ -206,14 +218,31 @@ async function recogerRecetas(admin: Cliente, lote: { id: number; proveedor_id: 
       descartadas++;
     }
   }
-  return { creadas, descartadas, coste_usd: Math.round(costeUsd * 10000) / 10000 };
+  const resultado = { creadas, descartadas, coste_usd: Math.round(costeUsd * 10000) / 10000 };
+  const terminado = [...resultados.keys()].every((k) => hechas.has(k));
+  await admin.from('lotes_ia').update({ datos: { ...lote.datos, hechas: [...hechas] }, resultado }).eq('id', lote.id);
+  return { ...resultado, terminado, nuevas: enEsta };
+}
+
+// Vuelve a llamarse a sí misma para seguir recogiendo (con la clave interna de tareas).
+async function seguirRecogiendo(admin: Cliente) {
+  const { data } = await admin.from('ajustes_internos').select('clave_tareas').eq('id', 1).maybeSingle();
+  if (!data?.clave_tareas) return;
+  const tarea = fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sembrar-recetas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-tarea': data.clave_tareas },
+    body: JSON.stringify({ accion: 'estado' }),
+  }).catch(() => {});
+  // deno-lint-ignore no-explicit-any
+  const er = (globalThis as any).EdgeRuntime;
+  if (er?.waitUntil) er.waitUntil(tarea);
 }
 
 async function estado(admin: Cliente) {
   // Se mira un lote de recetas cada vez (el que lleva más tiempo sin mirarse). GitHub lo pregunta cada 30 minutos.
   const { data: abiertos } = await admin
     .from('lotes_ia')
-    .select('id, tipo, proveedor_id, datos, revisado_at')
+    .select('id, tipo, proveedor_id, datos, resultado, revisado_at')
     .eq('estado', 'enviado')
     .eq('tipo', 'recetas')
     .order('revisado_at', { ascending: true, nullsFirst: true })
@@ -225,11 +254,15 @@ async function estado(admin: Cliente) {
     try {
       await admin.from('lotes_ia').update({ revisado_at: new Date().toISOString() }).eq('id', lote.id);
       const r = await recogerRecetas(admin, lote as never);
-      if (r && r.creadas > 0) fotosNuevas = true;
+      if (r && r.nuevas > 0) fotosNuevas = true;
+      if (r && !r.terminado) {
+        seguirRecogiendo(admin);
+        continue;
+      }
       if (r) {
         await admin
           .from('lotes_ia')
-          .update({ estado: 'terminado', resultado: r, terminado_at: new Date().toISOString() })
+          .update({ estado: 'terminado', resultado: { creadas: r.creadas, descartadas: r.descartadas, coste_usd: r.coste_usd }, terminado_at: new Date().toISOString() })
           .eq('id', lote.id);
       }
     } catch (e) {
@@ -285,8 +318,8 @@ async function sembrar(req: Request): Promise<Response> {
   }
 
   const cuerpo = (await req.json().catch(() => ({}))) as { accion?: string; cantidad?: number };
-  if (cuerpo.accion === 'enviar') return responder({ ok: true, ...(await enviarRecetas(admin, Number(cuerpo.cantidad))), ...(await estado(admin)) });
-  if (cuerpo.accion === 'tipicas') return responder({ ok: true, ...(await enviarRecetas(admin, MAX_POR_LOTE, true)), ...(await estado(admin)) });
+  if (cuerpo.accion === 'enviar') return responder({ ok: true, ...(await enviarRecetas(admin, Number(cuerpo.cantidad))), lotes: [], cupo: await cupoRecetas(admin) });
+  if (cuerpo.accion === 'tipicas') return responder({ ok: true, ...(await enviarRecetas(admin, MAX_POR_LOTE, true)), lotes: [], cupo: await cupoRecetas(admin) });
   if (cuerpo.accion === 'fotos') return responder({ ok: true, ...(await enviarFotos(admin, Number(cuerpo.cantidad))), ...(await estado(admin)) });
   return responder({ ok: true, ...(await estado(admin)) });
 }

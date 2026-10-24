@@ -29,6 +29,7 @@ export function SembrarRecetas() {
       else if ((accion === 'enviar' || accion === 'tipicas') && r.enviadas) setMensaje(`Enviadas ${r.enviadas} recetas a la cola. Estarán listas en unos minutos o unas horas.`);
       else if (accion === 'fotos' && r.enviadas) setMensaje(`Enviadas ${r.enviadas} fotos a la cola.`);
       if (r.errores?.length) setMensaje(`Detalle técnico: ${r.errores[0]}`);
+      if (accion === 'enviar' || accion === 'tipicas') sembrarRecetas('estado').then(setDatos).catch(() => {});
     } catch (e) {
       setMensaje(e instanceof ErrorMenu ? `${e.message}${e.detalle ? ` (${e.detalle})` : ''}` : 'Se ha cortado la conexión.');
     } finally {
