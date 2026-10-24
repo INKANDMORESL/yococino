@@ -1,6 +1,7 @@
 // aligerar-fotos: cola de fotos del recetario, en segundo plano. En cada llamada hace UNA cosa y se vuelve a llamar:
 // 1. Si hay alguna foto grande sin versión ligera, la convierte (JPEG de 1024 px y miniatura de 360 px).
-// 2. Si no, hace la foto de una receta del recetario que aún no la tiene (Google Gemini) y la guarda ya aligerada.
+// 2. Si no, hace la foto de una receta que aún no la tiene y no está en un lote (lo normal es que vayan por lotes,
+//    a mitad de precio; esto es el plan B si un lote falla o tarda más de 26 h).
 //    Las recetas que esperaban su foto (espera_foto) aparecen en el recetario en cuanto la tienen.
 // Una cosa por llamada para no pasarse de CPU ni de memoria. Solo la llaman el servidor (clave interna) o un administrador.
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -65,6 +66,7 @@ Deno.serve(async (req) => {
     } else {
       const { imagen, imagenMini } = await guardarVersiones(admin, receta.id, new Uint8Array(await descarga.data.arrayBuffer()), descarga.data.type || 'image/png');
       await admin.from('recetas').update({ imagen, imagen_mini: imagenMini, foto_pedida_at: null }).eq('id', receta.id);
+      await admin.from('recetas').update({ oculta: false, espera_foto: false }).eq('id', receta.id).eq('espera_foto', true);
       // Si la original era otro archivo (PNG), se borra para no ocupar espacio.
       if (imagen !== receta.imagen && ruta) await admin.storage.from('fotos').remove([ruta]);
     }
@@ -85,6 +87,7 @@ async function hacerFotoNueva(admin: any, salto: number, limite: string): Promis
     .select('id, nombre, espera_foto, ingredientes(nombre, orden, unidad)')
     .is('imagen', null)
     .is('privada_de', null)
+    .eq('foto_en_lote', false)
     .or('oculta.eq.false,espera_foto.eq.true')
     .or(`foto_pedida_at.is.null,foto_pedida_at.lt.${limite}`)
     .order('espera_foto', { ascending: false })

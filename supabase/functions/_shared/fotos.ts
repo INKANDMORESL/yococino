@@ -136,17 +136,46 @@ const peticionFoto = (prompt: string) => ({
   generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '4:3', imageSize: '1K' } },
 });
 
-// ---------- Lotes de fotos (mitad de precio, hasta 24 h). Solo los lanza el administrador. ----------
+// ---------- Lotes de fotos (mitad de precio, hasta 24 h). Solo para el recetario. ----------
+// Las peticiones van en un archivo JSONL y Google devuelve otro archivo con una foto por línea.
+// Ese archivo se lee poco a poco (línea a línea), así nunca se carga entero en memoria.
+const UPLOAD = 'https://generativelanguage.googleapis.com/upload/v1beta/files';
+const DESCARGA = 'https://generativelanguage.googleapis.com/download/v1beta';
+
+async function subirArchivo(contenido: string, nombre: string): Promise<string> {
+  const clave = claveGemini();
+  const bytes = new TextEncoder().encode(contenido);
+  const inicio = await fetch(UPLOAD, {
+    method: 'POST',
+    headers: {
+      'x-goog-api-key': clave,
+      'X-Goog-Upload-Protocol': 'resumable',
+      'X-Goog-Upload-Command': 'start',
+      'X-Goog-Upload-Header-Content-Length': String(bytes.length),
+      'X-Goog-Upload-Header-Content-Type': 'application/jsonl',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ file: { display_name: nombre } }),
+  });
+  const destino = inicio.headers.get('x-goog-upload-url');
+  if (!inicio.ok || !destino) throw new ErrorFoto(`Google no aceptó el archivo del lote (${inicio.status}): ${(await inicio.text()).slice(0, 200)}`);
+  const subida = await fetch(destino, {
+    method: 'POST',
+    headers: { 'Content-Length': String(bytes.length), 'X-Goog-Upload-Offset': '0', 'X-Goog-Upload-Command': 'upload, finalize' },
+    body: bytes,
+  });
+  const datos = await subida.json().catch(() => null);
+  const archivo = (datos?.file?.name ?? datos?.name) as string | undefined;
+  if (!subida.ok || !archivo) throw new ErrorFoto(`No se pudo subir el archivo del lote (${subida.status})`);
+  return archivo;
+}
 
 export async function crearLoteFotos(fotos: { clave: string; prompt: string }[]): Promise<string> {
+  const lineas = fotos.map((f) => JSON.stringify({ key: f.clave, request: peticionFoto(f.prompt) })).join('\n');
+  const archivo = await subirArchivo(lineas, `yococino-fotos-${Date.now()}`);
   const respuesta = (await pedir(
     `${BASE}/models/${MODELO_FOTO}:batchGenerateContent`,
-    {
-      batch: {
-        display_name: `yococino-fotos-${Date.now()}`,
-        input_config: { requests: { requests: fotos.map((f) => ({ request: peticionFoto(f.prompt), metadata: { key: f.clave } })) } },
-      },
-    },
+    { batch: { display_name: `yococino-fotos-${Date.now()}`, input_config: { file_name: archivo } } },
     claveGemini(),
   )) as Record<string, unknown>;
   const nombre = (respuesta.name ?? (respuesta.metadata as Record<string, unknown> | undefined)?.name) as string | undefined;
@@ -166,24 +195,66 @@ function buscar(v: unknown, clave: string): unknown {
   return undefined;
 }
 
-export async function estadoLoteFotos(
-  nombre: string,
-): Promise<{ estado: 'pendiente' | 'terminado' | 'fallido'; fotos: Map<string, { bytes: Uint8Array; tipo: string } | null>; google: string }> {
+// Estado del lote. Con el archivo de entrada, la respuesta es pequeña: solo dice dónde está el archivo de resultados.
+export async function estadoLoteFotos(nombre: string): Promise<{ estado: 'pendiente' | 'terminado' | 'fallido'; archivo: string | null; google: string }> {
   const r = await fetch(`${BASE}/${nombre}`, { headers: { 'x-goog-api-key': claveGemini() } });
   const datos = await r.json().catch(() => null);
   if (!r.ok) throw new ErrorFoto(`Google ${r.status}: ${JSON.stringify(datos).slice(0, 200)}`);
   const estado = String(buscar(datos, 'state') ?? '');
-  const fotos = new Map<string, { bytes: Uint8Array; tipo: string } | null>();
-  if (/FAILED|CANCELLED|EXPIRED/.test(estado)) return { estado: 'fallido', fotos, google: estado };
-  if (!/SUCCEEDED/.test(estado) && buscar(datos, 'done') !== true) return { estado: 'pendiente', fotos, google: estado };
-  let lista = buscar(datos, 'inlinedResponses');
-  if (lista && !Array.isArray(lista)) lista = buscar(lista, 'inlinedResponses');
-  for (const item of (Array.isArray(lista) ? lista : []) as Record<string, unknown>[]) {
-    const clave = String((item.metadata as Record<string, unknown> | undefined)?.key ?? '');
-    const imagen = item.response ? buscarImagen(item.response) : null;
-    if (clave) fotos.set(clave, imagen ? { bytes: bytesDe(imagen.datos), tipo: imagen.tipo.startsWith('image/') ? imagen.tipo : 'image/png' } : null);
+  if (/FAILED|CANCELLED|EXPIRED/.test(estado)) return { estado: 'fallido', archivo: null, google: estado };
+  if (!/SUCCEEDED/.test(estado) && buscar(datos, 'done') !== true) return { estado: 'pendiente', archivo: null, google: estado };
+  const archivo = (buscar(datos, 'responsesFile') ?? buscar(datos, 'fileName')) as string | undefined;
+  return { estado: archivo ? 'terminado' : 'fallido', archivo: archivo ?? null, google: estado };
+}
+
+// Lee el archivo de resultados línea a línea y entrega como mucho `maximo` fotos que no estén en `saltar`.
+// Devuelve también si ha llegado al final (para saber si el lote está terminado del todo).
+export async function leerFotosDelLote(
+  archivo: string,
+  saltar: Set<string>,
+  maximo: number,
+  usar: (clave: string, foto: { bytes: Uint8Array; tipo: string } | null) => Promise<void>,
+): Promise<{ hechas: string[]; alFinal: boolean }> {
+  const r = await fetch(`${DESCARGA}/${archivo}:download?alt=media`, { headers: { 'x-goog-api-key': claveGemini() } });
+  if (!r.ok || !r.body) throw new ErrorFoto(`No se pudo descargar el resultado del lote (${r.status})`);
+  const lector = r.body.pipeThrough(new TextDecoderStream()).getReader();
+  const hechas: string[] = [];
+  let resto = '';
+  let alFinal = false;
+  const procesar = async (linea: string) => {
+    if (!linea.trim()) return;
+    // La clave va al principio de cada línea: si ya está hecha, no se lee el resto.
+    const clave = linea.slice(0, 300).match(/"key"\s*:\s*"([^"]+)"/)?.[1] ?? '';
+    if (!clave || saltar.has(clave)) return;
+    let foto: { bytes: Uint8Array; tipo: string } | null = null;
+    try {
+      const fila = JSON.parse(linea);
+      const imagen = fila.response ? buscarImagen(fila.response) : null;
+      if (imagen) foto = { bytes: bytesDe(imagen.datos), tipo: imagen.tipo.startsWith('image/') ? imagen.tipo : 'image/png' };
+    } catch {
+      foto = null;
+    }
+    await usar(clave, foto);
+    hechas.push(clave);
+  };
+  while (hechas.length < maximo) {
+    const { done, value } = await lector.read();
+    if (done) {
+      if (resto) await procesar(resto);
+      resto = '';
+      alFinal = true;
+      break;
+    }
+    resto += value;
+    let i: number;
+    while ((i = resto.indexOf('\n')) >= 0 && hechas.length < maximo) {
+      const linea = resto.slice(0, i);
+      resto = resto.slice(i + 1);
+      await procesar(linea);
+    }
   }
-  return { estado: 'terminado', fotos, google: estado };
+  lector.cancel().catch(() => {});
+  return { hechas, alFinal };
 }
 
 // Foto de una receta recién creada para alguien (no del administrador): se hace a la vez que la receta,
