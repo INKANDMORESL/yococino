@@ -1,12 +1,14 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 import type { ComidaConIngredientes, Comensales } from './lista';
 
 export async function cargarIngredientes(desde: string, hasta: string): Promise<ComidaConIngredientes[]> {
   const { data, error } = await supabase
     .from('comidas')
-    .select('factor, receta:recetas(ingredientes(nombre, cantidad, unidad, seccion))')
+    .select('id, fecha, tipo_comida, factor, receta:recetas(id, nombre, ingredientes(nombre, cantidad, unidad, seccion))')
     .gte('fecha', desde)
-    .lte('fecha', hasta);
+    .lte('fecha', hasta)
+    .order('fecha');
   if (error) throw new Error('No hemos podido cargar la lista de la compra.');
   return (data ?? []) as unknown as ComidaConIngredientes[];
 }
@@ -39,4 +41,22 @@ export async function guardarMarca(userId: string, clave: string, marcado: boole
 export async function borrarMarcas() {
   const { error } = await supabase.from('compra_marcas').delete().neq('clave', '');
   if (error) throw new Error('No se ha podido vaciar la lista.');
+}
+
+// Comidas que la persona ha quitado de la lista de la compra (se guardan en el móvil).
+const CLAVE_FUERA = 'yococino:compra-fuera';
+export async function cargarFuera(): Promise<Set<number>> {
+  try {
+    const t = await AsyncStorage.getItem(CLAVE_FUERA);
+    return new Set(t ? (JSON.parse(t) as number[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+export async function guardarFuera(ids: Set<number>) {
+  try {
+    await AsyncStorage.setItem(CLAVE_FUERA, JSON.stringify([...ids].slice(-500)));
+  } catch {
+    // Si no se puede guardar, el filtro vale solo mientras la app está abierta.
+  }
 }

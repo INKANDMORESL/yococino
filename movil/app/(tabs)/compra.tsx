@@ -1,12 +1,14 @@
-// Lista de la compra a partir del menú: hoy, próximos 3 días o la semana.
+// Lista de la compra a partir del menú: hoy, próximos 3 días o próximos 7 días.
+// Con «Recetas de la lista» se eligen qué recetas del menú entran en la compra.
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, BarraProgreso, Chip, Contador, Tarjeta } from '../../src/components';
-import { borrarMarcas, cargarComensales, cargarIngredientes, cargarMarcas, guardarComensales, guardarMarca } from '../../src/features/compra/api';
+import { borrarMarcas, cargarComensales, cargarFuera, cargarIngredientes, cargarMarcas, guardarComensales, guardarFuera, guardarMarca } from '../../src/features/compra/api';
 import { SECCIONES, agruparCompra, cantidadCompra, type Articulo, type ComidaConIngredientes, type Comensales } from '../../src/features/compra/lista';
-import { hoyISO, sumarDias } from '../../src/features/menu/fechas';
+import { deISO, hoyISO, sumarDias } from '../../src/features/menu/fechas';
+import { TIPOS, type TipoComida } from '../../src/features/menu/tipos';
 import { useAuth } from '../../src/lib/auth';
 import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../../src/theme';
@@ -17,13 +19,37 @@ const RANGOS = [
   { clave: 'semana', texto: 'Próximos 7 días', dias: 7 },
 ] as const;
 
+const nombreDia = (iso: string) => {
+  const hoy = hoyISO();
+  if (iso === hoy) return 'Hoy';
+  if (iso === sumarDias(hoy, 1)) return 'Mañana';
+  return deISO(iso).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' });
+};
+
 export default function Compra() {
   const { sesion } = useAuth();
   const [rango, setRango] = useState<(typeof RANGOS)[number]['clave']>('3d');
   const [comidas, setComidas] = useState<ComidaConIngredientes[]>(leerCache('compra:3d') ?? []);
   const [casa, setCasa] = useState<Comensales | null>(leerCache('compra:casa') ?? null);
   const casaCargada = useRef(!!leerCache('compra:casa'));
-  const articulos: Articulo[] = useMemo(() => agruparCompra(comidas, casa ?? undefined), [comidas, casa]);
+  // Recetas quitadas de la lista con el filtro (se recuerdan en el móvil).
+  const [fuera, setFuera] = useState<Set<number>>(leerCache('compra:fuera') ?? new Set());
+  const [verFiltro, setVerFiltro] = useState(false);
+  const elegidas = useMemo(() => comidas.filter((c) => !c.id || !fuera.has(c.id)), [comidas, fuera]);
+  const articulos: Articulo[] = useMemo(() => agruparCompra(elegidas, casa ?? undefined), [elegidas, casa]);
+  const conReceta = comidas.filter((c) => c.receta && c.id);
+  const porDia = useMemo(() => {
+    const m = new Map<string, ComidaConIngredientes[]>();
+    for (const c of conReceta) {
+      const f = c.fecha ?? '';
+      m.set(f, [...(m.get(f) ?? []), c]);
+    }
+    return [...m.entries()];
+  }, [conReceta]);
+  const cambiarFuera = (nuevo: Set<number>) => {
+    setFuera(guardarCache('compra:fuera', nuevo));
+    guardarFuera(nuevo);
+  };
   const [marcas, setMarcas] = useState<Set<string>>(leerCache('compra:marcas') ?? new Set());
   const [cargando, setCargando] = useState(!leerCache('compra:3d'));
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +63,8 @@ export default function Compra() {
     if (enMemoria) setComidas(enMemoria);
     try {
       const hoy = hoyISO();
-      const [lista, m] = await Promise.all([cargarIngredientes(hoy, sumarDias(hoy, dias - 1)), cargarMarcas()]);
+      const [lista, m, f] = await Promise.all([cargarIngredientes(hoy, sumarDias(hoy, dias - 1)), cargarMarcas(), cargarFuera()]);
+      setFuera(guardarCache('compra:fuera', f));
       guardarCache(`compra:${rango}`, lista);
       guardarCache('compra:marcas', m);
       setComidas(lista);
@@ -113,6 +140,78 @@ export default function Compra() {
             <Chip key={r.clave} texto={r.texto} elegido={rango === r.clave} onPress={() => setRango(r.clave)} />
           ))}
         </View>
+
+        {conReceta.length ? (
+          <Tarjeta style={{ gap: space.md }}>
+            <Pressable onPress={() => setVerFiltro(!verFiltro)} accessibilityRole="button" style={s.fila}>
+              <View style={{ flex: 1 }}>
+                <Text style={type.heading}>🍽️ Recetas de la lista</Text>
+                <Text style={type.small}>
+                  {conReceta.length - conReceta.filter((c) => fuera.has(c.id as number)).length} de {conReceta.length} recetas incluidas
+                  {fuera.size && conReceta.some((c) => fuera.has(c.id as number)) ? ' · has quitado algunas' : ''}
+                </Text>
+              </View>
+              <Text style={s.enlace}>{verFiltro ? 'Cerrar' : 'Elegir'}</Text>
+            </Pressable>
+            {verFiltro ? (
+              <View style={{ gap: space.md }}>
+                <View style={[s.fila, { justifyContent: 'flex-start', gap: space.lg }]}>
+                  <Pressable
+                    onPress={() => {
+                      const n = new Set(fuera);
+                      conReceta.forEach((c) => n.delete(c.id as number));
+                      cambiarFuera(n);
+                    }}
+                    accessibilityRole="button"
+                  >
+                    <Text style={s.enlace}>Todas</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      const n = new Set(fuera);
+                      conReceta.forEach((c) => n.add(c.id as number));
+                      cambiarFuera(n);
+                    }}
+                    accessibilityRole="button"
+                  >
+                    <Text style={s.enlace}>Ninguna</Text>
+                  </Pressable>
+                </View>
+                {porDia.map(([fecha, lista]) => (
+                  <View key={fecha} style={{ gap: 2 }}>
+                    <Text style={s.dia}>{nombreDia(fecha)}</Text>
+                    {lista.map((c) => {
+                      const dentro = !fuera.has(c.id as number);
+                      const t = TIPOS[(c.tipo_comida ?? 'otro') as TipoComida] ?? TIPOS.otro;
+                      return (
+                        <Pressable
+                          key={c.id}
+                          onPress={() => {
+                            const n = new Set(fuera);
+                            if (dentro) n.add(c.id as number);
+                            else n.delete(c.id as number);
+                            cambiarFuera(n);
+                          }}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: dentro }}
+                          style={s.receta}
+                        >
+                          <View style={[s.marca, dentro && s.marcaHecha]}>{dentro ? <Text style={s.marcaTexto}>✓</Text> : null}</View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={type.small}>{t.texto}</Text>
+                            <Text style={[s.recetaNombre, !dentro && s.tachado]} numberOfLines={2}>
+                              {c.receta?.nombre}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </Tarjeta>
+        ) : null}
 
         {casa ? (
           <Tarjeta style={{ gap: space.md }}>
@@ -209,4 +308,7 @@ const s = StyleSheet.create({
   nombre: { flex: 1, fontSize: 17, color: colors.ink },
   cantidad: { fontSize: 15, fontWeight: '700', color: colors.ink2 },
   tachado: { color: colors.muted, textDecorationLine: 'line-through' },
+  dia: { fontSize: 14, fontWeight: '800', color: colors.olive, marginTop: space.sm, textTransform: 'capitalize' },
+  receta: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 8 },
+  recetaNombre: { fontSize: 15, fontWeight: '600', color: colors.ink },
 });

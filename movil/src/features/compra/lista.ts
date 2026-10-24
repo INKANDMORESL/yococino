@@ -18,8 +18,11 @@ export interface IngredienteCompra {
 }
 
 export interface ComidaConIngredientes {
+  id?: number;
+  fecha?: string;
+  tipo_comida?: string;
   factor: number;
-  receta: { ingredientes: IngredienteCompra[] } | null;
+  receta: { id?: number; nombre?: string; ingredientes: IngredienteCompra[] } | null;
 }
 
 export interface Articulo {
