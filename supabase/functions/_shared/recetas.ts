@@ -189,7 +189,7 @@ export async function guardarReceta(
   tipo: TipoComida | 'otro',
   restr: Restricciones,
   modelo = MODELO_RECETA,
-  opciones: { privadaDe?: string | null; origenUrl?: string | null; videoEmbed?: string | null; autor?: string | null } = {},
+  opciones: { privadaDe?: string | null; origenUrl?: string | null; videoEmbed?: string | null; autor?: string | null; esperaFoto?: boolean } = {},
 ): Promise<RecetaGuardada> {
   const base = limpiarNombre(texto(r.nombre, 80)) || texto(r.nombre, 80);
   const privada = opciones.privadaDe ?? null;
@@ -245,6 +245,8 @@ export async function guardarReceta(
         etiquetas: listaTextos(r.etiquetas, 6, 30),
         modelo,
         ...(privada ? { privada_de: privada, oculta: true } : {}),
+        // Recetas de lotes: ocultas hasta que llegue su foto.
+        ...(opciones.esperaFoto ? { oculta: true, espera_foto: true } : {}),
         ...(opciones.origenUrl ? { origen_url: opciones.origenUrl.slice(0, 500) } : {}),
         ...(opciones.videoEmbed ? { video_embed: opciones.videoEmbed.slice(0, 300) } : {}),
         ...(opciones.autor ? { origen_autor: opciones.autor.slice(0, 80) } : {}),

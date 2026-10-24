@@ -161,7 +161,7 @@ async function enviarFotos(admin: Cliente, pedidas: number) {
     .select('id, nombre, ingredientes(nombre, orden, unidad)')
     .is('imagen', null)
     .eq('foto_en_lote', false)
-    .eq('oculta', false)
+    .or('oculta.eq.false,espera_foto.eq.true')
     .order('created_at', { ascending: false })
     .limit(cantidad);
   const recetas = (data ?? []) as { id: number; nombre: string; ingredientes: { nombre: string; orden: number; unidad: string | null }[] }[];
@@ -216,7 +216,7 @@ async function recogerRecetas(admin: Cliente, lote: { id: number; proveedor_id: 
       continue;
     }
     try {
-      await guardarReceta(admin, receta as RecetaIA, idea.tipo_comida, restr, String(mensaje.model ?? modeloReceta(idea.tipo_comida)));
+      await guardarReceta(admin, receta as RecetaIA, idea.tipo_comida, restr, String(mensaje.model ?? modeloReceta(idea.tipo_comida)), { esperaFoto: true });
       creadas++;
       quedan--;
     } catch (e) {
@@ -241,6 +241,8 @@ async function recogerFotos(admin: Cliente, lote: { id: number; proveedor_id: st
       try {
         const imagen = await guardarOriginal(admin, id, foto.bytes, foto.tipo);
         await admin.from('recetas').update({ imagen, imagen_mini: null, foto_modelo: MODELO_FOTO, foto_en_lote: false }).eq('id', id);
+        // Ya tiene foto: si estaba esperándola, aparece en el recetario.
+        await admin.from('recetas').update({ oculta: false, espera_foto: false }).eq('id', id).eq('espera_foto', true);
         guardadas++;
       } catch (e) {
         console.error('sembrar-recetas: no se guardó una foto:', mensajeTecnico(e));
@@ -325,11 +327,20 @@ async function estado(admin: Cliente) {
 
 async function sembrar(req: Request): Promise<Response> {
   const { usuario, admin } = crearClientes(req);
-  const { data: auth } = await usuario.auth.getUser();
-  const user = auth?.user;
-  if (!user) return fallo(401, 'no_autenticado', 'Vuelve a entrar en tu cuenta.');
-  const { data: esAdmin } = await admin.from('admins').select('user_id').eq('user_id', user.id).maybeSingle();
-  if (!esAdmin) return fallo(403, 'no_admin', 'Solo el administrador puede hacer esto.');
+  // Tareas lanzadas desde GitHub (con la clave interna guardada en la base de datos) o por un administrador con sesión.
+  const claveTarea = req.headers.get('x-tarea') ?? '';
+  let permitido = false;
+  if (claveTarea.length >= 32) {
+    const { data } = await admin.from('ajustes_internos').select('clave_tareas').eq('id', 1).maybeSingle();
+    permitido = !!data?.clave_tareas && data.clave_tareas === claveTarea;
+  }
+  if (!permitido) {
+    const { data: auth } = await usuario.auth.getUser();
+    const user = auth?.user;
+    if (!user) return fallo(401, 'no_autenticado', 'Vuelve a entrar en tu cuenta.');
+    const { data: esAdmin } = await admin.from('admins').select('user_id').eq('user_id', user.id).maybeSingle();
+    if (!esAdmin) return fallo(403, 'no_admin', 'Solo el administrador puede hacer esto.');
+  }
 
   const cuerpo = (await req.json().catch(() => ({}))) as { accion?: string; cantidad?: number };
   if (cuerpo.accion === 'enviar') return responder({ ok: true, ...(await enviarRecetas(admin, Number(cuerpo.cantidad))), ...(await estado(admin)) });

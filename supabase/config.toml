@@ -30,7 +30,8 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.sembrar-recetas]
-verify_jwt = true
+# La función comprueba ella misma: administrador con sesión o clave interna de tareas (GitHub).
+verify_jwt = false
 
 [functions.admin]
 verify_jwt = true
