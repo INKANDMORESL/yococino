@@ -175,3 +175,51 @@ export async function perfilBasico(userId: string) {
   const { data } = await supabase.from('profiles').select('encuesta_completada_at, kcal_dia, nombre').eq('id', userId).maybeSingle();
   return data as { encuesta_completada_at: string | null; kcal_dia: number | null; nombre: string | null } | null;
 }
+
+// ---------- Mis recetas: guardadas desde redes sociales ----------
+export interface ResultadoImportar {
+  receta_id: number;
+  nombre: string;
+  publica: boolean;
+  aviso: string | null;
+  no_apta: string | null;
+}
+export const importarReceta = (url: string) =>
+  llamar<ResultadoImportar>('importar-receta', { url }, 'No hemos podido guardar esa receta. Vuelve a intentarlo en un momento.');
+
+export interface MiReceta extends RecetaResumen {
+  origen_url: string | null;
+  avisos: string[];
+  guardada_el: string;
+}
+export async function cargarMisRecetas(): Promise<MiReceta[]> {
+  const { data, error } = await supabase
+    .from('mis_recetas')
+    .select('origen_url, avisos, created_at, receta:recetas(id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini)')
+    .order('created_at', { ascending: false })
+    .limit(200);
+  if (error) throw new ErrorMenu('No hemos podido cargar tus recetas.', 'servidor');
+  return ((data ?? []) as unknown as { origen_url: string | null; avisos: string[] | null; created_at: string; receta: RecetaResumen | null }[])
+    .filter((f) => f.receta)
+    .map((f) => ({ ...(f.receta as RecetaResumen), origen_url: f.origen_url, avisos: f.avisos ?? [], guardada_el: f.created_at }));
+}
+export async function quitarMiReceta(recetaId: number) {
+  const { error } = await supabase.from('mis_recetas').delete().eq('receta_id', recetaId);
+  if (error) throw new ErrorMenu('No hemos podido quitarla. Inténtalo de nuevo.', 'servidor');
+}
+// Avisos de una receta guardada por la persona (para enseñarlos al abrirla).
+export async function avisosDeMiReceta(recetaId: number): Promise<{ avisos: string[]; origen_url: string | null } | null> {
+  const { data } = await supabase.from('mis_recetas').select('avisos, origen_url').eq('receta_id', recetaId).maybeSingle();
+  return data ? { avisos: (data.avisos as string[] | null) ?? [], origen_url: (data.origen_url as string | null) ?? null } : null;
+}
+
+// "Tiene alto contenido en grasas y azúcar." (igual que en el servidor).
+export function textoAvisos(avisos: string[]): string | null {
+  if (!avisos.length) return null;
+  const calorias = avisos.includes('muchas calorías');
+  const resto = avisos.filter((a) => a !== 'muchas calorías');
+  const lista = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}`);
+  if (calorias && resto.length) return `Tiene muchas calorías y alto contenido en ${lista(resto)}.`;
+  if (calorias) return 'Tiene muchas calorías.';
+  return `Tiene alto contenido en ${lista(resto)}.`;
+}

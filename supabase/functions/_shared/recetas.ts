@@ -181,8 +181,18 @@ Reglas:
   }`;
 }
 
-export async function guardarReceta(admin: Cliente, r: RecetaIA, tipo: TipoComida, restr: Restricciones, modelo = MODELO_RECETA): Promise<RecetaGuardada> {
+// opciones.privadaDe: receta que solo ve esa persona (por ejemplo, una guardada de redes con mucho azúcar):
+// queda oculta del recetario y con una clave interna propia, para que nunca se reutilice para otra persona.
+export async function guardarReceta(
+  admin: Cliente,
+  r: RecetaIA,
+  tipo: TipoComida | 'otro',
+  restr: Restricciones,
+  modelo = MODELO_RECETA,
+  opciones: { privadaDe?: string | null; origenUrl?: string | null } = {},
+): Promise<RecetaGuardada> {
   const base = limpiarNombre(texto(r.nombre, 80)) || texto(r.nombre, 80);
+  const privada = opciones.privadaDe ?? null;
   const sufijo = (r.etiquetas ?? []).map((e) => texto(e, 30)).find((e) => normalizar(e).startsWith('sin ')) ?? 'variante';
   const ingredientes = r.ingredientes
     .map((i, orden) => ({
@@ -200,12 +210,22 @@ export async function guardarReceta(admin: Cliente, r: RecetaIA, tipo: TipoComid
     hidratos: numeroPositivo(r.nutricion?.hidratos),
     grasas: numeroPositivo(r.nutricion?.grasas),
     fibra: numeroPositivo(r.nutricion?.fibra),
+    // Solo en las recetas guardadas de redes (para los avisos de alto contenido).
+    ...(['azucares', 'grasas_saturadas', 'sal'] as const).reduce(
+      (o, k) => {
+        const v = numeroPositivo((r.nutricion as Record<string, unknown> | undefined)?.[k]);
+        return v === null ? o : { ...o, [k]: v };
+      },
+      {} as Record<string, number>,
+    ),
   };
 
   for (let intento = 0; intento < 4; intento++) {
     // El nombre que se ve es siempre el limpio; si ya existe otro plato igual que no es apto, solo cambia la clave interna.
     const nombre = base;
-    const clave = normalizar(intento === 0 ? base : intento === 1 ? `${base} ${sufijo}` : `${base} ${sufijo} ${intento}`);
+    const clave = privada
+      ? normalizar(`${base} privada ${privada.slice(0, 8)} ${Date.now().toString(36)} ${intento}`)
+      : normalizar(intento === 0 ? base : intento === 1 ? `${base} ${sufijo}` : `${base} ${sufijo} ${intento}`);
     const { data, error } = await admin
       .from('recetas')
       .insert({
@@ -224,6 +244,8 @@ export async function guardarReceta(admin: Cliente, r: RecetaIA, tipo: TipoComid
         alergenos: (r.alergenos ?? []).filter((a) => (ALERGENOS_UE as readonly string[]).includes(a)),
         etiquetas: listaTextos(r.etiquetas, 6, 30),
         modelo,
+        ...(privada ? { privada_de: privada, oculta: true } : {}),
+        ...(opciones.origenUrl ? { origen_url: opciones.origenUrl.slice(0, 500) } : {}),
       })
       .select('id')
       .single();
@@ -244,7 +266,7 @@ export async function guardarReceta(admin: Cliente, r: RecetaIA, tipo: TipoComid
     return {
       id: data.id,
       nombre,
-      tipo_comida: tipo,
+      tipo_comida: tipo as TipoComida,
       kcal: nutricion.kcal === null ? null : Math.round(nutricion.kcal),
       alergenos: r.alergenos ?? [],
       ingredientes: ingredientes.map((i) => ({ nombre: i.nombre, nota: i.nota })),

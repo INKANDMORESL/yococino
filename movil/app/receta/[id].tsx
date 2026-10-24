@@ -8,7 +8,7 @@ import { cargarComensales } from '../../src/features/compra/api';
 import { RACION_PEQUE, type Comensales } from '../../src/features/compra/lista';
 import { leerCache } from '../../src/lib/cache';
 import { useLatido } from '../../src/components/Animaciones';
-import { ErrorMenu, cambiarPlato, cargarComidas, cargarReceta, marcarHecha } from '../../src/features/menu/api';
+import { ErrorMenu, avisosDeMiReceta, cambiarPlato, cargarComidas, cargarReceta, marcarHecha, textoAvisos } from '../../src/features/menu/api';
 import { faltaFoto, pedirFoto } from '../../src/features/menu/fotos';
 import { AsignarDia } from '../../src/features/menu/AsignarDia';
 import { CambiarIngrediente } from '../../src/features/menu/CambiarIngrediente';
@@ -70,6 +70,7 @@ export default function RecetaPantalla() {
   const [ingHechos, setIngHechos] = useState<Set<number>>(new Set());
   const [pasosHechos, setPasosHechos] = useState<Set<number>>(new Set());
   const [favorita, setFavorita] = useState(false);
+  const [avisoSalud, setAvisoSalud] = useState<string | null>(null);
   const [noGusta, setNoGusta] = useState<Set<string>>(new Set());
   const [aviso, setAviso] = useState<string | null>(null);
   const { sesion } = useAuth();
@@ -139,6 +140,7 @@ export default function RecetaPantalla() {
         setFoto(r.imagen);
         if (faltaFoto(r)) pedirFoto(r.id).then((f) => vivo && f?.imagen && setFoto(f.imagen)).catch(() => {});
         esFavorita(r.id).then((f) => vivo && setFavorita(f)).catch(() => {});
+        avisosDeMiReceta(r.id).then((m) => vivo && setAvisoSalud(m ? textoAvisos(m.avisos) : null)).catch(() => {});
         pequesEnCasa().then((p) => vivo && setPeques(p)).catch(() => {});
         if (comidaParam) {
           const hoy = hoyISO();
@@ -275,6 +277,11 @@ export default function RecetaPantalla() {
           <Aparecer>
             <Text style={s.titulo}>{receta.nombre}</Text>
             {receta.descripcion ? <Text style={[type.body, { marginTop: space.sm }]}>{receta.descripcion}</Text> : null}
+            {avisoSalud ? (
+              <View style={{ marginTop: space.md }}>
+                <Aviso tono="rosa" texto={`⚠️ ${avisoSalud} Mejor tomarla de vez en cuando.`} />
+              </View>
+            ) : null}
             <View style={s.chips}>
               {meta.map((m) => (
                 <View key={m} style={s.chip}>

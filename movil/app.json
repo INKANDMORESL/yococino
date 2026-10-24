@@ -33,6 +33,24 @@
           "imageWidth": 240,
           "backgroundColor": "#F4ECDE"
         }
+      ],
+      [
+        "expo-sharing",
+        {
+          "ios": {
+            "enabled": true,
+            "activationRule": {
+              "supportsText": true,
+              "supportsWebUrlWithMaxCount": 1
+            }
+          },
+          "android": {
+            "enabled": true,
+            "singleShareMimeTypes": [
+              "text/plain"
+            ]
+          }
+        }
       ]
     ],
     "icon": "./assets/icon.png"

@@ -35,11 +35,12 @@ async function asignar(req: Request): Promise<Response> {
 
   const { data: receta, error } = await admin
     .from('recetas')
-    .select('id, nombre, kcal, alergenos, ingredientes(nombre, nota)')
+    .select('id, nombre, kcal, alergenos, privada_de, ingredientes(nombre, nota)')
     .eq('id', recetaId)
     .maybeSingle();
   if (error) throw error;
-  if (!receta) return fallo(404, 'no_encontrada', 'No encontramos esa receta.');
+  // Las recetas privadas (guardadas de redes) solo las puede usar su dueño.
+  if (!receta || (receta.privada_de && receta.privada_de !== user.id)) return fallo(404, 'no_encontrada', 'No encontramos esa receta.');
   const restr = restriccionesDe(perfil.alergias ?? [], perfil.no_me_gusta ?? []);
   const motivos = motivosNoApta(
     { nombre: receta.nombre, alergenos: (receta.alergenos as string[] | null) ?? [], ingredientes: (receta.ingredientes ?? []) as { nombre: string; nota: string | null }[] },

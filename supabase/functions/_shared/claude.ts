@@ -24,6 +24,8 @@ export interface PeticionJSON {
   esquema: Record<string, unknown>;
   maxTokens?: number;
   timeoutMs?: number;
+  // Imagen opcional (por ejemplo, la portada de una publicación), por su dirección pública.
+  imagenUrl?: string | null;
 }
 
 // Cuerpo de la petición a Claude (sirve igual para una llamada normal y para un lote).
@@ -31,7 +33,12 @@ export const parametros = (o: PeticionJSON) => ({
   model: o.modelo,
   max_tokens: o.maxTokens ?? 8000,
   system: o.sistema,
-  messages: [{ role: 'user', content: o.mensaje }],
+  messages: [
+    {
+      role: 'user',
+      content: o.imagenUrl ? [{ type: 'image', source: { type: 'url', url: o.imagenUrl } }, { type: 'text', text: o.mensaje }] : o.mensaje,
+    },
+  ],
   output_config: { format: { type: 'json_schema', schema: o.esquema } },
 });
 

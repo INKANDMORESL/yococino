@@ -41,3 +41,6 @@ verify_jwt = true
 [functions.aligerar-fotos]
 # La llama el propio servidor con una clave interna (la función lo comprueba); también un administrador.
 verify_jwt = false
+
+[functions.importar-receta]
+verify_jwt = true

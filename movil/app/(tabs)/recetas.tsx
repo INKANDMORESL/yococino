@@ -1,5 +1,5 @@
 // Recetario: buscador de recetas aptas para la persona, por nombre o ingrediente, y por tipo de comida.
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,12 +9,14 @@ import { kcalTexto } from '../../src/features/menu/cantidades';
 import { fotoPequena } from '../../src/features/menu/fotos';
 import { NIVEL, TIPOS, type TipoComida } from '../../src/features/menu/tipos';
 import { cargarFavoritas } from '../../src/features/perfil/api';
+import { MisRecetas } from '../../src/features/recetas/MisRecetas';
 import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../../src/theme';
 
 const FILTROS: { clave: string | null; texto: string }[] = [
   { clave: null, texto: 'Todas' },
   { clave: 'favoritas', texto: '♥ Favoritas' },
+  { clave: 'mias', texto: '📥 Mis recetas' },
   { clave: 'desayuno', texto: 'Desayunos' },
   { clave: 'almuerzo', texto: 'Comidas' },
   { clave: 'cena', texto: 'Cenas' },
@@ -53,7 +55,11 @@ const CATEGORIAS: { clave: string; texto: string; subs?: { clave: string; texto:
 
 export default function Recetas() {
   const [texto, setTexto] = useState('');
-  const [filtro, setFiltro] = useState<string | null>(null);
+  const { ver } = useLocalSearchParams<{ ver?: string }>();
+  const [filtro, setFiltro] = useState<string | null>(ver === 'mias' ? 'mias' : null);
+  useEffect(() => {
+    if (ver === 'mias') setFiltro('mias');
+  }, [ver]);
   const [categoria, setCategoria] = useState<string | null>(null);
   const [sub, setSub] = useState<string | null>(null);
   const subs = CATEGORIAS.find((c) => c.clave === categoria)?.subs ?? [];
@@ -75,6 +81,7 @@ export default function Recetas() {
   // Busca al dejar de escribir (con una pequeña espera) o al cambiar el filtro.
   useEffect(() => {
     const mio = ++turno.current;
+    if (filtro === 'mias') return;
     const tipo = filtro && filtro !== 'favoritas' ? filtro : null;
     const clave = `recetas:${texto.trim().toLowerCase()}|${tipo ?? ''}${categoria ? `|${categoria}|${sub ?? ''}` : ''}`;
     const enMemoria = leerCache<RecetaResumen[]>(clave);
@@ -117,31 +124,33 @@ export default function Recetas() {
         </Aparecer>
 
         <View style={s.cabecera}>
-          <View style={s.buscador}>
-            <Text style={s.lupa}>⌕</Text>
-            <TextInput
-              value={texto}
-              onChangeText={setTexto}
-              placeholder="Busca un plato o un ingrediente"
-              placeholderTextColor={colors.muted}
-              style={s.input}
-              returnKeyType="search"
-              autoCorrect={false}
-              accessibilityLabel="Buscar recetas"
-              maxLength={60}
-            />
-            {texto ? (
-              <Pressable onPress={() => setTexto('')} accessibilityRole="button" accessibilityLabel="Borrar búsqueda" hitSlop={8}>
-                <Text style={s.borrar}>×</Text>
-              </Pressable>
-            ) : null}
-          </View>
+          {filtro !== 'mias' ? (
+            <View style={s.buscador}>
+              <Text style={s.lupa}>⌕</Text>
+              <TextInput
+                value={texto}
+                onChangeText={setTexto}
+                placeholder="Busca un plato o un ingrediente"
+                placeholderTextColor={colors.muted}
+                style={s.input}
+                returnKeyType="search"
+                autoCorrect={false}
+                accessibilityLabel="Buscar recetas"
+                maxLength={60}
+              />
+              {texto ? (
+                <Pressable onPress={() => setTexto('')} accessibilityRole="button" accessibilityLabel="Borrar búsqueda" hitSlop={8}>
+                  <Text style={s.borrar}>×</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filtros}>
             {FILTROS.map((f) => (
               <Chip key={f.clave ?? 'todas'} texto={f.texto} elegido={filtro === f.clave} onPress={() => setFiltro(f.clave)} />
             ))}
           </ScrollView>
-          {filtro !== 'favoritas' ? (
+          {filtro !== 'favoritas' && filtro !== 'mias' ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filtros}>
               {CATEGORIAS.map((c) => (
                 <Chip
@@ -156,7 +165,7 @@ export default function Recetas() {
               ))}
             </ScrollView>
           ) : null}
-          {filtro !== 'favoritas' && subs.length ? (
+          {filtro !== 'favoritas' && filtro !== 'mias' && subs.length ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filtros}>
               <Chip texto="Todos" elegido={!sub} onPress={() => setSub(null)} />
               {subs.map((x) => (
@@ -166,9 +175,11 @@ export default function Recetas() {
           ) : null}
         </View>
 
-        {error ? <Aviso tono="rosa" texto={error} /> : null}
+        {error && filtro !== 'mias' ? <Aviso tono="rosa" texto={error} /> : null}
 
-        {filtro !== 'favoritas' && (recetas === null || (cargando && !lista.length)) ? (
+        {filtro === 'mias' ? (
+          <MisRecetas />
+        ) : filtro !== 'favoritas' && (recetas === null || (cargando && !lista.length)) ? (
           <View style={s.centro}>
             <ActivityIndicator color={colors.olive} />
           </View>

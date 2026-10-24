@@ -4,6 +4,7 @@ import { comidasDelDia, edadEn, energiaDiaria, factorRacion } from './nutricion.
 import { frutasDelMes, frutasFueraDeTemporada } from './temporada.ts';
 import { contieneAlimento, contienePalabra, limpiarNombre } from './texto.ts';
 import { categoriasDe } from './categorias.ts';
+import { avisosNutricion, extraerUrl, normalizarUrl, plataformaDe, textoAvisos, urlPermitida } from './importar_reglas.ts';
 
 type Caso = [string, () => boolean];
 
@@ -15,6 +16,12 @@ export const CASOS: Caso[] = [
   ['"coliflores" encuentra "coliflor"', () => contieneAlimento('coliflor al horno', 'coliflores')],
   ['"nueces" encuentra "nuez"', () => contieneAlimento('nuez picada', 'nueces')],
   ['"aguacates" encuentra "aguacate"', () => contieneAlimento('aguacate maduro', 'aguacates')],
+  ['importar: saca el enlace del texto compartido', () => extraerUrl('Mira esto 😍 https://vm.tiktok.com/ZMabc123/ ¡qué rico!') === 'https://vm.tiktok.com/ZMabc123/'],
+  ['importar: no permite direcciones internas', () => !urlPermitida('http://127.0.0.1/x') && !urlPermitida('http://localhost:54321') && !urlPermitida('https://abc.supabase.co/rest') && urlPermitida('https://www.tiktok.com/@a/video/1')],
+  ['importar: quita parámetros de seguimiento', () => normalizarUrl('https://www.instagram.com/reel/ABC/?igsh=xyz&utm_source=ig') === 'https://instagram.com/reel/ABC'],
+  ['importar: reconoce la red social', () => plataformaDe('https://vm.tiktok.com/x') === 'tiktok' && plataformaDe('https://youtu.be/x') === 'youtube' && plataformaDe('https://blog.com/r') === 'web'],
+  ['importar: avisa de grasas y azúcar altos', () => textoAvisos(avisosNutricion({ kcal: 600, grasas: 30, azucares: 40 })) === 'Tiene alto contenido en grasas y azúcar.'],
+  ['importar: receta equilibrada sin avisos', () => avisosNutricion({ kcal: 550, grasas: 15, grasas_saturadas: 3, azucares: 8, sal: 1 }).length === 0],
   ['categoría: pollo al horno es carne y pollo', () => { const c = categoriasDe({ nombre: 'Pollo al horno con patatas' }); return c.categorias.includes('carne') && c.sub.includes('pollo') && !c.categorias.includes('vegetal'); }],
   ['categoría: lomo de salmón es pescado azul, no cerdo', () => { const c = categoriasDe({ nombre: 'Lomo de salmón a la plancha' }); return c.sub.includes('azul') && !c.sub.includes('cerdo'); }],
   ['categoría: jamón de pavo es pavo, no cerdo', () => { const c = categoriasDe({ nombre: 'Tostada', ingredientes: [{ nombre: 'jamón de pavo' }] }); return c.sub.includes('pavo') && !c.sub.includes('cerdo'); }],

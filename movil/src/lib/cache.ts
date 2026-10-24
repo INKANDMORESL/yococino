@@ -8,3 +8,6 @@ export const guardarCache = <T>(clave: string, valor: T): T => {
   return valor;
 };
 export const vaciarCache = () => datos.clear();
+export const borrarCache = (clave: string) => {
+  datos.delete(clave);
+};
