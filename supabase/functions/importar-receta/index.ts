@@ -101,7 +101,7 @@ async function importar(req: Request): Promise<Response> {
     return fallo(422, 'sin_datos', 'No hemos podido leer esa publicación (puede ser privada). Prueba con otro enlace.');
   }
 
-  const r = await pedirJSON<Resultado>({
+  const peticion = {
     modelo: MODELO_RECETA,
     maxTokens: 6000,
     imagenUrl: pub.imagen,
@@ -121,7 +121,15 @@ ${pub.texto || '(sin texto; mira la imagen)'}
 Personas con estas restricciones usarán la app: ${describirRestricciones(restr) || 'ninguna'}. No cambies la receta por ellas; solo indica sus alérgenos.
 Alérgenos posibles: ${ALERGENOS_UE.join(', ')}.`,
     esquema: ESQUEMA,
-  });
+  };
+  // Si la portada no se puede abrir (algunas redes la protegen), se intenta solo con el texto.
+  let r: Resultado;
+  try {
+    r = await pedirJSON<Resultado>(peticion);
+  } catch (e) {
+    if (!peticion.imagenUrl || !pub.texto) throw e;
+    r = await pedirJSON<Resultado>({ ...peticion, imagenUrl: null });
+  }
 
   if (r.clase !== 'receta' || !Array.isArray(r.receta?.ingredientes) || r.receta.ingredientes.length < 2 || !Array.isArray(r.receta.pasos) || !r.receta.pasos.length) {
     const clase = r.clase === 'receta' ? 'sin_receta' : r.clase;
