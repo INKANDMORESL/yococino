@@ -141,14 +141,36 @@ const acciones: Record<string, (admin: Cliente, d: Datos, yo: string) => Promise
       contar(admin.from('recetas').select('id', { count: 'exact', head: true }).eq('oculta', false).is('imagen', null).is('privada_de', null)),
       contar(admin.from('recetas').select('id', { count: 'exact', head: true }).eq('espera_foto', true)),
       contar(admin.from('recetas').select('id', { count: 'exact', head: true }).not('imagen', 'is', null).is('imagen_mini', null)),
-      contar(admin.from('profiles').select('id', { count: 'exact', head: true }).not('encuesta_completada_at', 'is', null)),
-      admin.from('comidas').select('user_id').eq('fecha', dentroDe25).limit(20000),
+      admin.from('profiles').select('id').not('encuesta_completada_at', 'is', null).limit(20000),
+      Promise.resolve(null),
       admin.from('blog_recetas').select('publicada_el').order('publicada_el', { ascending: false }).limit(1).maybeSingle(),
       acciones.hilos(admin, {}, ''),
       cupoRecetas(admin),
       admin.from('usos_ia').select('coste_usd').gte('created_at', `${hoy}T00:00:00+01:00`),
     ]);
-    const conMenu = new Set(((conMenuLargo.data ?? []) as { user_id: string }[]).map((f) => f.user_id)).size;
+    // Menús: con suscripción, 30 días por delante (se comprueba el día +25); en la prueba gratis, solo sus 7 días
+    // (se comprueba que tenga hasta el último día de la prueba). Las pruebas terminadas no cuentan.
+    void conMenuLargo;
+    const idsEncuesta = ((conEncuesta.data ?? []) as { id: string }[]).map((p) => p.id);
+    const planesEncuesta = idsEncuesta.length ? await planes(admin, idsEncuesta) : new Map();
+    const premium = idsEncuesta.filter((id) => planesEncuesta.get(id)?.estado === 'premium');
+    const enPrueba = idsEncuesta.filter((id) => planesEncuesta.get(id)?.estado === 'prueba');
+    const [{ data: largos }, { data: dePrueba }] = await Promise.all([
+      premium.length ? admin.from('comidas').select('user_id').eq('fecha', dentroDe25).in('user_id', premium).limit(20000) : Promise.resolve({ data: [] }),
+      enPrueba.length ? admin.from('comidas').select('user_id, fecha').gte('fecha', hoy).in('user_id', enPrueba).limit(20000) : Promise.resolve({ data: [] }),
+    ]);
+    const premiumOk = new Set(((largos ?? []) as { user_id: string }[]).map((f) => f.user_id)).size;
+    const fechasPrueba = new Map<string, Set<string>>();
+    for (const f of (dePrueba ?? []) as { user_id: string; fecha: string }[]) {
+      if (!fechasPrueba.has(f.user_id)) fechasPrueba.set(f.user_id, new Set());
+      fechasPrueba.get(f.user_id)!.add(f.fecha);
+    }
+    const pruebaOk = enPrueba.filter((id) => {
+      const fin = planesEncuesta.get(id)?.fin_prueba as string | null;
+      return fin ? fechasPrueba.get(id)?.has(fin) : (fechasPrueba.get(id)?.size ?? 0) > 0;
+    }).length;
+    const conMenu = premiumOk + pruebaOk;
+    const aComprobar = premium.length + enPrueba.length;
     const pendientes = (sinResponder as { sin_responder: boolean }[]).filter((h) => h.sin_responder).length;
     const web = (ultimaWeb.data?.publicada_el as string | undefined) ?? null;
     const gasto = eur(((gastoHoy.data ?? []) as { coste_usd: number }[]).reduce((s, f) => s + Number(f.coste_usd), 0));
@@ -171,8 +193,11 @@ const acciones: Record<string, (admin: Cliente, d: Datos, yo: string) => Promise
     });
     c.push({
       nombre: 'Menús de los clientes',
-      nivel: conEncuesta === 0 || conMenu >= conEncuesta * 0.9 ? 'ok' : conMenu >= conEncuesta * 0.6 ? 'aviso' : 'error',
-      texto: `${conMenu} de ${conEncuesta} clientes tienen su menú preparado al menos 25 días por delante.`,
+      nivel: aComprobar === 0 || conMenu >= aComprobar * 0.9 ? 'ok' : conMenu >= aComprobar * 0.6 ? 'aviso' : 'error',
+      texto:
+        aComprobar === 0
+          ? 'Todavía no hay clientes activos con menú.'
+          : `${premiumOk} de ${premium.length} con suscripción tienen su menú de 30 días; ${pruebaOk} de ${enPrueba.length} en prueba tienen sus 7 días.`,
     });
     c.push({
       nombre: 'Fotos del recetario',
