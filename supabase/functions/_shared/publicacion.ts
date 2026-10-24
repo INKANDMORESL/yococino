@@ -107,11 +107,20 @@ export async function leerPublicacion(url: string): Promise<Publicacion | null> 
   const base: Publicacion = { plataforma, url, titulo: '', texto: '', autor: '', imagen: null, video: null };
   let tiktokId: string | null = null;
 
+  // La página pública (también sirve para saber a dónde lleva un enlace corto, como vm.tiktok.com).
+  const pagina = await pedir(url);
+  const final = pagina?.final && urlPermitida(pagina.final) ? pagina.final : url;
+
   // TikTok y YouTube tienen un servicio público con el texto de la publicación y su portada.
+  // Necesita la dirección completa del vídeo, no la corta.
   if (plataforma === 'tiktok' || plataforma === 'youtube') {
-    const e = await oembed(
-      plataforma === 'tiktok' ? `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}` : `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(url)}`,
-    );
+    const completa = final.split('?')[0];
+    const e =
+      (await oembed(
+        plataforma === 'tiktok'
+          ? `https://www.tiktok.com/oembed?url=${encodeURIComponent(completa)}`
+          : `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(final)}`,
+      ));
     if (e) {
       Object.assign(base, { titulo: e.titulo, texto: e.titulo, autor: e.autor, imagen: e.imagen });
       tiktokId = e.id;
@@ -119,15 +128,15 @@ export async function leerPublicacion(url: string): Promise<Publicacion | null> 
   }
 
   // Para el resto (y para completar), la página pública: título, descripción, portada y receta estructurada.
-  const pagina = await pedir(url);
-  base.video = embedDe(pagina?.final ?? url, tiktokId) ?? embedDe(url, tiktokId);
+  base.video = embedDe(final, tiktokId) ?? embedDe(url, tiktokId);
   if (pagina) {
     const html = pagina.cuerpo;
     const titulo = meta(html, 'og:title') || (html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] ?? '');
     const descripcion = meta(html, 'og:description') || meta(html, 'description');
     const imagen = meta(html, 'og:image');
     const estructurada = recetaEstructurada(html);
-    base.titulo ||= desescapar(titulo).trim();
+    const generico = /^(TikTok - Make Your Day|Instagram|YouTube|Login • Instagram)$/i.test(desescapar(titulo).trim());
+    if (!generico) base.titulo ||= desescapar(titulo).trim();
     const textos = [base.texto, descripcion, estructurada].filter(Boolean);
     base.texto = [...new Set(textos)].join('\n\n').slice(0, 7000);
     if (!base.imagen && imagen && urlPermitida(imagen)) base.imagen = imagen;
