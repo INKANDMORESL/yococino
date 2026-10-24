@@ -61,6 +61,20 @@ export function crearClientes(req: Request) {
 
 export type Cliente = ReturnType<typeof crearClientes>['admin'];
 
+// Apunta un fallo para el panel de gestión (solo función y mensaje técnico, nunca datos de personas).
+export async function apuntarError(funcion: string, tipo: string, mensaje: string) {
+  try {
+    const url = Deno.env.get('SUPABASE_URL') ?? '';
+    const secreta = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || claveDeLista('SUPABASE_SECRET_KEYS') || '';
+    const admin = createClient(url, secreta, { auth: { persistSession: false, autoRefreshToken: false } });
+    await admin.from('errores_servidor').insert({ funcion, tipo, mensaje: String(mensaje).slice(0, 500) });
+    // Se guardan los últimos 30 días.
+    if (Math.random() < 0.05) await admin.from('errores_servidor').delete().lt('created_at', new Date(Date.now() - 30 * 86_400_000).toISOString());
+  } catch {
+    // Si no se puede apuntar, no pasa nada.
+  }
+}
+
 // Arranca una función con CORS, solo POST y errores sin datos personales.
 export function servir(nombre: string, manejar: (req: Request) => Promise<Response>, textoFallo: string) {
   Deno.serve(async (req) => {
@@ -70,7 +84,9 @@ export function servir(nombre: string, manejar: (req: Request) => Promise<Respon
       try {
         return await manejar(req);
       } catch (e) {
-        return errorDe(e);
+        const r = errorDe(e);
+        if (r.status >= 500) await apuntarError(nombre, r.status === 502 ? 'ia' : r.status === 503 ? 'configuracion' : 'interno', mensajeTecnico(e));
+        return r;
       } finally {
         await guardarGasto();
       }

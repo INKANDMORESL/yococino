@@ -59,6 +59,7 @@
   // ---------- Estructura ----------
   const SECCIONES = [
     ['resumen', 'Resumen'],
+    ['estado', 'Estado de la app'],
     ['clientes', 'Clientes'],
     ['mensajes', 'Mensajes'],
     ['suscripciones', 'Suscripciones'],
@@ -97,8 +98,10 @@
     const r = await pedir('resumen');
     sinResponder = r.mensajes_sin_responder;
     const pct = r.cupo_mes ? Math.min(100, Math.round((r.recetas_mes / r.cupo_mes) * 100)) : 0;
+    const salud = await pedir('salud').catch(() => null);
     marco('resumen', `
       <h1>Resumen</h1><p class="sub">Cómo va Yococino hoy.</p>
+      ${salud ? `<a href="#estado" class="salud ${salud.general}"><span>${ICONO[salud.general]}</span><b>${TITULO[salud.general]}</b><span class="muted">Ver el estado de la app →</span></a>` : ''}
       <div class="tarjetas">
         <div class="tarjeta"><div class="num">${r.clientes}</div><div class="eti">Cuentas creadas</div></div>
         <div class="tarjeta"><div class="num">${r.nuevos_7_dias}</div><div class="eti">Nuevas en 7 días</div></div>
@@ -114,6 +117,28 @@
         <div class="tarjeta"><div class="num">${euros(r.gasto_mes_eur)}</div><div class="eti">Gasto en IA este mes</div></div>
         <div class="tarjeta"><div class="num">${euros(r.gasto_30_dias_eur)}</div><div class="eti">Gasto en IA últimos 30 días</div></div>
       </div>`);
+  };
+
+  const ICONO = { ok: '🟢', aviso: '🟡', error: '🔴' };
+  const TITULO = { ok: 'Todo funciona bien', aviso: 'Funciona, con algún aviso', error: 'Hay algo que no funciona' };
+  V.estado = async () => {
+    const s = await pedir('salud');
+    marco('estado', `
+      <div class="fila entre"><div><h1>Estado de la app</h1><p class="sub">Se comprueba solo cada vez que abres esta página.</p></div>
+      <button class="boton suave" id="refrescar">Comprobar otra vez</button></div>
+      <div class="salud ${s.general}"><span>${ICONO[s.general]}</span><b>${TITULO[s.general]}</b></div>
+      <table><thead><tr><th></th><th>Qué</th><th>Cómo está</th></tr></thead><tbody>
+      ${s.comprobaciones.map((c) => `<tr><td style="width:36px">${ICONO[c.nivel]}</td><td><b>${esc(c.nombre)}</b></td><td>${esc(c.texto)}</td></tr>`).join('')}
+      </tbody></table>
+      <h2>Últimos fallos</h2>
+      ${
+        s.errores.length
+          ? `<table><thead><tr><th>Cuándo</th><th>Dónde</th><th>Qué pasó</th></tr></thead><tbody>${s.errores
+              .map((e) => `<tr><td>${fechaHora(e.created_at)}</td><td>${esc(e.funcion)} <span class="etiqueta e-gris">${esc(e.tipo)}</span></td><td class="peq">${esc(e.mensaje)}</td></tr>`)
+              .join('')}</tbody></table><p class="peq muted">Son mensajes técnicos, sin datos de clientes. Si ves muchos iguales, pásaselos a Claude.</p>`
+          : '<p class="muted">No hay fallos registrados. 🎉</p>'
+      }`);
+    document.getElementById('refrescar').onclick = () => cargarSeccion('estado');
   };
 
   V.clientes = async (buscar = '') => {

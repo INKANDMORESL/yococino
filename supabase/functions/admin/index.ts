@@ -112,6 +112,97 @@ const acciones: Record<string, (admin: Cliente, d: Datos, yo: string) => Promise
     }));
   },
 
+  // Estado de la app: comprobaciones automáticas y últimos fallos (sin datos de personas).
+  async salud(admin) {
+    const hoy = hoyEspana();
+    const hace24 = new Date(Date.now() - 86_400_000).toISOString();
+    const hace26h = new Date(Date.now() - 26 * 3600_000).toISOString();
+    const dentroDe25 = sumarDias(hoy, 25);
+    const contar = (q: PromiseLike<{ count: number | null }>) => Promise.resolve(q).then((r) => r.count ?? 0);
+    const [
+      errores24,
+      ultimosErrores,
+      lotesAbiertos,
+      lotesViejos,
+      visiblesSinFoto,
+      esperandoFoto,
+      sinMiniatura,
+      conEncuesta,
+      conMenuLargo,
+      ultimaWeb,
+      sinResponder,
+      cupo,
+      gastoHoy,
+    ] = await Promise.all([
+      contar(admin.from('errores_servidor').select('id', { count: 'exact', head: true }).gte('created_at', hace24)),
+      admin.from('errores_servidor').select('funcion, tipo, mensaje, created_at').order('created_at', { ascending: false }).limit(15),
+      contar(admin.from('lotes_ia').select('id', { count: 'exact', head: true }).eq('estado', 'enviado')),
+      contar(admin.from('lotes_ia').select('id', { count: 'exact', head: true }).eq('estado', 'enviado').lt('created_at', hace26h)),
+      contar(admin.from('recetas').select('id', { count: 'exact', head: true }).eq('oculta', false).is('imagen', null).is('privada_de', null)),
+      contar(admin.from('recetas').select('id', { count: 'exact', head: true }).eq('espera_foto', true)),
+      contar(admin.from('recetas').select('id', { count: 'exact', head: true }).not('imagen', 'is', null).is('imagen_mini', null)),
+      contar(admin.from('profiles').select('id', { count: 'exact', head: true }).not('encuesta_completada_at', 'is', null)),
+      admin.from('comidas').select('user_id').eq('fecha', dentroDe25).limit(20000),
+      admin.from('blog_recetas').select('publicada_el').order('publicada_el', { ascending: false }).limit(1).maybeSingle(),
+      acciones.hilos(admin, {}, ''),
+      cupoRecetas(admin),
+      admin.from('usos_ia').select('coste_usd').gte('created_at', `${hoy}T00:00:00+01:00`),
+    ]);
+    const conMenu = new Set(((conMenuLargo.data ?? []) as { user_id: string }[]).map((f) => f.user_id)).size;
+    const pendientes = (sinResponder as { sin_responder: boolean }[]).filter((h) => h.sin_responder).length;
+    const web = (ultimaWeb.data?.publicada_el as string | undefined) ?? null;
+    const gasto = eur(((gastoHoy.data ?? []) as { coste_usd: number }[]).reduce((s, f) => s + Number(f.coste_usd), 0));
+    type Nivel = 'ok' | 'aviso' | 'error';
+    const c: { nombre: string; nivel: Nivel; texto: string }[] = [];
+    c.push(
+      Deno.env.get('ANTHROPIC_API_KEY')
+        ? { nombre: 'Inteligencia artificial (recetas y menús)', nivel: 'ok', texto: 'Conectada.' }
+        : { nombre: 'Inteligencia artificial (recetas y menús)', nivel: 'error', texto: 'Falta la clave ANTHROPIC_API_KEY en Supabase.' },
+    );
+    c.push(
+      Deno.env.get('GEMINI_API_KEY')
+        ? { nombre: 'Fotos de los platos', nivel: 'ok', texto: 'Conectadas.' }
+        : { nombre: 'Fotos de los platos', nivel: 'error', texto: 'Falta la clave GEMINI_API_KEY en Supabase.' },
+    );
+    c.push({
+      nombre: 'Fallos del servidor (últimas 24 h)',
+      nivel: errores24 === 0 ? 'ok' : errores24 < 10 ? 'aviso' : 'error',
+      texto: errores24 === 0 ? 'Ningún fallo.' : `${errores24} ${errores24 === 1 ? 'fallo' : 'fallos'}. Mira el detalle abajo.`,
+    });
+    c.push({
+      nombre: 'Menús de los clientes',
+      nivel: conEncuesta === 0 || conMenu >= conEncuesta * 0.9 ? 'ok' : conMenu >= conEncuesta * 0.6 ? 'aviso' : 'error',
+      texto: `${conMenu} de ${conEncuesta} clientes tienen su menú preparado al menos 25 días por delante.`,
+    });
+    c.push({
+      nombre: 'Fotos del recetario',
+      nivel: visiblesSinFoto === 0 && sinMiniatura < 20 ? 'ok' : 'aviso',
+      texto:
+        visiblesSinFoto === 0 && esperandoFoto === 0 && sinMiniatura === 0
+          ? 'Todas las recetas tienen su foto.'
+          : `${visiblesSinFoto} visibles sin foto · ${esperandoFoto} recetas nuevas esperando su foto · ${sinMiniatura} fotos por aligerar.`,
+    });
+    c.push({
+      nombre: 'Lotes de recetas y fotos',
+      nivel: lotesViejos === 0 ? 'ok' : 'aviso',
+      texto: lotesViejos ? `${lotesViejos} lotes llevan más de 26 h sin terminar (se rehacen solos).` : lotesAbiertos ? `${lotesAbiertos} en marcha.` : 'Ninguno en marcha.',
+    });
+    c.push({
+      nombre: 'Receta del día en la web',
+      nivel: web === hoy ? 'ok' : web && web >= sumarDias(hoy, -1) ? 'aviso' : 'error',
+      texto: web ? (web === hoy ? 'Publicada hoy.' : `La última es del ${web}.`) : 'Aún no hay ninguna.',
+    });
+    c.push({ nombre: 'Mensajes de clientes', nivel: pendientes ? 'aviso' : 'ok', texto: pendientes ? `${pendientes} por responder.` : 'Todo respondido.' });
+    c.push({
+      nombre: 'Cupo de recetas nuevas del mes',
+      nivel: cupo.quedan > cupo.tope * 0.1 ? 'ok' : 'aviso',
+      texto: `${cupo.usadas} de ${cupo.tope} usadas (quedan ${cupo.quedan}).`,
+    });
+    c.push({ nombre: 'Gasto en IA hoy', nivel: 'ok', texto: `${gasto.toFixed(2).replace('.', ',')} €` });
+    const general: Nivel = c.some((x) => x.nivel === 'error') ? 'error' : c.some((x) => x.nivel === 'aviso') ? 'aviso' : 'ok';
+    return { general, comprobaciones: c, errores: ultimosErrores.data ?? [] };
+  },
+
   // Dar o quitar la suscripción a mano (hasta que se conecten los pagos de las tiendas).
   async suscripcion(admin, d) {
     const id = String(d.user_id ?? '');

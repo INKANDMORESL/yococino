@@ -103,3 +103,10 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--lemon); bor
   table { font-size: 14px; }
   th:nth-child(n+5), td:nth-child(n+5) { display: none; }
 }
+
+.salud { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-radius: 18px; margin: 0 0 22px; text-decoration: none; color: var(--ink); font-size: 17px; }
+.salud span:first-child { font-size: 22px; }
+.salud .muted { margin-left: auto; font-size: 14px; }
+.salud.ok { background: var(--leaf-2); }
+.salud.aviso { background: var(--lemon-soft); }
+.salud.error { background: var(--rose-soft); }

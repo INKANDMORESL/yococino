@@ -5,7 +5,7 @@
 //    Las recetas que esperaban su foto (espera_foto) aparecen en el recetario en cuanto la tienen.
 // Una cosa por llamada para no pasarse de CPU ni de memoria. Solo la llaman el servidor (clave interna) o un administrador.
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { CORS, fallo, responder } from '../_shared/http.ts';
+import { apuntarError, CORS, fallo, responder } from '../_shared/http.ts';
 import { claveSecreta, generar, guardarVersiones, MODELO_FOTO, promptDe, seguirAligerando } from '../_shared/fotos.ts';
 
 const MAX_SALTOS = 600;
@@ -119,6 +119,7 @@ async function hacerFotoNueva(admin: any, salto: number, limite: string): Promis
       .eq('id', receta.id);
   } catch (e) {
     console.error('aligerar-fotos (foto nueva):', e instanceof Error ? e.message : e);
+    await apuntarError('aligerar-fotos', 'fotos', e instanceof Error ? e.message : String(e));
     // Se deja el bloqueo puesto unos minutos; después se reintentará. Si Google falla de verdad, la cola para.
     return responder({ ok: false, fallo: receta.id });
   }

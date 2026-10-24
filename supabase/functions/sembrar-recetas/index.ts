@@ -7,7 +7,7 @@
 import { restriccionesDe } from '../_shared/alergenos.ts';
 import { crearLote, estadoLote, leerJSON, pedirJSON, resultadosLote } from '../_shared/claude.ts';
 import { costeTokens, FOTO_USD } from '../_shared/costes.ts';
-import { crearClientes, fallo, hoyEspana, mensajeTecnico, responder, servir, type Cliente } from '../_shared/http.ts';
+import { apuntarError, crearClientes, fallo, hoyEspana, mensajeTecnico, responder, servir, type Cliente } from '../_shared/http.ts';
 import { crearLoteFotos, estadoLoteFotos, guardarOriginal, leerFotosDelLote, MODELO_FOTO, promptDe, seguirAligerando } from '../_shared/fotos.ts';
 import type { TipoComida } from '../_shared/nutricion.ts';
 import {
@@ -181,6 +181,7 @@ async function enviarFotos(admin: Cliente, _pedidas: number) {
       enviadas += grupo.length;
     } catch (e) {
       console.error('sembrar-recetas: lote de fotos no aceptado, se hacen de una en una:', mensajeTecnico(e));
+      await apuntarError('sembrar-recetas', 'fotos', `Lote de fotos no aceptado: ${mensajeTecnico(e)}`);
       for (let k = 0; k < 3; k++) seguirAligerando(0);
       return { enviadas, aviso: `Google no ha aceptado el lote: ${recetas.length - enviadas} fotos se harán de una en una (algo más caro).`, errores: [mensajeTecnico(e)] };
     }
