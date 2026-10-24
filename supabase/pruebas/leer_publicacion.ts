@@ -7,7 +7,8 @@ await r1.body?.cancel();
 const id = r1.url.match(/\/video\/(\d+)/)?.[1];
 for (const u of [r1.url.split('?')[0], `https://www.tiktok.com/@x/video/${id}`]) {
   const o = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(u)}`);
-  console.log('OEMBED', o.status, (await o.text()).slice(0, 400));
+  const j = await o.json().catch(() => ({}));
+  console.log('OEMBED', o.status, JSON.stringify(Object.fromEntries(Object.entries(j).filter(([k]) => k !== 'html'))).slice(0, 900));
 }
 const r = await leerPublicacion(enlace);
 console.log('RESULTADO', JSON.stringify(r ? { ...r, texto: r.texto.slice(0, 600) } : null));
