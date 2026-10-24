@@ -14,7 +14,7 @@ import { colors, radius, shadow, space, type } from '../../src/theme';
 const RANGOS = [
   { clave: 'hoy', texto: 'Hoy', dias: 1 },
   { clave: '3d', texto: 'Próximos 3 días', dias: 3 },
-  { clave: 'semana', texto: 'Esta semana', dias: 7 },
+  { clave: 'semana', texto: 'Próximos 7 días', dias: 7 },
 ] as const;
 
 export default function Compra() {

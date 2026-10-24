@@ -62,6 +62,10 @@ async function importar(req: Request): Promise<Response> {
   const descripcion = String(cuerpo.descripcion ?? '').trim().slice(0, 6000);
   const url = extraerUrl(String(cuerpo.url ?? '')) ?? extraerUrl(String(cuerpo.texto ?? ''));
   if (!url || !urlPermitida(url)) return fallo(400, 'enlace', 'No encontramos un enlace válido. Copia el enlace de la publicación y vuelve a intentarlo.');
+  // De momento solo TikTok: es la red que deja leer bien sus recetas.
+  if (plataformaDe(url) !== 'tiktok') {
+    return fallo(400, 'solo_tiktok', 'De momento solo se pueden guardar recetas de TikTok. Copia el enlace de un vídeo de TikTok y vuelve a intentarlo.');
+  }
   const clave = normalizarUrl(url);
 
   const hoy = hoyEspana();

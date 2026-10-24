@@ -1,5 +1,6 @@
 // Menú completo por semanas (como en Mi Dieta): flechas para pasar de semana y los 7 días con sus comidas.
-// Se abre desde Inicio ("Ver menú completo") y cubre la semana actual hasta 30 días por delante.
+// Se abre desde Inicio ("Ver menú completo"). Cubre hasta 30 días por delante y, hacia atrás, medio año
+// (para ver lo que se ha comido).
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -80,7 +81,13 @@ export default function Menu() {
   const hoy = hoyISO();
   const primerLunes = lunesDe(hoy);
   const ultimoLunes = lunesDe(sumarDias(hoy, DIAS - 1));
+  // Se puede volver atrás hasta medio año para ver lo que se ha comido.
+  const lunesMasAntiguo = lunesDe(sumarDias(hoy, -7 * 26));
   const [lunes, setLunes] = useState(primerLunes);
+  const [desde, setDesde] = useState(primerLunes);
+  useEffect(() => {
+    if (lunes < desde) setDesde(lunes);
+  }, [lunes, desde]);
   const [comidas, setComidas] = useState<Comida[] | null>(leerCache<Comida[]>('menu') ?? null);
   const [cambiando, setCambiando] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -97,13 +104,17 @@ export default function Menu() {
 
   const recargar = useCallback(async () => {
     try {
-      const lista = await cargarComidas(primerLunes, sumarDias(hoy, DIAS - 1));
-      guardarCache('menu', lista);
+      const lista = await cargarComidas(desde, sumarDias(hoy, DIAS - 1));
+      if (desde === primerLunes) guardarCache('menu', lista);
       if (activo.current) setComidas(lista);
     } catch (e) {
       setError(e instanceof ErrorMenu ? e.message : 'No hemos podido cargar tu menú.');
     }
-  }, [primerLunes, hoy]);
+  }, [desde, primerLunes, hoy]);
+
+  useEffect(() => {
+    if (desde < primerLunes) recargar();
+  }, [desde, primerLunes, recargar]);
 
   useFocusEffect(
     useCallback(() => {
@@ -170,7 +181,7 @@ export default function Menu() {
     }
   };
 
-  const puedeAtras = lunes > primerLunes;
+  const puedeAtras = lunes > lunesMasAntiguo;
   const puedeAdelante = lunes < ultimoLunes;
 
   return (
@@ -235,7 +246,7 @@ export default function Menu() {
               );
             }
             return (
-              <View key={d} style={[s.dia, esHoy && s.diaHoy, pasado && { opacity: 0.6 }]}>
+              <View key={d} style={[s.dia, esHoy && s.diaHoy, pasado && { opacity: 0.8 }]}>
                 <View style={s.diaTitulo}>
                   <Text style={s.diaNombre}>{NOMBRES[i]}</Text>
                   <Text style={s.diaNumero}>{deISO(d).getDate()}</Text>

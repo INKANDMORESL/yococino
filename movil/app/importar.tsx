@@ -1,4 +1,4 @@
-// Guardar una receta compartida desde otra app (TikTok, Instagram, YouTube, Pinterest o una web).
+// Guardar una receta compartida desde TikTok.
 // Llega por «Compartir → Yococino», o desde «Mis recetas» pegando el enlace (parámetro url).
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -99,7 +99,7 @@ export default function Importar() {
               <Text style={[type.title, s.centrado]}>Pega el texto de la receta</Text>
               <Text style={[type.body, s.centrado]}>{error}</Text>
               <Text style={[type.small, s.centrado]}>
-                En Instagram: abre el reel, toca «… más» en la descripción, mantén pulsado el texto y elige «Copiar». El vídeo seguirá enlazado en la receta.
+                Abre el vídeo, toca la descripción para verla entera, mantén pulsado el texto y elige «Copiar». El vídeo seguirá enlazado en la receta.
               </Text>
               <TextInput
                 value={descripcion}
@@ -124,7 +124,7 @@ export default function Importar() {
           <Aparecer style={s.bloque}>
             <Text style={{ fontSize: 56 }}>🔗</Text>
             <Text style={[type.title, s.centrado]}>No hemos recibido ningún enlace</Text>
-            <Text style={[type.body, s.centrado]}>Comparte una receta desde TikTok, Instagram u otra app y elige Yococino, o pega el enlace en Recetas → Mis recetas.</Text>
+            <Text style={[type.body, s.centrado]}>Comparte un vídeo de receta desde TikTok y elige Yococino, o pega el enlace en Recetas → Mis recetas.</Text>
           </Aparecer>
         )}
       </View>

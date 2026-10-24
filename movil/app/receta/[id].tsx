@@ -13,6 +13,8 @@ import { faltaFoto, pedirFoto } from '../../src/features/menu/fotos';
 import { AsignarDia } from '../../src/features/menu/AsignarDia';
 import { CambiarIngrediente } from '../../src/features/menu/CambiarIngrediente';
 import { VideoOriginal } from '../../src/features/menu/VideoOriginal';
+import { compartirReceta } from '../../src/features/menu/compartir';
+import Svg, { Path } from 'react-native-svg';
 import { Peques } from '../../src/features/menu/Peques';
 import { anadirNoMeGusta, cambiarFavorita, esFavorita, pequesEnCasa } from '../../src/features/perfil/api';
 import { useAuth } from '../../src/lib/auth';
@@ -72,6 +74,7 @@ export default function RecetaPantalla() {
   const [pasosHechos, setPasosHechos] = useState<Set<number>>(new Set());
   const [favorita, setFavorita] = useState(false);
   const [avisoSalud, setAvisoSalud] = useState<string | null>(null);
+  const [avisoCompartir, setAvisoCompartir] = useState<string | null>(null);
   const [noGusta, setNoGusta] = useState<Set<string>>(new Set());
   const [aviso, setAviso] = useState<string | null>(null);
   const { sesion } = useAuth();
@@ -278,6 +281,11 @@ export default function RecetaPantalla() {
           <Aparecer>
             <Text style={s.titulo}>{receta.nombre}</Text>
             {receta.descripcion ? <Text style={[type.body, { marginTop: space.sm }]}>{receta.descripcion}</Text> : null}
+            {avisoCompartir ? (
+              <View style={{ marginTop: space.md }}>
+                <Aviso tono="hoja" texto={avisoCompartir} />
+              </View>
+            ) : null}
             {avisoSalud ? (
               <View style={{ marginTop: space.md }}>
                 <Aviso tono="rosa" texto={`⚠️ ${avisoSalud} Mejor tomarla de vez en cuando.`} />
@@ -540,14 +548,33 @@ export default function RecetaPantalla() {
             </Text>
           </View>
         ) : null}
-        <Pressable
-          onPress={alternarFavorita}
-          accessibilityRole="button"
-          accessibilityLabel={favorita ? 'Quitar de favoritas' : 'Guardar en favoritas'}
-          style={s.volver}
-        >
-          <Text style={[s.corazon, favorita && { color: colors.rose }]}>{favorita ? '♥' : '♡'}</Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: space.sm }}>
+          <Pressable
+            onPress={() =>
+              receta &&
+              compartirReceta(receta)
+                .then((r) => r === 'copiada' && setAvisoCompartir('Receta copiada. Pégala donde quieras para enviarla.'))
+                .catch(() => {})
+            }
+            accessibilityRole="button"
+            accessibilityLabel="Compartir la receta"
+            style={s.volver}
+          >
+            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.ink} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <Path d="M12 3v12" />
+              <Path d="M7 8l5-5 5 5" />
+              <Path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+            </Svg>
+          </Pressable>
+          <Pressable
+            onPress={alternarFavorita}
+            accessibilityRole="button"
+            accessibilityLabel={favorita ? 'Quitar de favoritas' : 'Guardar en favoritas'}
+            style={s.volver}
+          >
+            <Text style={[s.corazon, favorita && { color: colors.rose }]}>{favorita ? '♥' : '♡'}</Text>
+          </Pressable>
+        </View>
       </SafeAreaView>
 
       {comida ? (

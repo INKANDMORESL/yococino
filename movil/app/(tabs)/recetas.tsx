@@ -125,7 +125,7 @@ export default function Recetas() {
             <Pressable onPress={() => setFiltro('mias')} accessibilityRole="button" style={s.redes}>
               <Text style={{ fontSize: 26 }}>📥</Text>
               <View style={{ flex: 1 }}>
-                <Text style={s.redesTitulo}>¿Has visto una receta en TikTok o Instagram?</Text>
+                <Text style={s.redesTitulo}>¿Has visto una receta en TikTok?</Text>
                 <Text style={type.small}>Guárdala en Mis recetas con su vídeo.</Text>
               </View>
               <Text style={s.redesFlecha}>›</Text>

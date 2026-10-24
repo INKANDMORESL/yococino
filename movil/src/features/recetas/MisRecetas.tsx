@@ -1,4 +1,4 @@
-// «Mis recetas»: las recetas que cada persona guarda desde redes sociales, con su explicación sencilla.
+// «Mis recetas»: las recetas que cada persona guarda desde TikTok, con su explicación sencilla.
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -10,7 +10,7 @@ import { fotoPequena } from '../menu/fotos';
 import { TIPOS, type TipoComida } from '../menu/tipos';
 
 const PASOS = [
-  ['1', 'En TikTok, Instagram, YouTube o cualquier web, pulsa «Compartir» en la receta que te guste.'],
+  ['1', 'En TikTok, pulsa «Compartir» en el vídeo de la receta que te guste.'],
   ['2', 'Elige Yococino. Si no sale, toca «Copiar enlace» y pégalo aquí abajo.'],
   ['3', 'La leemos, la escribimos paso a paso y la guardamos aquí, con su foto.'],
 ];
@@ -49,8 +49,8 @@ export function MisRecetas() {
   return (
     <View style={{ gap: space.lg }}>
       <Tarjeta style={{ gap: space.md }}>
-        <Text style={type.heading}>📥 Guarda recetas de redes sociales</Text>
-        <Text style={type.body}>¿Has visto una receta que te encanta en TikTok o Instagram? Guárdala aquí en un momento:</Text>
+        <Text style={type.heading}>📥 Guarda recetas de TikTok</Text>
+        <Text style={type.body}>¿Has visto una receta que te encanta en TikTok? Guárdala aquí en un momento:</Text>
         {PASOS.map(([n, t]) => (
           <View key={n} style={s.paso}>
             <View style={s.numero}>
@@ -66,7 +66,6 @@ export function MisRecetas() {
           <View style={{ gap: space.sm }}>
             <Text style={type.small}>⚠️ Si tiene mucho azúcar, grasa, sal o calorías, te avisamos para que la tomes de vez en cuando.</Text>
             <Text style={type.small}>🙅 Si la publicación no es de comida o no encaja con los valores de Yococino, no se guarda.</Text>
-            <Text style={type.small}>Instagram a veces no deja leer sus publicaciones: si pasa, te pediremos que pegues el texto de la descripción.</Text>
             <Text style={type.small}>La escribimos con nuestras palabras y le hacemos una foto propia: no copiamos el vídeo ni las fotos del autor.</Text>
             <Text style={type.small}>En la prueba gratis puedes guardar 1 receta. Con la suscripción, todas las que quieras dentro de tu plan.</Text>
           </View>
@@ -75,7 +74,7 @@ export function MisRecetas() {
           <TextInput
             value={enlace}
             onChangeText={setEnlace}
-            placeholder="Pega aquí el enlace"
+            placeholder="Pega aquí el enlace de TikTok"
             placeholderTextColor={colors.muted}
             style={s.input}
             autoCapitalize="none"
@@ -94,7 +93,7 @@ export function MisRecetas() {
       {lista === null ? (
         <ActivityIndicator color={colors.olive} />
       ) : lista.length === 0 ? (
-        <Text style={[type.small, { textAlign: 'center' }]}>Aún no has guardado ninguna receta de redes.</Text>
+        <Text style={[type.small, { textAlign: 'center' }]}>Aún no has guardado ninguna receta de TikTok.</Text>
       ) : (
         <View style={{ gap: space.md }}>
           {lista.map((r) => {
