@@ -298,33 +298,37 @@ export default function Inicio() {
           ) : null}
 
           <View style={s.filaHoy}>
-            <View style={s.navDia}>
-              <Pressable
-                onPress={() => diaVisto > primerDia && setDiaVisto(sumarDias(diaVisto, -1))}
-                disabled={diaVisto <= primerDia}
-                accessibilityRole="button"
-                accessibilityLabel="Día anterior"
-                hitSlop={6}
-                style={[s.flechaDia, diaVisto <= primerDia && { opacity: 0.3 }]}
-              >
-                <Text style={s.flechaTexto}>‹</Text>
-              </Pressable>
-              <Pressable onPress={() => setDiaVisto(hoy)} accessibilityRole="button" accessibilityLabel="Volver a hoy">
-                <Text style={[type.title, { textTransform: 'capitalize' }]}>{tituloDia}</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => diaVisto < ultimoDia && setDiaVisto(sumarDias(diaVisto, 1))}
-                disabled={diaVisto >= ultimoDia}
-                accessibilityRole="button"
-                accessibilityLabel="Día siguiente"
-                hitSlop={6}
-                style={[s.flechaDia, diaVisto >= ultimoDia && { opacity: 0.3 }]}
-              >
-                <Text style={s.flechaTexto}>›</Text>
-              </Pressable>
-            </View>
+            <Text style={type.title}>Tu menú</Text>
             <Pressable onPress={() => router.push({ pathname: '/menu', params: { dia: diaVisto } })} accessibilityRole="button" style={s.verMenu}>
               <Text style={s.verMenuTexto}>Ver menú completo</Text>
+            </Pressable>
+          </View>
+          <View style={s.navDia}>
+            <Pressable
+              onPress={() => diaVisto > primerDia && setDiaVisto(sumarDias(diaVisto, -1))}
+              disabled={diaVisto <= primerDia}
+              accessibilityRole="button"
+              accessibilityLabel="Día anterior"
+              hitSlop={8}
+              style={[s.flechaDia, diaVisto <= primerDia && { opacity: 0.3 }]}
+            >
+              <Text style={s.flechaTexto}>‹</Text>
+            </Pressable>
+            <Pressable onPress={() => setDiaVisto(hoy)} accessibilityRole="button" accessibilityLabel="Volver a hoy" style={{ flex: 1 }}>
+              <Text style={s.diaTitulo} numberOfLines={1}>
+                {tituloDia}
+              </Text>
+              {diaVisto !== hoy ? <Text style={[type.small, { textAlign: 'center' }]}>Toca para volver a hoy</Text> : null}
+            </Pressable>
+            <Pressable
+              onPress={() => diaVisto < ultimoDia && setDiaVisto(sumarDias(diaVisto, 1))}
+              disabled={diaVisto >= ultimoDia}
+              accessibilityRole="button"
+              accessibilityLabel="Día siguiente"
+              hitSlop={8}
+              style={[s.flechaDia, diaVisto >= ultimoDia && { opacity: 0.3 }]}
+            >
+              <Text style={s.flechaTexto}>›</Text>
             </Pressable>
           </View>
 
@@ -398,9 +402,10 @@ const s = StyleSheet.create({
   salir: { alignSelf: 'center', padding: space.md },
   salirTexto: { color: colors.muted, fontWeight: '600', fontSize: 15 },
   filaHoy: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: space.lg, gap: space.sm },
-  navDia: { flexDirection: 'row', alignItems: 'center', gap: space.sm, flexShrink: 1 },
-  flechaDia: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow },
-  flechaTexto: { fontSize: 22, color: colors.ink, marginTop: -2 },
+  navDia: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.surface, borderRadius: radius.lg, padding: space.sm, ...shadow },
+  flechaDia: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.leaf, alignItems: 'center', justifyContent: 'center' },
+  flechaTexto: { fontSize: 26, color: colors.oliveInk, marginTop: -2, fontWeight: '700' },
+  diaTitulo: { fontSize: 20, fontWeight: '800', color: colors.ink, textAlign: 'center', textTransform: 'capitalize' },
   verMenu: { borderWidth: 1.5, borderColor: colors.line, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: colors.surface },
   verMenuTexto: { fontSize: 14, fontWeight: '700', color: colors.ink },
   nevera: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.md, padding: space.lg, borderRadius: radius.lg, backgroundColor: colors.ink },
