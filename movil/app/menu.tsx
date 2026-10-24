@@ -1,7 +1,7 @@
 // Menú completo por semanas (como en Mi Dieta): flechas para pasar de semana y los 7 días con sus comidas.
 // Se abre desde Inicio ("Ver menú completo"). Cubre hasta 30 días por delante y, hacia atrás, medio año
 // (para ver lo que se ha comido).
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -83,7 +83,13 @@ export default function Menu() {
   const ultimoLunes = lunesDe(sumarDias(hoy, DIAS - 1));
   // Se puede volver atrás hasta medio año para ver lo que se ha comido.
   const lunesMasAntiguo = lunesDe(sumarDias(hoy, -7 * 26));
-  const [lunes, setLunes] = useState(primerLunes);
+  // Se abre en la semana del día elegido en Inicio (por defecto, hoy) y baja sola hasta ese día.
+  const { dia } = useLocalSearchParams<{ dia?: string }>();
+  const diaInicial = typeof dia === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : hoy;
+  const [lunes, setLunes] = useState(lunesDe(diaInicial));
+  const scroll = useRef<ScrollView>(null);
+  const posiciones = useRef(new Map<string, number>());
+  const yaBajado = useRef(false);
   const [desde, setDesde] = useState(primerLunes);
   useEffect(() => {
     if (lunes < desde) setDesde(lunes);
@@ -223,7 +229,7 @@ export default function Menu() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={s.contenido}>
+      <ScrollView ref={scroll} contentContainerStyle={s.contenido}>
         {error ? <Aviso tono="rosa" texto={error} /> : null}
         {aviso ? <Aviso tono="hoja" texto={aviso} /> : null}
         {comidas === null ? (
@@ -246,7 +252,17 @@ export default function Menu() {
               );
             }
             return (
-              <View key={d} style={[s.dia, esHoy && s.diaHoy, pasado && { opacity: 0.8 }]}>
+              <View
+                key={d}
+                style={[s.dia, esHoy && s.diaHoy, pasado && { opacity: 0.8 }]}
+                onLayout={(e) => {
+                  posiciones.current.set(d, e.nativeEvent.layout.y);
+                  if (d === diaInicial && !yaBajado.current && comidas) {
+                    yaBajado.current = true;
+                    setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, e.nativeEvent.layout.y - 12), animated: true }), 60);
+                  }
+                }}
+              >
                 <View style={s.diaTitulo}>
                   <Text style={s.diaNombre}>{NOMBRES[i]}</Text>
                   <Text style={s.diaNumero}>{deISO(d).getDate()}</Text>

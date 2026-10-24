@@ -18,9 +18,13 @@ import { guardarEncuestaPendiente } from '../../src/lib/perfil';
 import { guardarCache, leerCache } from '../../src/lib/cache';
 import { AvisoPlan } from '../../src/features/plan/AvisoPlan';
 import { fueraDelPlan, usePlan } from '../../src/features/plan/plan';
-import { colors, radius, space, type } from '../../src/theme';
+import { colors, radius, shadow, space, type } from '../../src/theme';
 
 const DIAS = 30;
+const fechaCorta = (iso: string) => {
+  const [a, m, d] = iso.split('-').map(Number);
+  return new Date(a, m - 1, d).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+};
 
 const saludo = () => {
   const h = new Date().getHours();
@@ -47,6 +51,17 @@ export default function Inicio() {
   const [nombre, setNombre] = useState<string | null>(previo?.nombre ?? null);
   const [cambiando, setCambiando] = useState<number | null>(null);
   const [avisoCambio, setAvisoCambio] = useState<string | null>(null);
+  // Día que se ve en «Hoy»: con las flechas se pasa a los días siguientes o a los de la semana pasada.
+  const [diaVisto, setDiaVisto] = useState(hoy);
+  const [pasadas, setPasadas] = useState<Comida[]>([]);
+  const primerDia = sumarDias(hoy, -7);
+  const ultimoDia = dias[DIAS - 1];
+  useEffect(() => {
+    if (diaVisto >= hoy || pasadas.length) return;
+    cargarComidas(primerDia, sumarDias(hoy, -1))
+      .then((l) => activo.current && setPasadas(l))
+      .catch(() => {});
+  }, [diaVisto, hoy, primerDia, pasadas.length]);
   const activo = useRef(true);
   const plan = usePlan();
   // Días que incluye su plan (en la prueba gratis, solo 7).
@@ -160,6 +175,8 @@ export default function Inicio() {
   }, [comidas]);
   const listos = useMemo(() => new Set(porDia.keys()), [porDia]);
   const delDia = porDia.get(hoy) ?? [];
+  const delDiaVisto = diaVisto < hoy ? pasadas.filter((c) => c.fecha === diaVisto) : (porDia.get(diaVisto) ?? []);
+  const tituloDia = diaVisto === hoy ? 'Hoy' : diaVisto === sumarDias(hoy, 1) ? 'Mañana' : diaVisto === sumarDias(hoy, -1) ? 'Ayer' : fechaCorta(diaVisto);
   const proxima = useMemo(() => proximaComida(comidas), [comidas]);
 
   // Fotos de la próxima comida y de los platos de hoy: se piden una a una la primera vez (luego quedan guardadas).
@@ -184,10 +201,12 @@ export default function Inicio() {
   const marcar = async (c: Comida) => {
     const nuevo = !c.hecha;
     setComidas((prev) => prev.map((x) => (x.id === c.id ? { ...x, hecha: nuevo } : x)));
+    setPasadas((prev) => prev.map((x) => (x.id === c.id ? { ...x, hecha: nuevo } : x)));
     try {
       await marcarHecha(c.id, nuevo);
     } catch (e) {
       setComidas((prev) => prev.map((x) => (x.id === c.id ? { ...x, hecha: !nuevo } : x)));
+      setPasadas((prev) => prev.map((x) => (x.id === c.id ? { ...x, hecha: !nuevo } : x)));
       setError(e instanceof Error ? e.message : 'No se ha podido guardar.');
     }
   };
@@ -279,8 +298,32 @@ export default function Inicio() {
           ) : null}
 
           <View style={s.filaHoy}>
-            <Text style={type.title}>Hoy</Text>
-            <Pressable onPress={() => router.push('/menu')} accessibilityRole="button" style={s.verMenu}>
+            <View style={s.navDia}>
+              <Pressable
+                onPress={() => diaVisto > primerDia && setDiaVisto(sumarDias(diaVisto, -1))}
+                disabled={diaVisto <= primerDia}
+                accessibilityRole="button"
+                accessibilityLabel="Día anterior"
+                hitSlop={6}
+                style={[s.flechaDia, diaVisto <= primerDia && { opacity: 0.3 }]}
+              >
+                <Text style={s.flechaTexto}>‹</Text>
+              </Pressable>
+              <Pressable onPress={() => setDiaVisto(hoy)} accessibilityRole="button" accessibilityLabel="Volver a hoy">
+                <Text style={[type.title, { textTransform: 'capitalize' }]}>{tituloDia}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => diaVisto < ultimoDia && setDiaVisto(sumarDias(diaVisto, 1))}
+                disabled={diaVisto >= ultimoDia}
+                accessibilityRole="button"
+                accessibilityLabel="Día siguiente"
+                hitSlop={6}
+                style={[s.flechaDia, diaVisto >= ultimoDia && { opacity: 0.3 }]}
+              >
+                <Text style={s.flechaTexto}>›</Text>
+              </Pressable>
+            </View>
+            <Pressable onPress={() => router.push({ pathname: '/menu', params: { dia: diaVisto } })} accessibilityRole="button" style={s.verMenu}>
               <Text style={s.verMenuTexto}>Ver menú completo</Text>
             </Pressable>
           </View>
@@ -289,15 +332,17 @@ export default function Inicio() {
             <Tarjeta style={s.vacio}>
               <Text style={type.body}>Cargando tu menú…</Text>
             </Tarjeta>
-          ) : delDia.length === 0 ? (
+          ) : delDiaVisto.length === 0 ? (
             <Tarjeta style={s.vacio}>
               <Text style={{ fontSize: 40 }}>🍳</Text>
-              <Text style={[type.body, s.centrado]}>{preparando ? 'Estamos preparando este día. Aparecerá en unos segundos.' : 'Este día aún no tiene menú.'}</Text>
+              <Text style={[type.body, s.centrado]}>
+                {diaVisto < hoy ? 'Ese día no tenías menú.' : preparando ? 'Estamos preparando este día. Aparecerá en unos segundos.' : 'Este día aún no tiene menú.'}
+              </Text>
             </Tarjeta>
           ) : (
             <View style={{ gap: space.md }}>
-              {delDia.map((c, i) => (
-                <Aparecer key={c.id} retraso={i * 60} desde={12}>
+              {delDiaVisto.map((c, i) => (
+                <Aparecer key={`${diaVisto}-${c.id}`} retraso={i * 60} desde={12}>
                   <TarjetaComida
                     comida={c}
                     siguiente={c.id === siguienteId}
@@ -352,7 +397,10 @@ const s = StyleSheet.create({
   aviso: { textAlign: 'center', marginTop: space.lg },
   salir: { alignSelf: 'center', padding: space.md },
   salirTexto: { color: colors.muted, fontWeight: '600', fontSize: 15 },
-  filaHoy: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: space.lg },
+  filaHoy: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: space.lg, gap: space.sm },
+  navDia: { flexDirection: 'row', alignItems: 'center', gap: space.sm, flexShrink: 1 },
+  flechaDia: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow },
+  flechaTexto: { fontSize: 22, color: colors.ink, marginTop: -2 },
   verMenu: { borderWidth: 1.5, borderColor: colors.line, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: colors.surface },
   verMenuTexto: { fontSize: 14, fontWeight: '700', color: colors.ink },
   nevera: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.md, padding: space.lg, borderRadius: radius.lg, backgroundColor: colors.ink },
