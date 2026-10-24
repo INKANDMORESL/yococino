@@ -75,9 +75,9 @@ export default function Importar() {
             <Text style={[type.title, s.centrado]}>Guardada en Mis recetas</Text>
             <Text style={[type.heading, s.centrado]}>{resultado.nombre}</Text>
             {resultado.aviso ? (
-              <Aviso tono="rosa" texto={`${resultado.aviso} Es mejor tomarla de vez en cuando. Por eso solo la verás tú y no se compartirá con el resto de personas de Yococino.`} />
+              <Aviso tono="rosa" texto={`${resultado.aviso} Es mejor tomarla de vez en cuando.`} />
             ) : resultado.publica ? (
-              <Aviso tono="hoja" texto="¡Es una receta equilibrada! Además de guardarla para ti, la hemos añadido al recetario para que más personas puedan disfrutarla." />
+              <Aviso tono="hoja" texto="¡Es una receta equilibrada! Ya la tienes en Mis recetas." />
             ) : null}
             {resultado.no_apta ? <Aviso tono="rosa" texto={resultado.no_apta} /> : null}
           </Aparecer>
