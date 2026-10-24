@@ -4,6 +4,10 @@ name: Diagnóstico
 
 on:
   workflow_dispatch:
+    inputs:
+      enlace:
+        description: 'Enlace de una publicación para ver qué se lee de ella (opcional)'
+        required: false
 
 jobs:
   diagnostico:
@@ -35,3 +39,15 @@ jobs:
           curl -sS -G -w '\nHTTP %{http_code}\n' "https://api.supabase.com/v1/projects/$REF/analytics/endpoints/logs" \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" --data-urlencode "sql=$SQL" | tee l.txt
           echo "::notice title=Registros::$(head -c 3500 l.txt | tr '\n' ' ')"
+
+      - uses: actions/checkout@v4
+        if: inputs.enlace != ''
+      - uses: denoland/setup-deno@v2
+        if: inputs.enlace != ''
+        with:
+          deno-version: v2.x
+      - name: Leer publicación
+        if: inputs.enlace != ''
+        run: |
+          deno run -A supabase/pruebas/leer_publicacion.ts "${{ inputs.enlace }}" | tee p.txt
+          echo "::notice title=Publicacion::$(head -c 3000 p.txt | tr '\n' ' ')"

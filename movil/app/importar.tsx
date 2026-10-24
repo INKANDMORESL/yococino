@@ -1,12 +1,12 @@
 // Guardar una receta compartida desde otra app (TikTok, Instagram, YouTube, Pinterest o una web).
 // Llega por «Compartir → Yococino», o desde «Mis recetas» pegando el enlace (parámetro url).
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { useIncomingShare } from 'expo-sharing';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Saltar } from '../src/components';
 import { ErrorMenu, importarReceta, type ResultadoImportar } from '../src/features/menu/api';
+import { useEnlaceCompartido } from '../src/features/recetas/compartido';
 import { useAuth } from '../src/lib/auth';
 import { borrarCache } from '../src/lib/cache';
 import { colors, space, type } from '../src/theme';
@@ -16,13 +16,14 @@ const enlaceDe = (texto: string | null | undefined) => String(texto ?? '').match
 export default function Importar() {
   const { sesion, cargando } = useAuth();
   const params = useLocalSearchParams<{ url?: string }>();
-  const { sharedPayloads, clearSharedPayloads } = useIncomingShare();
+  const { valores, limpiar } = useEnlaceCompartido();
+  const [segundos, setSegundos] = useState(0);
   const [estado, setEstado] = useState<'esperando' | 'leyendo' | 'listo' | 'error'>('esperando');
   const [resultado, setResultado] = useState<ResultadoImportar | null>(null);
   const [error, setError] = useState<string | null>(null);
   const hecho = useRef(false);
 
-  const compartido = (sharedPayloads ?? []).map((p) => enlaceDe(p.value)).find(Boolean) ?? null;
+  const compartido = valores.map((v) => enlaceDe(v)).find(Boolean) ?? null;
   const url = enlaceDe(typeof params.url === 'string' ? params.url : null) ?? compartido;
 
   useEffect(() => {
@@ -39,14 +40,16 @@ export default function Importar() {
         setError(e instanceof ErrorMenu ? e.message : 'No hemos podido guardar esa receta. Vuelve a intentarlo en un momento.');
         setEstado('error');
       })
-      .finally(() => {
-        try {
-          clearSharedPayloads();
-        } catch {
-          // Nada que limpiar.
-        }
-      });
-  }, [sesion, url, clearSharedPayloads]);
+      .finally(() => limpiar());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sesion, url]);
+
+  // Contador mientras se lee la receta, para que se vea que sigue trabajando.
+  useEffect(() => {
+    if (estado !== 'leyendo') return;
+    const t = setInterval(() => setSegundos((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [estado]);
 
   if (!cargando && !sesion) return <Redirect href="/" />;
 
@@ -56,8 +59,13 @@ export default function Importar() {
         {estado === 'leyendo' || (estado === 'esperando' && url) ? (
           <Aparecer style={s.bloque}>
             <ActivityIndicator size="large" color={colors.olive} />
-            <Text style={[type.title, s.centrado]}>Leyendo la receta…</Text>
-            <Text style={[type.body, s.centrado]}>Estamos sacando los ingredientes y los pasos, y revisando lo saludable que es. Tarda unos segundos.</Text>
+            <Text style={[type.title, s.centrado]}>Preparando tu receta…</Text>
+            <Text style={[type.body, s.centrado]}>
+              Estamos leyendo la publicación, escribiendo los ingredientes y los pasos, revisando lo saludable que es y haciéndole una foto. Tarda un poco, normalmente entre 30 segundos y 1 minuto. No cierres esta pantalla.
+            </Text>
+            <Text style={[type.small, s.centrado]}>
+              {segundos < 20 ? '📖 Leyendo la publicación…' : segundos < 45 ? '✍️ Escribiendo la receta…' : segundos < 75 ? '📷 Haciendo la foto del plato…' : '⏳ Ya casi está…'} ({segundos} s)
+            </Text>
           </Aparecer>
         ) : estado === 'listo' && resultado ? (
           <Aparecer style={s.bloque}>
