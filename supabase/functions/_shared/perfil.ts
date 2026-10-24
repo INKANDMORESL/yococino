@@ -2,7 +2,7 @@
 // Seguridad (no negociable, ver CLAUDE.md): solo mayores de 18, con consentimiento de datos de salud
 // y sin situaciones que requieran un profesional.
 import { cobrarA, gastoEur, motivoSinExtras } from './costes.ts';
-import { planDe, presupuestoPruebaEur, recetasPrueba, respuestaSuscripcion } from './plan.ts';
+import { esAdministrador, planDe, presupuestoPruebaEur, recetasPrueba, respuestaSuscripcion } from './plan.ts';
 import { fallo, type Cliente } from './http.ts';
 import { AJUSTES_POR_DEFECTO, edadEn, energiaDiaria, type Actividad, type Ajustes, type Energia, type Objetivo, type Sexo } from './nutricion.ts';
 import type { Nivel } from './recetas.ts';
@@ -93,6 +93,8 @@ export async function permitirExtra(
   opciones: { enPrueba?: boolean; creaReceta?: boolean } = {},
 ): Promise<Response | null> {
   cobrarA(userId, tipo);
+  // La cuenta del dueño no tiene límites (el gasto se sigue apuntando para verlo en el panel).
+  if (await esAdministrador(admin, userId)) return null;
   const plan = await planDe(admin, userId);
   if (plan.estado === 'caducada') return respuestaSuscripcion();
   if (plan.estado === 'prueba') {

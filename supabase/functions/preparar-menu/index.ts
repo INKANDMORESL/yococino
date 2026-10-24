@@ -12,9 +12,9 @@ import { describirRestricciones, restriccionesDe } from '../_shared/alergenos.ts
 import { ErrorIA, pedirJSON } from '../_shared/claude.ts';
 import { diaSemana, fallo, hoyEspana, mensajeTecnico, responder, servir, sumarDias, crearClientes } from '../_shared/http.ts';
 import { comidasDelDia, factorRacion, KCAL_RACION_ESTANDAR, type Objetivo, type TipoComida } from '../_shared/nutricion.ts';
-import { cobrarA, modoMenu } from '../_shared/costes.ts';
+import { cobrarA, modoMenu, type ModoMenu } from '../_shared/costes.ts';
 import { energiaDe, perfilSeguro } from '../_shared/perfil.ts';
-import { empezarPrueba, planDe } from '../_shared/plan.ts';
+import { empezarPrueba, esAdministrador, planDe } from '../_shared/plan.ts';
 import {
   cargarCatalogo,
   cupoRecetas,
@@ -113,7 +113,8 @@ async function preparar(req: Request): Promise<Response> {
 
   // Presupuesto de la persona: completo, ahorro (sin recetas nuevas) o sin IA (solo recetas existentes).
   cobrarA(user.id, 'menu');
-  let modo = await modoMenu(admin, user.id);
+  // La cuenta del dueño siempre tiene el menú completo, sin tope de presupuesto.
+  let modo: ModoMenu = (await esAdministrador(admin, user.id)) ? 'completo' : await modoMenu(admin, user.id);
 
   // Plan: en la prueba gratis, menú solo de 7 días y sin platos nuevos (se usan recetas existentes).
   const planPersona = await planDe(admin, user.id);

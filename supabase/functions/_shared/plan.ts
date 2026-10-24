@@ -32,3 +32,9 @@ export async function recetasPrueba(admin: Cliente): Promise<number> {
   const n = Number(data?.recetas_prueba);
   return Number.isFinite(n) && n >= 0 ? n : 10;
 }
+
+// Los administradores (el dueño) no tienen límites de uso ni de presupuesto en su cuenta.
+export async function esAdministrador(admin: Cliente, userId: string): Promise<boolean> {
+  const { data } = await admin.from('admins').select('user_id').eq('user_id', userId).maybeSingle();
+  return !!data;
+}
