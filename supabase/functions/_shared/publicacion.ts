@@ -1,6 +1,6 @@
 // Lee lo público de una publicación (TikTok, Instagram, YouTube, Pinterest o una web de recetas):
 // título o texto, autor y portada. No se descarga el vídeo ni se guarda nada del creador.
-import { plataformaDe, urlPermitida, type Plataforma } from './importar_reglas.ts';
+import { embedDe, plataformaDe, urlPermitida, type Plataforma } from './importar_reglas.ts';
 
 export interface Publicacion {
   plataforma: Plataforma;
@@ -9,6 +9,8 @@ export interface Publicacion {
   texto: string;
   autor: string;
   imagen: string | null;
+  // Reproductor oficial del vídeo original (TikTok, YouTube o Instagram), si lo hay.
+  video: string | null;
 }
 
 const MAX_BYTES = 1_500_000;
@@ -83,12 +85,17 @@ function recetaEstructurada(html: string): string {
   return '';
 }
 
-async function oembed(endpoint: string): Promise<{ titulo: string; autor: string; imagen: string | null } | null> {
+async function oembed(endpoint: string): Promise<{ titulo: string; autor: string; imagen: string | null; id: string | null } | null> {
   const r = await pedir(endpoint, true);
   if (!r) return null;
   try {
-    const d = JSON.parse(r.cuerpo) as { title?: string; author_name?: string; thumbnail_url?: string };
-    return { titulo: String(d.title ?? ''), autor: String(d.author_name ?? ''), imagen: d.thumbnail_url && urlPermitida(d.thumbnail_url) ? d.thumbnail_url : null };
+    const d = JSON.parse(r.cuerpo) as { title?: string; author_name?: string; author_unique_id?: string; thumbnail_url?: string; embed_product_id?: string };
+    return {
+      titulo: String(d.title ?? ''),
+      autor: String(d.author_unique_id ? `@${d.author_unique_id}` : d.author_name ?? ''),
+      imagen: d.thumbnail_url && urlPermitida(d.thumbnail_url) ? d.thumbnail_url : null,
+      id: d.embed_product_id ? String(d.embed_product_id) : null,
+    };
   } catch {
     return null;
   }
@@ -97,18 +104,23 @@ async function oembed(endpoint: string): Promise<{ titulo: string; autor: string
 export async function leerPublicacion(url: string): Promise<Publicacion | null> {
   if (!urlPermitida(url)) return null;
   const plataforma = plataformaDe(url);
-  const base: Publicacion = { plataforma, url, titulo: '', texto: '', autor: '', imagen: null };
+  const base: Publicacion = { plataforma, url, titulo: '', texto: '', autor: '', imagen: null, video: null };
+  let tiktokId: string | null = null;
 
   // TikTok y YouTube tienen un servicio público con el texto de la publicación y su portada.
   if (plataforma === 'tiktok' || plataforma === 'youtube') {
     const e = await oembed(
       plataforma === 'tiktok' ? `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}` : `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(url)}`,
     );
-    if (e) Object.assign(base, { titulo: e.titulo, texto: e.titulo, autor: e.autor, imagen: e.imagen });
+    if (e) {
+      Object.assign(base, { titulo: e.titulo, texto: e.titulo, autor: e.autor, imagen: e.imagen });
+      tiktokId = e.id;
+    }
   }
 
   // Para el resto (y para completar), la página pública: título, descripción, portada y receta estructurada.
   const pagina = await pedir(url);
+  base.video = embedDe(pagina?.final ?? url, tiktokId) ?? embedDe(url, tiktokId);
   if (pagina) {
     const html = pagina.cuerpo;
     const titulo = meta(html, 'og:title') || (html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] ?? '');

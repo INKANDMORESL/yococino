@@ -132,7 +132,12 @@ Alérgenos posibles: ${ALERGENOS_UE.join(', ')}.`,
   const avisos = avisosNutricion(r.receta.nutricion);
   const publica = avisos.length === 0 && r.tipo_comida !== 'otro';
   const tipo = r.tipo_comida as TipoComida | 'otro';
-  const guardada = await guardarReceta(admin, r.receta, tipo, restr, MODELO_RECETA, { privadaDe: publica ? null : user.id, origenUrl: url });
+  const guardada = await guardarReceta(admin, r.receta, tipo, restr, MODELO_RECETA, {
+    privadaDe: publica ? null : user.id,
+    origenUrl: url,
+    videoEmbed: pub.video,
+    autor: pub.autor,
+  });
   await admin.from('importaciones').upsert({ url_norm: clave, clase: 'receta', receta_id: guardada.id, publica, avisos });
 
   // Foto propia del plato (nunca la del creador).

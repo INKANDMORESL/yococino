@@ -93,3 +93,28 @@ export function textoAvisos(avisos: string[]): string | null {
 }
 
 export const MENSAJE_NO_VALIDA = 'La publicación que nos has enviado no está relacionada con alimentación o no comparte los valores de Yococino.';
+
+// Dirección para enseñar el vídeo original dentro de la receta con el reproductor oficial de cada red
+// (así el vídeo sigue siendo del creador y se ve con su nombre). null si no se puede.
+export function embedDe(url: string, tiktokId?: string | null): string | null {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  const p = plataformaDe(url);
+  if (p === 'youtube') {
+    const id = u.hostname === 'youtu.be' ? u.pathname.slice(1) : u.searchParams.get('v') ?? u.pathname.match(/\/(?:shorts|embed|live)\/([\w-]{6,})/)?.[1];
+    return id && /^[\w-]{6,20}$/.test(id) ? `https://www.youtube-nocookie.com/embed/${id}` : null;
+  }
+  if (p === 'tiktok') {
+    const id = tiktokId ?? u.pathname.match(/\/video\/(\d{8,25})/)?.[1];
+    return id && /^\d{8,25}$/.test(id) ? `https://www.tiktok.com/embed/v2/${id}` : null;
+  }
+  if (p === 'instagram') {
+    const m = u.pathname.match(/\/(p|reel|reels|tv)\/([\w-]{5,40})/);
+    return m ? `https://www.instagram.com/${m[1] === 'reels' ? 'reel' : m[1]}/${m[2]}/embed` : null;
+  }
+  return null;
+}

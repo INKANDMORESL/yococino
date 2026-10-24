@@ -12,6 +12,7 @@ import { ErrorMenu, avisosDeMiReceta, cambiarPlato, cargarComidas, cargarReceta,
 import { faltaFoto, pedirFoto } from '../../src/features/menu/fotos';
 import { AsignarDia } from '../../src/features/menu/AsignarDia';
 import { CambiarIngrediente } from '../../src/features/menu/CambiarIngrediente';
+import { VideoOriginal } from '../../src/features/menu/VideoOriginal';
 import { Peques } from '../../src/features/menu/Peques';
 import { anadirNoMeGusta, cambiarFavorita, esFavorita, pequesEnCasa } from '../../src/features/perfil/api';
 import { useAuth } from '../../src/lib/auth';
@@ -454,6 +455,13 @@ export default function RecetaPantalla() {
                 ))}
               </View>
               <Text style={[type.small, { marginTop: space.sm }]}>Por ración, valores aproximados.</Text>
+            </View>
+          ) : null}
+
+          {receta.video_embed ? (
+            <View>
+              <Text style={s.seccion}>🎬 Vídeo original</Text>
+              <VideoOriginal embed={receta.video_embed} origen={receta.origen_url ?? null} autor={receta.origen_autor ?? null} />
             </View>
           ) : null}
 

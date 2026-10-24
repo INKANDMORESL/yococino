@@ -121,6 +121,16 @@ export default function Recetas() {
         <Aparecer>
           <Text style={type.display}>Recetas</Text>
           <Text style={[type.body, { marginTop: 2 }]}>Todas aptas para ti. Ábrelas y añádelas al día que quieras.</Text>
+          {filtro !== 'mias' ? (
+            <Pressable onPress={() => setFiltro('mias')} accessibilityRole="button" style={s.redes}>
+              <Text style={{ fontSize: 26 }}>📥</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.redesTitulo}>¿Has visto una receta en TikTok o Instagram?</Text>
+                <Text style={type.small}>Guárdala en Mis recetas con su vídeo.</Text>
+              </View>
+              <Text style={s.redesFlecha}>›</Text>
+            </Pressable>
+          ) : null}
         </Aparecer>
 
         <View style={s.cabecera}>
@@ -243,4 +253,7 @@ const s = StyleSheet.create({
   nombre: { fontSize: 16, fontWeight: '700', color: colors.ink, lineHeight: 21 },
   detalles: { fontSize: 13, color: colors.muted, marginTop: 3 },
   corazon: { fontSize: 18, color: colors.rose },
+  redes: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.md, backgroundColor: colors.lemonSoft, borderRadius: radius.lg, padding: space.md },
+  redesTitulo: { fontSize: 15, fontWeight: '700', color: colors.ink },
+  redesFlecha: { fontSize: 24, color: colors.muted },
 });
