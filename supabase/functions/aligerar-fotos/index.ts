@@ -1,10 +1,11 @@
-// aligerar-fotos: convierte en segundo plano las fotos que llegaron de los lotes (grandes, tal cual las da Google)
-// a su versión ligera: JPEG de 1024 px y miniatura de 360 px. Hace UNA foto por llamada (para no pasarse del
-// límite de CPU) y se vuelve a llamar a sí misma hasta que no quede ninguna. Así el recetario va rápido
-// sin esperar a que alguien abra cada receta. Solo la llaman el propio servidor (clave interna) o un administrador.
+// aligerar-fotos: cola de fotos del recetario, en segundo plano. En cada llamada hace UNA cosa y se vuelve a llamar:
+// 1. Si hay alguna foto grande sin versión ligera, la convierte (JPEG de 1024 px y miniatura de 360 px).
+// 2. Si no, hace la foto de una receta del recetario que aún no la tiene (Google Gemini) y la guarda ya aligerada.
+//    Las recetas que esperaban su foto (espera_foto) aparecen en el recetario en cuanto la tienen.
+// Una cosa por llamada para no pasarse de CPU ni de memoria. Solo la llaman el servidor (clave interna) o un administrador.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { CORS, fallo, responder } from '../_shared/http.ts';
-import { claveSecreta, guardarVersiones, seguirAligerando } from '../_shared/fotos.ts';
+import { claveSecreta, generar, guardarVersiones, MODELO_FOTO, promptDe, seguirAligerando } from '../_shared/fotos.ts';
 
 const MAX_SALTOS = 600;
 const BLOQUEO_MS = 3 * 60 * 1000;
@@ -42,7 +43,7 @@ Deno.serve(async (req) => {
     .or(`foto_pedida_at.is.null,foto_pedida_at.lt.${limite}`)
     .limit(1);
   const receta = candidatas?.[0];
-  if (!receta) return responder({ ok: true, fin: 'no quedan' });
+  if (!receta) return await hacerFotoNueva(admin, salto, limite);
   const { data: mia } = await admin
     .from('recetas')
     .update({ foto_pedida_at: new Date().toISOString() })
@@ -75,3 +76,49 @@ Deno.serve(async (req) => {
   seguirAligerando(salto + 1);
   return responder({ ok: true, hecha: receta.id });
 });
+
+// Foto nueva para una receta del recetario que no la tiene (las privadas no: esas se hacen al guardarlas).
+// deno-lint-ignore no-explicit-any
+async function hacerFotoNueva(admin: any, salto: number, limite: string): Promise<Response> {
+  const { data: candidatas } = await admin
+    .from('recetas')
+    .select('id, nombre, espera_foto, ingredientes(nombre, orden, unidad)')
+    .is('imagen', null)
+    .is('privada_de', null)
+    .or('oculta.eq.false,espera_foto.eq.true')
+    .or(`foto_pedida_at.is.null,foto_pedida_at.lt.${limite}`)
+    .order('espera_foto', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(1);
+  const receta = candidatas?.[0] as { id: number; nombre: string; espera_foto: boolean; ingredientes: { nombre: string; orden: number; unidad: string | null }[] } | undefined;
+  if (!receta) return responder({ ok: true, fin: 'no quedan' });
+  const { data: mia } = await admin
+    .from('recetas')
+    .update({ foto_pedida_at: new Date().toISOString() })
+    .eq('id', receta.id)
+    .is('imagen', null)
+    .or(`foto_pedida_at.is.null,foto_pedida_at.lt.${limite}`)
+    .select('id');
+  if (!mia?.length) {
+    seguirAligerando(salto + 1);
+    return responder({ ok: true, ocupada: receta.id });
+  }
+  try {
+    const ingredientes = [...(receta.ingredientes ?? [])]
+      .filter((i) => i.unidad !== 'al gusto')
+      .sort((a, b) => a.orden - b.orden)
+      .map((i) => i.nombre);
+    const { bytes, tipo } = await generar(promptDe(receta.nombre, ingredientes));
+    const { imagen, imagenMini } = await guardarVersiones(admin, receta.id, bytes, tipo);
+    await admin
+      .from('recetas')
+      .update({ imagen, imagen_mini: imagenMini, foto_modelo: MODELO_FOTO, foto_pedida_at: null, foto_en_lote: false, ...(receta.espera_foto ? { oculta: false, espera_foto: false } : {}) })
+      .eq('id', receta.id);
+  } catch (e) {
+    console.error('aligerar-fotos (foto nueva):', e instanceof Error ? e.message : e);
+    // Se deja el bloqueo puesto unos minutos; después se reintentará. Si Google falla de verdad, la cola para.
+    return responder({ ok: false, fallo: receta.id });
+  }
+  seguirAligerando(salto + 1);
+  return responder({ ok: true, foto: receta.id });
+}

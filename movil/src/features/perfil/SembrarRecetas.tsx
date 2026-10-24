@@ -55,7 +55,7 @@ export function SembrarRecetas() {
     <Tarjeta style={{ gap: space.md }}>
       <Text style={type.heading}>Llenar el recetario</Text>
       <Text style={type.small}>
-        Las recetas y fotos que creas tú van por lotes, a mitad de precio. Tardan desde unos minutos hasta unas horas; no hace falta dejar la pantalla
+        Las recetas que creas tú van por lotes, a mitad de precio, y no aparecen hasta tener su foto. Las fotos se hacen solas en segundo plano. Tardan desde unos minutos hasta unas horas; no hace falta dejar la pantalla
         abierta. Al volver aquí, lo terminado se guarda solo.
       </Text>
       {datos ? (
@@ -77,7 +77,7 @@ export function SembrarRecetas() {
         desactivado={!!ocupado}
         onPress={() => hacer('tipicas')}
       />
-      <Boton texto="Hacer todas las fotos que faltan (lote)" variante="linea" cargando={ocupado === 'fotos'} desactivado={!!ocupado} onPress={() => hacer('fotos', 0)} />
+      <Boton texto="Hacer todas las fotos que faltan" variante="linea" cargando={ocupado === 'fotos'} desactivado={!!ocupado} onPress={() => hacer('fotos', 0)} />
 
       {mensaje ? <Aviso tono="hoja" texto={mensaje} /> : null}
 
@@ -97,6 +97,8 @@ export function SembrarRecetas() {
                   ? l.tipo === 'fotos'
                     ? 'Google las está haciendo. Suele tardar unas horas (como mucho 24 h); se guardan solas al volver aquí.'
                     : 'La IA las está preparando. Suele tardar unas horas (como mucho 24 h); se guardan solas al volver aquí.'
+                  : l.estado === 'cancelado'
+                    ? 'Sustituido: estas fotos se hacen ahora en segundo plano, de una en una.'
                   : l.estado === 'fallido'
                     ? 'No se completó (se puede volver a pedir).'
                     : l.tipo === 'recetas'

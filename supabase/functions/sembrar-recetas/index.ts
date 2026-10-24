@@ -1,13 +1,14 @@
 // sembrar-recetas: carga del recetario compartido y fotos, por LOTES a mitad de precio. Solo para administradores.
 // - enviar: pide ideas de platos (llamada barata) y manda las recetas a un lote de Claude.
-// - fotos: manda a un lote de Google las fotos de recetas que aún no tienen.
-// - estado: recoge los lotes terminados (guarda recetas y fotos) y enseña cómo van.
+// - tipicas: como enviar, con la lista de platos típicos españoles.
+// - fotos: pone en marcha la cola de fotos (aligerar-fotos), que hace las que faltan de una en una.
+// - estado: recoge los lotes de recetas terminados y enseña cómo van.
 // Respeta el cupo global de recetas del mes, revisa alergias igual que siempre y no cobra nada a ningún cliente.
 import { restriccionesDe } from '../_shared/alergenos.ts';
 import { crearLote, estadoLote, leerJSON, pedirJSON, resultadosLote } from '../_shared/claude.ts';
-import { costeTokens, FOTO_USD } from '../_shared/costes.ts';
+import { costeTokens } from '../_shared/costes.ts';
 import { crearClientes, fallo, hoyEspana, mensajeTecnico, responder, servir, type Cliente } from '../_shared/http.ts';
-import { crearLoteFotos, estadoLoteFotos, guardarOriginal, MODELO_FOTO, promptDe, seguirAligerando } from '../_shared/fotos.ts';
+import { seguirAligerando } from '../_shared/fotos.ts';
 import type { TipoComida } from '../_shared/nutricion.ts';
 import {
   cupoRecetas,
@@ -29,9 +30,6 @@ import { TIPICAS } from '../_shared/tipicas.ts';
 const MODELO_IDEAS = Deno.env.get('MODELO_MENU') || 'claude-haiku-5-5';
 const MAX_POR_LOTE = 200;
 const IDEAS_POR_LLAMADA = 50;
-const FOTOS_POR_LOTE = 10;
-// «Hacer todas las fotos que faltan»: varios lotes de 10 de una vez (como mucho 60 lotes por pulsación).
-const MAX_LOTES_FOTOS = 60;
 const TIPOS: TipoComida[] = ['desayuno', 'media_manana', 'almuerzo', 'merienda', 'cena'];
 // Reparto aproximado del recetario: más comidas y cenas, que son las que más variedad necesitan.
 const REPARTO: [TipoComida, number][] = [['desayuno', 0.18], ['media_manana', 0.14], ['almuerzo', 0.28], ['merienda', 0.14], ['cena', 0.26]];
@@ -152,34 +150,18 @@ async function enviarRecetas(admin: Cliente, pedidas: number, tipicas = false) {
   return { enviadas: ideas.length };
 }
 
-// Manda a lotes las fotos que faltan. pedidas = 0 (o sin número): todas las que faltan, en lotes de 20.
-async function enviarFotos(admin: Cliente, pedidas: number) {
-  const todas = !Number.isFinite(pedidas) || pedidas <= 0;
-  const cantidad = todas ? FOTOS_POR_LOTE * MAX_LOTES_FOTOS : Math.min(FOTOS_POR_LOTE * MAX_LOTES_FOTOS, Math.round(pedidas));
-  const { data } = await admin
+// Fotos que faltan: se hacen en segundo plano, de una en una, con la cola de aligerar-fotos (3 a la vez).
+// Antes iban por lotes de Google, pero recoger un lote con decenas de fotos se pasaba de memoria.
+async function enviarFotos(admin: Cliente, _pedidas: number) {
+  const { count } = await admin
     .from('recetas')
-    .select('id, nombre, ingredientes(nombre, orden, unidad)')
+    .select('id', { count: 'exact', head: true })
     .is('imagen', null)
-    .eq('foto_en_lote', false)
-    .or('oculta.eq.false,espera_foto.eq.true')
-    .order('created_at', { ascending: false })
-    .limit(cantidad);
-  const recetas = (data ?? []) as { id: number; nombre: string; ingredientes: { nombre: string; orden: number; unidad: string | null }[] }[];
-  if (!recetas.length) return { enviadas: 0, aviso: 'Todas las recetas tienen ya su foto (o están en un lote).' };
-  let enviadas = 0;
-  for (let i = 0; i < recetas.length; i += FOTOS_POR_LOTE) {
-    const grupo = recetas.slice(i, i + FOTOS_POR_LOTE);
-    const nombre = await crearLoteFotos(
-      grupo.map((r) => ({
-        clave: `f${r.id}`,
-        prompt: promptDe(r.nombre, [...(r.ingredientes ?? [])].filter((x) => x.unidad !== 'al gusto').sort((a, b) => a.orden - b.orden).map((x) => x.nombre)),
-      })),
-    );
-    await admin.from('recetas').update({ foto_en_lote: true }).in('id', grupo.map((r) => r.id));
-    await admin.from('lotes_ia').insert({ tipo: 'fotos', proveedor_id: nombre, datos: { recetas: grupo.map((r) => r.id) } });
-    enviadas += grupo.length;
-  }
-  return { enviadas };
+    .is('privada_de', null)
+    .or('oculta.eq.false,espera_foto.eq.true');
+  if (!count) return { enviadas: 0, aviso: 'Todas las recetas tienen ya su foto.' };
+  for (let i = 0; i < 3; i++) seguirAligerando(0);
+  return { enviadas: count, aviso: `Haciendo ${count} fotos en segundo plano (unas 3 por minuto). Las recetas nuevas aparecen al tener su foto.` };
 }
 
 // Recoge un lote de recetas terminado: revisa cada receta (alergias) y la guarda.
@@ -227,83 +209,44 @@ async function recogerRecetas(admin: Cliente, lote: { id: number; proveedor_id: 
   return { creadas, descartadas, coste_usd: Math.round(costeUsd * 10000) / 10000 };
 }
 
-// Recoge un lote de fotos. Las fotos se guardan tal cual llegan (sin convertirlas aquí, para no pasarse del
-// límite de CPU de la función); la versión ligera se hace sola la primera vez que se abre cada receta.
-async function recogerFotos(admin: Cliente, lote: { id: number; proveedor_id: string; datos: { recetas?: number[] } }) {
-  const ids = lote.datos.recetas ?? [];
-  const estado = await estadoLoteFotos(lote.proveedor_id);
-  if (estado.estado === 'pendiente') return { pendiente: true as const, google: estado.google };
-  let guardadas = 0;
-  if (estado.estado === 'terminado') {
-    for (const [clave, foto] of estado.fotos) {
-      const id = Number(clave.slice(1));
-      if (!foto || !ids.includes(id)) continue;
-      try {
-        const imagen = await guardarOriginal(admin, id, foto.bytes, foto.tipo);
-        await admin.from('recetas').update({ imagen, imagen_mini: null, foto_modelo: MODELO_FOTO, foto_en_lote: false }).eq('id', id);
-        // Ya tiene foto: si estaba esperándola, aparece en el recetario.
-        await admin.from('recetas').update({ oculta: false, espera_foto: false }).eq('id', id).eq('espera_foto', true);
-        guardadas++;
-      } catch (e) {
-        console.error('sembrar-recetas: no se guardó una foto:', mensajeTecnico(e));
-      }
-    }
-  }
-  // Las que no llegaron vuelven a poder generarse normalmente.
-  await admin.from('recetas').update({ foto_en_lote: false }).in('id', ids).is('imagen', null);
-  return { guardadas, fallidas: ids.length - guardadas, coste_usd: Math.round(guardadas * (FOTO_USD / 2) * 10000) / 10000, fallido: estado.estado === 'fallido' };
-}
-
 async function estado(admin: Cliente) {
-  // Se mira un lote cada vez (el más antiguo que no se ha mirado hace poco), para no pasarse de memoria ni de CPU:
-  // cada lote terminado trae decenas de fotos. La pantalla del administrador vuelve a preguntar cada minuto.
+  // Se mira un lote de recetas cada vez (el que lleva más tiempo sin mirarse). GitHub lo pregunta cada 30 minutos.
   const { data: abiertos } = await admin
     .from('lotes_ia')
     .select('id, tipo, proveedor_id, datos, revisado_at')
     .eq('estado', 'enviado')
+    .eq('tipo', 'recetas')
     .order('revisado_at', { ascending: true, nullsFirst: true })
     .order('created_at')
     .limit(1);
   const errores: string[] = [];
-  const google: Record<number, string> = {};
   let fotosNuevas = false;
   for (const lote of abiertos ?? []) {
     try {
       await admin.from('lotes_ia').update({ revisado_at: new Date().toISOString() }).eq('id', lote.id);
-      const r = lote.tipo === 'recetas' ? await recogerRecetas(admin, lote as never) : await recogerFotos(admin, lote as never);
-      if (r && 'pendiente' in r && r.pendiente) {
-        google[lote.id as number] = String(r.google ?? '');
-        continue;
-      }
-      if (r && 'creadas' in r && r.creadas > 0) fotosNuevas = true;
+      const r = await recogerRecetas(admin, lote as never);
+      if (r && r.creadas > 0) fotosNuevas = true;
       if (r) {
         await admin
           .from('lotes_ia')
-          .update({ estado: 'fallido' in r && r.fallido ? 'fallido' : 'terminado', resultado: r, terminado_at: new Date().toISOString() })
+          .update({ estado: 'terminado', resultado: r, terminado_at: new Date().toISOString() })
           .eq('id', lote.id);
       }
     } catch (e) {
       errores.push(mensajeTecnico(e));
     }
   }
-  // Fotos guardadas tal cual: se aligeran en segundo plano (si no hay ya una tanda en marcha).
+  // Cola de fotos: si falta alguna foto (o su versión ligera) y la cola no está en marcha, se pone en marcha.
   try {
     const hace = new Date(Date.now() - 3 * 60 * 1000).toISOString();
-    const [{ count: pendientes }, { count: enMarcha }] = await Promise.all([
+    const [{ count: sinFoto }, { count: sinMini }, { count: enMarcha }] = await Promise.all([
+      admin.from('recetas').select('id', { count: 'exact', head: true }).is('imagen', null).is('privada_de', null).or('oculta.eq.false,espera_foto.eq.true'),
       admin.from('recetas').select('id', { count: 'exact', head: true }).not('imagen', 'is', null).is('imagen_mini', null),
-      admin.from('recetas').select('id', { count: 'exact', head: true }).not('imagen', 'is', null).is('imagen_mini', null).gt('foto_pedida_at', hace),
+      admin.from('recetas').select('id', { count: 'exact', head: true }).gt('foto_pedida_at', hace),
     ]);
-    if ((pendientes ?? 0) > 0 && !(enMarcha ?? 0)) seguirAligerando(0);
+    if (fotosNuevas || (((sinFoto ?? 0) > 0 || (sinMini ?? 0) > 0) && !(enMarcha ?? 0))) for (let i = 0; i < 3; i++) seguirAligerando(0);
   } catch (e) {
     errores.push(mensajeTecnico(e));
-  }
-  // Las recetas nuevas del recetario tienen su foto desde el principio: se piden solas, también por lotes.
-  if (fotosNuevas) {
-    try {
-      await enviarFotos(admin, 0);
-    } catch (e) {
-      errores.push(mensajeTecnico(e));
-    }
   }
   const [{ data: lotes }, cupo] = await Promise.all([
     admin.from('lotes_ia').select('id, tipo, estado, datos, resultado, created_at, terminado_at').order('created_at', { ascending: false }).limit(10),
@@ -316,7 +259,6 @@ async function estado(admin: Cliente) {
       estado: l.estado,
       cantidad: l.tipo === 'recetas' ? Object.keys((l.datos as { ideas?: object })?.ideas ?? {}).length : ((l.datos as { recetas?: number[] })?.recetas ?? []).length,
       resultado: l.resultado,
-      google: google[l.id as number] ?? null,
       created_at: l.created_at,
       terminado_at: l.terminado_at,
     })),
