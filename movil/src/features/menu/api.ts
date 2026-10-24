@@ -138,7 +138,7 @@ export interface EstadoLotes {
   errores?: string[];
 }
 // Carga del recetario y fotos por lotes a mitad de precio (solo administradores).
-export const sembrarRecetas = (accion: 'estado' | 'enviar' | 'fotos', cantidad?: number) =>
+export const sembrarRecetas = (accion: 'estado' | 'enviar' | 'fotos' | 'tipicas', cantidad?: number) =>
   llamar<EstadoLotes>('sembrar-recetas', { accion, cantidad }, 'No se ha podido completar.');
 
 // Crea una receta con lo que hay en casa.

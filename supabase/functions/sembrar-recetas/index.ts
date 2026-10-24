@@ -24,6 +24,7 @@ import {
 } from '../_shared/recetas.ts';
 import { frutasDelMes, mesDe } from '../_shared/temporada.ts';
 import { normalizar } from '../_shared/texto.ts';
+import { TIPICAS } from '../_shared/tipicas.ts';
 
 const MODELO_IDEAS = Deno.env.get('MODELO_MENU') || 'claude-haiku-5-5';
 const MAX_POR_LOTE = 200;
@@ -103,7 +104,24 @@ ${[...ideas.map((i) => i.plato), ...filas.slice(0, 400).map((f) => f.nombre)].jo
 
 const restriccionDe = (variante: Idea['variante']) => restriccionesDe(variante === 'sin_gluten' ? ['gluten'] : variante === 'sin_lactosa' ? ['lactosa'] : [], []);
 
-async function enviarRecetas(admin: Cliente, pedidas: number) {
+// Platos típicos españoles que aún no están en el recetario (por su nombre).
+async function ideasTipicas(admin: Cliente): Promise<Idea[]> {
+  const { data } = await admin.from('recetas').select('nombre_norm').is('privada_de', null).limit(10000);
+  const existentes = (data ?? []).map((r) => String(r.nombre_norm));
+  return TIPICAS.filter(([plato]) => {
+    const n = normalizar(plato);
+    return !existentes.some((e) => e === n || e.startsWith(`${n} `));
+  }).map(([plato, tipo_comida, nivel]) => ({
+    plato,
+    descripcion:
+      'Plato tradicional de la cocina española. Respeta la receta clásica y su nombre, en versión casera, con la ración y la grasa justas sin que pierda su esencia.',
+    tipo_comida,
+    nivel,
+    variante: 'normal' as const,
+  }));
+}
+
+async function enviarRecetas(admin: Cliente, pedidas: number, tipicas = false) {
   const cupo = await cupoRecetas(admin);
   // Lo que ya está en lotes sin recoger también cuenta para el cupo del mes.
   const { data: abiertos } = await admin.from('lotes_ia').select('datos').eq('tipo', 'recetas').eq('estado', 'enviado');
@@ -111,7 +129,8 @@ async function enviarRecetas(admin: Cliente, pedidas: number) {
   const cantidad = Math.min(MAX_POR_LOTE, Math.max(1, Math.round(pedidas) || MAX_POR_LOTE), cupo.quedan - enCola);
   if (cantidad <= 0) return { enviadas: 0, aviso: `Este mes ya no quedan recetas nuevas en el cupo (${cupo.tope}).` };
   const mes = mesDe(hoyEspana());
-  const ideas = await ideasNuevas(admin, cantidad, mes);
+  const ideas = tipicas ? (await ideasTipicas(admin)).slice(0, cantidad) : await ideasNuevas(admin, cantidad, mes);
+  if (tipicas && !ideas.length) return { enviadas: 0, aviso: 'Ya están todas las recetas típicas en el recetario.' };
   if (!ideas.length) return { enviadas: 0, aviso: 'No se han podido preparar ideas de platos. Prueba otra vez.' };
   const porClave: Record<string, Idea> = {};
   const peticiones = ideas.map((i, n) => {
@@ -314,6 +333,7 @@ async function sembrar(req: Request): Promise<Response> {
 
   const cuerpo = (await req.json().catch(() => ({}))) as { accion?: string; cantidad?: number };
   if (cuerpo.accion === 'enviar') return responder({ ok: true, ...(await enviarRecetas(admin, Number(cuerpo.cantidad))), ...(await estado(admin)) });
+  if (cuerpo.accion === 'tipicas') return responder({ ok: true, ...(await enviarRecetas(admin, MAX_POR_LOTE, true)), ...(await estado(admin)) });
   if (cuerpo.accion === 'fotos') return responder({ ok: true, ...(await enviarFotos(admin, Number(cuerpo.cantidad))), ...(await estado(admin)) });
   return responder({ ok: true, ...(await estado(admin)) });
 }
