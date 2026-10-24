@@ -22,6 +22,8 @@ jobs:
             'recetas', (select count(*) from public.recetas where not oculta),
             'con_foto', (select count(*) from public.recetas where not oculta and imagen is not null),
             'en_lote', (select count(*) from public.recetas where foto_en_lote),
+            'esperando_foto', (select count(*) from public.recetas where espera_foto),
+            'visibles_sin_foto', (select count(*) from public.recetas where not oculta and imagen is null),
             'sin_mini', (select count(*) from public.recetas where imagen is not null and imagen_mini is null),
             'importaciones', (select json_agg(i) from (select url_norm, clase, receta_id, publica, avisos, created_at from public.importaciones order by created_at desc limit 5) i),
             'mis_recetas', (select count(*) from public.mis_recetas),
