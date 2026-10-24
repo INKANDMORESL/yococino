@@ -52,4 +52,6 @@ jobs:
         if: inputs.enlace != ''
         run: |
           deno run -A supabase/pruebas/leer_publicacion.ts "${{ inputs.enlace }}" | tee p.txt
+          COD=$(echo "${{ inputs.enlace }}" | grep -oE '/(reel|p)/[A-Za-z0-9_-]+' | cut -d/ -f3)
+          if [ -n "$COD" ]; then deno run -A supabase/pruebas/instagram.ts "$COD" | tee -a p.txt; fi
           echo "::notice title=Publicacion::$(head -c 3000 p.txt | tr '\n' ' ')"
