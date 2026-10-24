@@ -14,7 +14,8 @@ export interface Publicacion {
 }
 
 const MAX_BYTES = 1_500_000;
-const AGENTE = 'Mozilla/5.0 (compatible; YococinoBot/1.0; +https://yococino.app)';
+// Con un navegador normal las redes enseñan el texto de la publicación; con un «bot», una página genérica.
+const AGENTE = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
 
 async function pedir(url: string, json = false): Promise<{ final: string; cuerpo: string } | null> {
   if (!urlPermitida(url)) return null;
@@ -85,6 +86,38 @@ function recetaEstructurada(html: string): string {
   return '';
 }
 
+// TikTok: los datos del vídeo vienen dentro de la página, en un bloque JSON.
+function datosTikTok(html: string): { texto: string; autor: string; imagen: string | null; id: string | null } | null {
+  const bloque = html.match(/<script[^>]+id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/)?.[1];
+  if (bloque) {
+    try {
+      const d = JSON.parse(bloque);
+      const item = d?.__DEFAULT_SCOPE__?.['webapp.video-detail']?.itemInfo?.itemStruct;
+      if (item?.desc) {
+        const portada = String(item.video?.originCover || item.video?.cover || '');
+        return {
+          texto: String(item.desc),
+          autor: item.author?.uniqueId ? `@${item.author.uniqueId}` : '',
+          imagen: portada && urlPermitida(portada) ? portada : null,
+          id: item.id ? String(item.id) : null,
+        };
+      }
+    } catch {
+      // Formato distinto: se prueba de otra forma.
+    }
+  }
+  const desc = html.match(/"desc":"((?:[^"\\]|\\.){10,4000})"/)?.[1];
+  if (!desc) return null;
+  let texto = desc;
+  try {
+    texto = JSON.parse(`"${desc}"`);
+  } catch {
+    // Se deja tal cual.
+  }
+  const portada = html.match(/"originCover":"(https:[^"]+)"/)?.[1]?.replace(/\\u002F/g, '/') ?? null;
+  return { texto, autor: '', imagen: portada && urlPermitida(portada) ? portada : null, id: null };
+}
+
 async function oembed(endpoint: string): Promise<{ titulo: string; autor: string; imagen: string | null; id: string | null } | null> {
   const r = await pedir(endpoint, true);
   if (!r) return null;
@@ -128,6 +161,16 @@ export async function leerPublicacion(url: string): Promise<Publicacion | null> 
   }
 
   // Para el resto (y para completar), la página pública: título, descripción, portada y receta estructurada.
+  if (plataforma === 'tiktok' && pagina) {
+    const tk = datosTikTok(pagina.cuerpo);
+    if (tk) {
+      base.texto = tk.texto;
+      base.titulo ||= tk.texto.split('\n')[0].slice(0, 120);
+      base.autor ||= tk.autor;
+      base.imagen ||= tk.imagen;
+      tiktokId ||= tk.id;
+    }
+  }
   base.video = embedDe(final, tiktokId) ?? embedDe(url, tiktokId);
   if (pagina) {
     const html = pagina.cuerpo;
