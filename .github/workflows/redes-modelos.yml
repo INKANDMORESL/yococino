@@ -1,0 +1,17 @@
+# Lista los modelos de vídeo, voz y música que ofrece Google ahora mismo (para elegir en video-redes).
+name: Modelos de vídeo y voz
+on: workflow_dispatch
+jobs:
+  modelos:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      URL: ${{ vars.SUPABASE_URL }}
+    steps:
+      - run: |
+          jq -n '{query: "select clave_tareas from public.ajustes_internos where id = 1", read_only: true}' > q.json
+          CLAVE=$(curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @q.json | jq -r '.[0].clave_tareas // empty')
+          echo "::add-mask::$CLAVE"
+          R=$(curl -sS -X POST "$URL/functions/v1/video-redes" -H "x-tarea: $CLAVE" -H 'Content-Type: application/json' --data '{"accion":"modelos"}')
+          echo "::notice title=Modelos::$(echo "$R" | jq -r '.modelos | join(" || ")' | head -c 4000)"

@@ -164,6 +164,11 @@ async function video(req: Request): Promise<Response> {
     if (prompt.length < 20) return fallo(400, 'prompt', 'Falta la descripción del vídeo.');
     return responder({ ok: true, ...(await crear(admin, prompt, nombre)) });
   }
+  if (cuerpo.accion === 'modelos') {
+    const r = await fetch(`${BASE}/models?pageSize=1000`, { headers: { 'x-goog-api-key': claveGemini() } });
+    const d = (await r.json().catch(() => ({}))) as { models?: { name: string; supportedGenerationMethods?: string[]; description?: string }[] };
+    return responder({ ok: true, modelos: (d.models ?? []).filter((m) => /tts|lyria|music|omni|veo|audio/i.test(m.name)).map((m) => `${m.name} [${(m.supportedGenerationMethods ?? []).join(',')}] ${(m.description ?? '').slice(0, 80)}`) });
+  }
   if (cuerpo.accion === 'voz') {
     const texto = String(cuerpo.texto ?? '').trim().slice(0, 1000);
     if (!texto) return fallo(400, 'texto', 'Falta el texto de la voz.');
