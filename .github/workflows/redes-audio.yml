@@ -29,7 +29,7 @@ jobs:
             NOMBRE=$(echo "$I" | jq -r .nombre)
             if ls redes/clips/$NOMBRE.* >/dev/null 2>&1; then echo "$NOMBRE ya existe"; continue; fi
             R=$(curl -sS -X POST "$URL/functions/v1/video-redes" -H "x-tarea: $CLAVE" -H 'Content-Type: application/json' --max-time 300 \
-              --data "$(echo "$I" | jq -c '{accion: .tipo, nombre, texto, prompt, modelo, voz, estilo: (.estilo // "")}')")
+              --data "$(echo "$I" | jq -c '{accion: .tipo, nombre, texto, prompt, modelo, voz, velocidad, estilo: (.estilo // "")}')")
             if [ "$(echo "$R" | jq -r '.listo // empty')" = "true" ]; then
               URLA=$(echo "$R" | jq -r .url); curl -sS -o "redes/clips/$NOMBRE.${URLA##*.}" "$URLA"; echo "$NOMBRE listo $(echo "$R" | jq -c '{modelo, tipo}')"
             else echo "::error title=Audio $NOMBRE::$(echo "$R" | head -c 500)"; fi

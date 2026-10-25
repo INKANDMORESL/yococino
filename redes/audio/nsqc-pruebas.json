@@ -1,38 +1,34 @@
 {
   "items": [
     {
-      "tipo": "voz",
-      "nombre": "prueba-25-aoede",
-      "modelo": "gemini-2.5-pro-preview-tts",
-      "voz": "Aoede",
-      "texto": "Lee en voz alta SOLO el texto que hay después de «TEXTO:».\nLocutora: mujer de unos 30 años, de Madrid (España). Acento castellano peninsular: pronuncia la «c» y la «z» como en España, nada de acento latinoamericano.\nTono: natural y cercano, alegre sin exagerar, como si se lo contaras a una amiga en la cocina. Frases seguidas, con pausas muy cortas, sin tono de anuncio.\nTEXTO:\n¿No sabes qué cocinar hoy? Con Yococino tienes el menú de todo el mes, ya hecho. Recetas caseras y sanas, también para tu airfryer. Y tu lista de la compra, preparada. Yococino: pruébala gratis siete días."
-    },
-    {
-      "tipo": "voz",
-      "nombre": "prueba-25-sulafat",
-      "modelo": "gemini-2.5-pro-preview-tts",
-      "voz": "Sulafat",
-      "texto": "Lee en voz alta SOLO el texto que hay después de «TEXTO:».\nLocutora: mujer de unos 30 años, de Madrid (España). Acento castellano peninsular: pronuncia la «c» y la «z» como en España, nada de acento latinoamericano.\nTono: natural y cercano, alegre sin exagerar, como si se lo contaras a una amiga en la cocina. Frases seguidas, con pausas muy cortas, sin tono de anuncio.\nTEXTO:\n¿No sabes qué cocinar hoy? Con Yococino tienes el menú de todo el mes, ya hecho. Recetas caseras y sanas, también para tu airfryer. Y tu lista de la compra, preparada. Yococino: pruébala gratis siete días."
-    },
-    {
-      "tipo": "voz",
-      "nombre": "prueba-38-aoede",
-      "modelo": "gemini-3.8-flash-tts",
-      "voz": "Aoede",
-      "texto": "Lee en voz alta SOLO el texto que hay después de «TEXTO:».\nLocutora: mujer de unos 30 años, de Madrid (España). Acento castellano peninsular: pronuncia la «c» y la «z» como en España, nada de acento latinoamericano.\nTono: natural y cercano, alegre sin exagerar, como si se lo contaras a una amiga en la cocina. Frases seguidas, con pausas muy cortas, sin tono de anuncio.\nTEXTO:\n¿No sabes qué cocinar hoy? Con Yococino tienes el menú de todo el mes, ya hecho. Recetas caseras y sanas, también para tu airfryer. Y tu lista de la compra, preparada. Yococino: pruébala gratis siete días."
-    },
-    {
-      "tipo": "voz",
-      "nombre": "prueba-38-sulafat",
-      "modelo": "gemini-3.8-flash-tts",
-      "voz": "Sulafat",
-      "texto": "Lee en voz alta SOLO el texto que hay después de «TEXTO:».\nLocutora: mujer de unos 30 años, de Madrid (España). Acento castellano peninsular: pronuncia la «c» y la «z» como en España, nada de acento latinoamericano.\nTono: natural y cercano, alegre sin exagerar, como si se lo contaras a una amiga en la cocina. Frases seguidas, con pausas muy cortas, sin tono de anuncio.\nTEXTO:\n¿No sabes qué cocinar hoy? Con Yococino tienes el menú de todo el mes, ya hecho. Recetas caseras y sanas, también para tu airfryer. Y tu lista de la compra, preparada. Yococino: pruébala gratis siete días."
-    },
-    {
       "tipo": "musica",
       "nombre": "nsqc-musica",
       "modelo": "lyria-3-clip-preview",
       "prompt": "Instrumental only, no vocals. Upbeat, warm and cheerful acoustic pop for a cooking app ad: ukulele and acoustic guitar strums, light claps, soft bass, bright glockenspiel accents, 110 BPM, feel-good and modern, clean mix, steady energy for 30 seconds, gentle ending."
+    },
+    {
+      "tipo": "voz_cloud",
+      "nombre": "cloud-aoede",
+      "voz": "es-ES-Chirp3-HD-Aoede",
+      "texto": "¿No sabes qué cocinar hoy? Con Yococino tienes el menú de todo el mes, ya hecho. Recetas caseras y sanas, también para tu airfryer. Y tu lista de la compra, preparada. Yococino: pruébala gratis siete días."
+    },
+    {
+      "tipo": "voz_cloud",
+      "nombre": "cloud-leda",
+      "voz": "es-ES-Chirp3-HD-Leda",
+      "texto": "¿No sabes qué cocinar hoy? Con Yococino tienes el menú de todo el mes, ya hecho. Recetas caseras y sanas, también para tu airfryer. Y tu lista de la compra, preparada. Yococino: pruébala gratis siete días."
+    },
+    {
+      "tipo": "voz_cloud",
+      "nombre": "cloud-sulafat",
+      "voz": "es-ES-Chirp3-HD-Sulafat",
+      "texto": "¿No sabes qué cocinar hoy? Con Yococino tienes el menú de todo el mes, ya hecho. Recetas caseras y sanas, también para tu airfryer. Y tu lista de la compra, preparada. Yococino: pruébala gratis siete días."
+    },
+    {
+      "tipo": "voz_cloud",
+      "nombre": "cloud-kore",
+      "voz": "es-ES-Chirp3-HD-Kore",
+      "texto": "¿No sabes qué cocinar hoy? Con Yococino tienes el menú de todo el mes, ya hecho. Recetas caseras y sanas, también para tu airfryer. Y tu lista de la compra, preparada. Yococino: pruébala gratis siete días."
     }
   ]
 }
