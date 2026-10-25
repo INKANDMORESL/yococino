@@ -4,28 +4,32 @@
       "nombre": "nsqc-1-nevera",
       "prompt": "Cinematic vertical shot, food commercial style. Evening in a bright, modern Spanish home kitchen. A woman's hands open a fridge door; the camera is inside the fridge looking out, framing fresh vegetables, eggs, peppers and a lemon in the foreground. She pauses, undecided, then gently closes the door. Warm natural light, shallow depth of field, soft film grain, smooth slow push-in. Realistic, everyday, no text, no logos, no brand names.",
       "texto": "¿No sabes qué cocinar hoy?",
-      "segundos": 4.0
+      "segundos": 4.2,
+      "desde": 1.5
     },
     {
       "nombre": "nsqc-2-sarten",
       "prompt": "Cinematic vertical close-up, food commercial style. Chicken strips with red and green peppers and onion sizzling in olive oil in a non-stick pan on a home stove, a wooden spoon stirring, steam and gentle oil sparkle catching window light. Realistic sizzling sound. Shallow depth of field, slow orbit around the pan, appetizing, natural colors, home-cooked look. No text, no logos, no brand names.",
       "texto": "Te preparamos el menú de todo el mes",
       "destacado": "Menú mensual",
-      "segundos": 4.0
+      "segundos": 4.2,
+      "desde": 0.5
     },
     {
       "nombre": "nsqc-3-airfryer",
       "prompt": "Cinematic vertical shot, food commercial style. In a bright home kitchen, hands pull out the basket of a matte black air fryer, revealing golden, crispy chicken wings and potato wedges; a puff of steam rises and catches the morning light. Slow motion, shallow depth of field, crisp texture detail, realistic sound of the basket sliding. No text, no logos, no brand names on the appliance.",
       "texto": "Recetas sanas, también para tu airfryer",
       "destacado": "Recetas caseras",
-      "segundos": 4.0
+      "segundos": 4.2,
+      "desde": 2.8
     },
     {
       "nombre": "nsqc-4-mesa",
       "prompt": "Cinematic vertical shot, food commercial style. Hands place a beautiful plate of baked salmon with roasted vegetables and a lemon wedge on a wooden dining table set for a family dinner, with a salad bowl and glasses of water; warm evening light from a window, people's arms reaching for bread in the soft-focus background, cozy and joyful atmosphere. Slow dolly-in, shallow depth of field, realistic, home-cooked. No text, no logos.",
       "texto": "Con la lista de la compra hecha",
       "destacado": "Y mucho más",
-      "segundos": 4.0
+      "segundos": 4.2,
+      "desde": 1.0
     }
   ],
   "montaje": {
