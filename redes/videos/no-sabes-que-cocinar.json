@@ -5,7 +5,8 @@
       "prompt": "Cinematic vertical shot, food commercial style. Evening in a bright, modern Spanish home kitchen. A woman's hands open a fridge door; the camera is inside the fridge looking out, framing fresh vegetables, eggs, peppers and a lemon in the foreground. She pauses, undecided, then gently closes the door. Warm natural light, shallow depth of field, soft film grain, smooth slow push-in. Realistic, everyday, no text, no logos, no brand names.",
       "texto": "¿No sabes qué cocinar hoy?",
       "segundos": 4.2,
-      "desde": 1.5
+      "desde": 1.5,
+      "voz": "¿No sabes qué cocinar hoy?"
     },
     {
       "nombre": "nsqc-2-sarten",
@@ -13,7 +14,8 @@
       "texto": "Te preparamos el menú de todo el mes",
       "destacado": "Menú mensual",
       "segundos": 4.2,
-      "desde": 0.5
+      "desde": 0.5,
+      "voz": "Con Yococino tienes el menú de todo el mes, ya hecho."
     },
     {
       "nombre": "nsqc-3-airfryer",
@@ -21,7 +23,8 @@
       "texto": "Recetas sanas, también para tu airfryer",
       "destacado": "Recetas caseras",
       "segundos": 4.2,
-      "desde": 2.8
+      "desde": 2.8,
+      "voz": "Recetas caseras y sanas… también para tu airfryer."
     },
     {
       "nombre": "nsqc-4-mesa",
@@ -29,7 +32,8 @@
       "texto": "Con la lista de la compra hecha",
       "destacado": "Y mucho más",
       "segundos": 4.2,
-      "desde": 1.0
+      "desde": 1.0,
+      "voz": "Y la lista de la compra, lista."
     }
   ],
   "montaje": {
@@ -38,7 +42,10 @@
       "captura": "tienda/capturas-originales/1.jpg",
       "boton": "Pruébala gratis 7 días",
       "pie": "yococino.app",
-      "segundos": 3.5
+      "segundos": 3.5,
+      "voz": "Yococino. Pruébala gratis siete días."
     }
-  }
+  },
+  "voz": "Aoede",
+  "voz_estilo": "Lee esto en español de España (acento peninsular, nada latino), con voz de mujer de unos 30 años, cercana, cálida y natural, a ritmo tranquilo, como si se lo contaras a una amiga en la cocina. Que no suene a anuncio ni a locutora:"
 }

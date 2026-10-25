@@ -95,6 +95,52 @@ async function recoger(admin: Cliente, operacion: string, nombre: string) {
   return { listo: false };
 }
 
+// ---------- Voz en off (Gemini TTS) ----------
+// Devuelve el audio en WAV. El modelo exacto cambia con las versiones: se usa MODELO_VOZ o el TTS «flash» más nuevo.
+async function modeloVoz(): Promise<string> {
+  const fijo = Deno.env.get('MODELO_VOZ');
+  if (fijo) return fijo;
+  const r = await fetch(`${BASE}/models?pageSize=1000`, { headers: { 'x-goog-api-key': claveGemini() } });
+  const datos = (await r.json().catch(() => ({}))) as { models?: { name: string }[] };
+  const nombres = (datos.models ?? []).map((m) => m.name.replace(/^models\//, '')).filter((n) => /tts/i.test(n));
+  const flash = nombres.filter((n) => /flash/.test(n)).sort().reverse();
+  return flash[0] ?? nombres.sort().reverse()[0] ?? 'gemini-2.5-flash-preview-tts';
+}
+
+function wavDe(pcm: Uint8Array, hz: number): Uint8Array {
+  const cab = new DataView(new ArrayBuffer(44));
+  const txt = (o: number, t: string) => [...t].forEach((c, i) => cab.setUint8(o + i, c.charCodeAt(0)));
+  txt(0, 'RIFF'); cab.setUint32(4, 36 + pcm.length, true); txt(8, 'WAVE'); txt(12, 'fmt ');
+  cab.setUint32(16, 16, true); cab.setUint16(20, 1, true); cab.setUint16(22, 1, true); cab.setUint32(24, hz, true);
+  cab.setUint32(28, hz * 2, true); cab.setUint16(32, 2, true); cab.setUint16(34, 16, true); txt(36, 'data'); cab.setUint32(40, pcm.length, true);
+  const out = new Uint8Array(44 + pcm.length);
+  out.set(new Uint8Array(cab.buffer), 0);
+  out.set(pcm, 44);
+  return out;
+}
+
+async function voz(admin: Cliente, texto: string, nombre: string, voz: string, estilo: string) {
+  const modelo = await modeloVoz();
+  const r = await fetch(`${BASE}/models/${modelo}:generateContent`, {
+    method: 'POST',
+    headers: cabeceras(),
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: `${estilo}\n\n${texto}` }] }],
+      generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voz } } } },
+    }),
+  });
+  const d = (await r.json().catch(() => ({}))) as Record<string, any>;
+  const parte = d.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData?.data);
+  if (!r.ok || !parte) throw new Error(`Google no hizo la voz (${modelo}): ${r.status} ${d.error?.message ?? JSON.stringify(d).slice(0, 300)}`);
+  const hz = Number(String(parte.inlineData.mimeType ?? '').match(/rate=(\d+)/)?.[1]) || 24000;
+  const bin = atob(parte.inlineData.data);
+  const pcm = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) pcm[i] = bin.charCodeAt(i);
+  const { error } = await admin.storage.from('redes').upload(`${nombre}.wav`, wavDe(pcm, hz), { contentType: 'audio/wav', upsert: true });
+  if (error) throw error;
+  return { listo: true, modelo, url: admin.storage.from('redes').getPublicUrl(`${nombre}.wav`).data.publicUrl };
+}
+
 async function video(req: Request): Promise<Response> {
   const { usuario, admin } = crearClientes(req);
   const claveTarea = req.headers.get('x-tarea') ?? '';
@@ -109,12 +155,18 @@ async function video(req: Request): Promise<Response> {
     const { data: esAdmin } = await admin.from('admins').select('user_id').eq('user_id', auth.user.id).maybeSingle();
     if (!esAdmin) return fallo(403, 'no_admin', 'Solo el administrador puede hacer esto.');
   }
-  const cuerpo = (await req.json().catch(() => ({}))) as { accion?: string; prompt?: string; operacion?: string; nombre?: string };
+  const cuerpo = (await req.json().catch(() => ({}))) as { accion?: string; prompt?: string; operacion?: string; nombre?: string; texto?: string; voz?: string; estilo?: string };
   const nombre = String(cuerpo.nombre ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 60) || `clip-${Date.now()}`;
   if (cuerpo.accion === 'crear') {
     const prompt = String(cuerpo.prompt ?? '').trim().slice(0, 2000);
     if (prompt.length < 20) return fallo(400, 'prompt', 'Falta la descripción del vídeo.');
     return responder({ ok: true, ...(await crear(admin, prompt, nombre)) });
+  }
+  if (cuerpo.accion === 'voz') {
+    const texto = String(cuerpo.texto ?? '').trim().slice(0, 1000);
+    if (!texto) return fallo(400, 'texto', 'Falta el texto de la voz.');
+    const estilo = String(cuerpo.estilo ?? '').slice(0, 500) || 'Lee esto en español de España, con voz de mujer joven, cercana y natural, como quien se lo cuenta a una amiga, sin sonar a anuncio:';
+    return responder({ ok: true, ...(await voz(admin, texto, nombre, String(cuerpo.voz ?? 'Kore').replace(/[^A-Za-z]/g, '') || 'Kore', estilo)) });
   }
   if (cuerpo.accion === 'recoger') {
     if (!/^(interactions\/[\w.-]+|espera\/[a-z0-9-]+)$/.test(String(cuerpo.operacion ?? ''))) return fallo(400, 'operacion', 'Operación no válida.');

@@ -59,6 +59,16 @@ jobs:
             done < ops.txt
             mv quedan.txt ops.txt
           done
+          # Voz en off: una por clip (y otra para el cierre) si el plan la lleva.
+          VOZ=$(jq -r '.voz // "Aoede"' "$PLAN")
+          ESTILO=$(jq -r '.voz_estilo // ""' "$PLAN")
+          jq -c '[.clips[] | select(.voz) | {nombre: (.nombre + "-voz"), texto: .voz}] + (if .montaje.cierre.voz then [{nombre: ((.clips[0].nombre | split("-")[0]) + "-cierre-voz"), texto: .montaje.cierre.voz}] else [] end) | .[]' "$PLAN" | while read -r V; do
+            NOMBRE=$(echo "$V" | jq -r .nombre)
+            if [ -f "redes/clips/$NOMBRE.wav" ]; then echo "$NOMBRE ya existe"; continue; fi
+            R=$(llamar "$(echo "$V" | jq -c --arg v "$VOZ" --arg e "$ESTILO" '{accion: "voz", nombre, texto, voz: $v, estilo: $e}')")
+            if [ "$(echo "$R" | jq -r '.listo // empty')" = "true" ]; then curl -sS -o "redes/clips/$NOMBRE.wav" "$(echo "$R" | jq -r .url)" && echo "$NOMBRE listo ($(echo "$R" | jq -r .modelo))"
+            else echo "::error title=Voz $NOMBRE::$(echo "$R" | head -c 500)"; fi
+          done
           ls -la redes/clips
           echo "::notice title=Vídeos::$(ls redes/clips | tr '\n' ' ')"
       - name: Guardar los clips

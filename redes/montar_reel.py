@@ -12,6 +12,7 @@ TIT = lambda t: ImageFont.truetype(F + 'InterDisplay-ExtraBold.otf', t)
 MED = lambda t: ImageFont.truetype(F + 'Inter-SemiBold.otf', t)
 OLIVA, CREMA, TINTA, LIMON = '#4D6B3C', '#FBFAF6', '#1D2A23', '#EFC94C'
 FUNDIDO = 0.4
+RETRASO_VOZ = 0.3  # la voz entra un poco después del corte
 
 
 def envolver(d, texto, f, ancho):
@@ -125,8 +126,11 @@ def main(plan_ruta):
     # 1. Cada clip: recortado, a 1080x1920 y 30 fps, con su rótulo encima y audio normalizado.
     for i, c in enumerate(plan['clips']):
         entrada = RAIZ / 'redes' / 'clips' / f"{c['nombre']}.mp4"
-        t = c.get('segundos', 4.0)
+        voz = RAIZ / 'redes' / 'clips' / f"{c['nombre']}-voz.wav"
         ini = c.get('desde', 0.5)
+        # Con voz en off, la escena dura lo que la frase (y un respiro), para que la voz vaya seguida.
+        t = max(c.get('segundos', 4.0), duracion(voz) + RETRASO_VOZ + 0.35) if voz.exists() else c.get('segundos', 4.0)
+        t = min(t, duracion(entrada) - ini)
         rot = tmp / f'r{i}.png'
         rotulo(c['texto'], c.get('destacado'), rot)
         salida = tmp / f'p{i}.mp4'
@@ -136,7 +140,13 @@ def main(plan_ruta):
             f"eq=contrast=1.04:saturation=1.08[v];"
             f"[1:v]format=rgba,fade=in:st=0.15:d=0.35:alpha=1[t];[v][t]overlay=0:0:format=auto[vo]"
         )
-        if tiene_audio(entrada):
+        if voz.exists():
+            # Sonido ambiente bajito debajo de la voz.
+            cmd += ['-i', str(voz)]
+            amb = f"[0:a]aresample=48000,volume=0.3,afade=in:d=0.2,afade=out:st={t - 0.3}:d=0.3[amb]" if tiene_audio(entrada) else f"anullsrc=r=48000:cl=stereo,atrim=0:{t}[amb]"
+            cmd += ['-filter_complex', filtro + f";{amb};[2:a]aresample=48000,pan=stereo|c0=c0|c1=c0,volume=1.6,adelay={int(RETRASO_VOZ*1000)}|{int(RETRASO_VOZ*1000)},apad[vz];"
+                    f"[amb][vz]amix=inputs=2:duration=first:normalize=0,atrim=0:{t}[ao]", '-map', '[vo]', '-map', '[ao]']
+        elif tiene_audio(entrada):
             cmd += ['-filter_complex', filtro + f";[0:a]aresample=48000,volume=0.8,afade=in:d=0.2,afade=out:st={t - 0.3}:d=0.3[ao]", '-map', '[vo]', '-map', '[ao]']
         else:
             cmd += ['-f', 'lavfi', '-t', str(t), '-i', 'anullsrc=r=48000:cl=stereo', '-filter_complex', filtro, '-map', '[vo]', '-map', '2:a']
@@ -146,12 +156,15 @@ def main(plan_ruta):
     # 2. Cierre con la app (imagen fija con un zoom muy suave).
     fin = tmp / 'cierre.png'
     cierre(m['cierre'], fin)
-    tc = m['cierre'].get('segundos', 3.5)
+    voz_fin = RAIZ / 'redes' / 'clips' / f"{plan['clips'][0]['nombre'].split('-')[0]}-cierre-voz.wav"
+    tc = max(m['cierre'].get('segundos', 3.5), duracion(voz_fin) + RETRASO_VOZ + 0.8) if voz_fin.exists() else m['cierre'].get('segundos', 3.5)
     salida = tmp / 'pfin.mp4'
+    # Imagen fija (sin zoom: el zoom de ffmpeg hace temblar el texto).
+    audio_fin = (['-i', str(voz_fin)], f"[1:a]aresample=48000,pan=stereo|c0=c0|c1=c0,volume=1.6,adelay={int(RETRASO_VOZ*1000)}|{int(RETRASO_VOZ*1000)},apad,atrim=0:{tc}[a]") if voz_fin.exists() else (['-f', 'lavfi', '-t', str(tc), '-i', 'anullsrc=r=48000:cl=stereo'], '[1:a]anull[a]')
     subprocess.run([
-        'ffmpeg', '-y', '-v', 'error', '-loop', '1', '-t', str(tc), '-i', str(fin), '-f', 'lavfi', '-t', str(tc), '-i', 'anullsrc=r=48000:cl=stereo',
-        '-filter_complex', f"[0:v]scale=1188:2112,zoompan=z='min(1+on/{int(tc*30)}*0.04,1.04)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d={int(tc*30)}:s={W}x{H}:fps=30,setsar=1[v]",
-        '-map', '[v]', '-map', '1:a', '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-ar', '48000', '-ac', '2', '-shortest', str(salida),
+        'ffmpeg', '-y', '-v', 'error', '-loop', '1', '-framerate', '30', '-t', str(tc), '-i', str(fin), *audio_fin[0],
+        '-filter_complex', f"[0:v]fps=30,setsar=1,format=yuv420p[v];{audio_fin[1]}",
+        '-map', '[v]', '-map', '[a]', '-t', str(tc), '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-tune', 'stillimage', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-ar', '48000', '-ac', '2', str(salida),
     ], check=True)
     partes.append((salida, tc))
     # 3. Todo junto con fundidos.
