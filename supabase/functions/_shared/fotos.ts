@@ -219,13 +219,13 @@ export async function leerFotosDelLote(
   if (!r.ok || !r.body) throw new ErrorFoto(`No se pudo descargar el resultado del lote (${r.status})`);
   const lector = r.body.pipeThrough(new TextDecoderStream()).getReader();
   const hechas: string[] = [];
-  let resto = '';
   let alFinal = false;
-  const procesar = async (linea: string) => {
-    if (!linea.trim()) return;
-    // La clave va al principio de cada línea: si ya está hecha, no se lee el resto.
-    const clave = linea.slice(0, 300).match(/"key"\s*:\s*"([^"]+)"/)?.[1] ?? '';
-    if (!clave || saltar.has(clave)) return;
+  // Cada línea es una foto en base64 (varios MB). Se lee por trozos sin volver a recorrer lo ya leído:
+  // la línea en curso se guarda en partes y, si su clave ya está hecha, sus trozos se tiran sin juntarlos.
+  let partes: string[] = [];
+  let cabeza = ''; // primeros caracteres de la línea, para leer la clave
+  let estado: 'clave' | 'guardar' | 'saltar' = 'clave';
+  const procesar = async (linea: string, clave: string) => {
     let foto: { bytes: Uint8Array; tipo: string } | null = null;
     try {
       const fila = JSON.parse(linea);
@@ -237,21 +237,46 @@ export async function leerFotosDelLote(
     await usar(clave, foto);
     hechas.push(clave);
   };
+  const claveDe = (t: string) => t.match(/"key"\s*:\s*"([^"]+)"/)?.[1] ?? '';
+  let claveActual = '';
+  const decidir = () => {
+    claveActual = claveDe(cabeza);
+    if (claveActual || cabeza.length >= 300) estado = !claveActual || saltar.has(claveActual) ? 'saltar' : 'guardar';
+  };
+  const finLinea = async () => {
+    if (estado === 'clave') decidir();
+    if (estado === 'guardar' && claveActual) await procesar(partes.join(''), claveActual);
+    partes = [];
+    cabeza = '';
+    claveActual = '';
+    estado = 'clave';
+  };
+  const anadir = (trozo: string) => {
+    if (!trozo) return;
+    if (estado === 'clave') {
+      cabeza += trozo;
+      partes.push(trozo);
+      decidir();
+      if (estado === 'saltar') partes = [];
+    } else if (estado === 'guardar') partes.push(trozo);
+  };
   while (hechas.length < maximo) {
     const { done, value } = await lector.read();
     if (done) {
-      if (resto) await procesar(resto);
-      resto = '';
+      if (partes.length || cabeza) await finLinea();
       alFinal = true;
       break;
     }
-    resto += value;
+    let desde = 0;
     let i: number;
-    while ((i = resto.indexOf('\n')) >= 0 && hechas.length < maximo) {
-      const linea = resto.slice(0, i);
-      resto = resto.slice(i + 1);
-      await procesar(linea);
+    while ((i = value.indexOf('\n', desde)) >= 0) {
+      anadir(value.slice(desde, i));
+      await finLinea();
+      desde = i + 1;
+      if (hechas.length >= maximo) break;
     }
+    if (hechas.length >= maximo) break;
+    anadir(value.slice(desde));
   }
   lector.cancel().catch(() => {});
   return { hechas, alFinal };
