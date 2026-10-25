@@ -125,9 +125,10 @@ async function voz(admin: Cliente, texto: string, nombre: string, voz: string, e
     method: 'POST',
     headers: cabeceras(),
     body: JSON.stringify({
-      // Indicación corta delante (formato «Say …: texto»): una larga la lee en voz alta, y este modelo no admite instrucciones aparte.
-      contents: [{ parts: [{ text: `${estilo}: ${texto}` }] }],
-      generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voz } } } },
+      // Solo la frase: este modelo lee en voz alta cualquier indicación que vaya delante y no admite instrucciones aparte.
+      // El acento va por el idioma (es-ES) y el tono, por la voz elegida.
+      contents: [{ parts: [{ text: estilo ? `${estilo}: ${texto}` : texto }] }],
+      generationConfig: { responseModalities: ['AUDIO'], speechConfig: { languageCode: 'es-ES', voiceConfig: { prebuiltVoiceConfig: { voiceName: voz } } } },
     }),
   });
   const d = (await r.json().catch(() => ({}))) as Record<string, any>;
@@ -166,7 +167,7 @@ async function video(req: Request): Promise<Response> {
   if (cuerpo.accion === 'voz') {
     const texto = String(cuerpo.texto ?? '').trim().slice(0, 1000);
     if (!texto) return fallo(400, 'texto', 'Falta el texto de la voz.');
-    const estilo = String(cuerpo.estilo ?? '').slice(0, 500) || 'Say in a warm, natural, conversational tone, in Castilian Spanish from Spain';
+    const estilo = String(cuerpo.estilo ?? '').slice(0, 500);
     return responder({ ok: true, ...(await voz(admin, texto, nombre, String(cuerpo.voz ?? 'Kore').replace(/[^A-Za-z]/g, '') || 'Kore', estilo)) });
   }
   if (cuerpo.accion === 'recoger') {
