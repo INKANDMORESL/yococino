@@ -1,0 +1,46 @@
+{
+  "items": [
+    {
+      "tipo": "voz",
+      "nombre": "guion-38-aoede",
+      "modelo": "gemini-3.8-flash-tts",
+      "voz": "Aoede",
+      "texto": "# AUDIO PROFILE: Lucía\n## Friendly home cook from Madrid\n\n## THE SCENE: A bright kitchen in Madrid, Spain\nLucía is chatting with a close friend at home while cooking, relaxed and smiling.\n\n### DIRECTOR'S NOTES\nStyle: Natural, warm and conversational, like talking to a friend. Not an advert, not a radio presenter.\nAccent: Castilian Spanish exactly as spoken in Madrid, Spain (European Spanish, with the Spanish \"c\"/\"z\" sound). No Latin American accent at all.\nPacing: Flowing and continuous, one sentence straight into the next with only very short pauses.\n\n#### TRANSCRIPT\n[warm, friendly] ¿No sabes qué cocinar hoy? Con Yococino tienes el menú de todo el mes, ya hecho. [smiling] Recetas caseras y sanas, también para tu airfryer. Y tu lista de la compra, preparada. [upbeat] Yococino: pruébala gratis siete días."
+    },
+    {
+      "tipo": "voz",
+      "nombre": "guion-38-leda",
+      "modelo": "gemini-3.8-flash-tts",
+      "voz": "Leda",
+      "texto": "# AUDIO PROFILE: Lucía\n## Friendly home cook from Madrid\n\n## THE SCENE: A bright kitchen in Madrid, Spain\nLucía is chatting with a close friend at home while cooking, relaxed and smiling.\n\n### DIRECTOR'S NOTES\nStyle: Natural, warm and conversational, like talking to a friend. Not an advert, not a radio presenter.\nAccent: Castilian Spanish exactly as spoken in Madrid, Spain (European Spanish, with the Spanish \"c\"/\"z\" sound). No Latin American accent at all.\nPacing: Flowing and continuous, one sentence straight into the next with only very short pauses.\n\n#### TRANSCRIPT\n[warm, friendly] ¿No sabes qué cocinar hoy? Con Yococino tienes el menú de todo el mes, ya hecho. [smiling] Recetas caseras y sanas, también para tu airfryer. Y tu lista de la compra, preparada. [upbeat] Yococino: pruébala gratis siete días."
+    },
+    {
+      "tipo": "voz",
+      "nombre": "guion-38-sulafat",
+      "modelo": "gemini-3.8-flash-tts",
+      "voz": "Sulafat",
+      "texto": "# AUDIO PROFILE: Lucía\n## Friendly home cook from Madrid\n\n## THE SCENE: A bright kitchen in Madrid, Spain\nLucía is chatting with a close friend at home while cooking, relaxed and smiling.\n\n### DIRECTOR'S NOTES\nStyle: Natural, warm and conversational, like talking to a friend. Not an advert, not a radio presenter.\nAccent: Castilian Spanish exactly as spoken in Madrid, Spain (European Spanish, with the Spanish \"c\"/\"z\" sound). No Latin American accent at all.\nPacing: Flowing and continuous, one sentence straight into the next with only very short pauses.\n\n#### TRANSCRIPT\n[warm, friendly] ¿No sabes qué cocinar hoy? Con Yococino tienes el menú de todo el mes, ya hecho. [smiling] Recetas caseras y sanas, también para tu airfryer. Y tu lista de la compra, preparada. [upbeat] Yococino: pruébala gratis siete días."
+    },
+    {
+      "tipo": "voz",
+      "nombre": "guion-31-aoede",
+      "modelo": "gemini-3.1-flash-tts-preview",
+      "voz": "Aoede",
+      "texto": "# AUDIO PROFILE: Lucía\n## Friendly home cook from Madrid\n\n## THE SCENE: A bright kitchen in Madrid, Spain\nLucía is chatting with a close friend at home while cooking, relaxed and smiling.\n\n### DIRECTOR'S NOTES\nStyle: Natural, warm and conversational, like talking to a friend. Not an advert, not a radio presenter.\nAccent: Castilian Spanish exactly as spoken in Madrid, Spain (European Spanish, with the Spanish \"c\"/\"z\" sound). No Latin American accent at all.\nPacing: Flowing and continuous, one sentence straight into the next with only very short pauses.\n\n#### TRANSCRIPT\n[warm, friendly] ¿No sabes qué cocinar hoy? Con Yococino tienes el menú de todo el mes, ya hecho. [smiling] Recetas caseras y sanas, también para tu airfryer. Y tu lista de la compra, preparada. [upbeat] Yococino: pruébala gratis siete días."
+    },
+    {
+      "tipo": "voz",
+      "nombre": "guion-31-leda",
+      "modelo": "gemini-3.1-flash-tts-preview",
+      "voz": "Leda",
+      "texto": "# AUDIO PROFILE: Lucía\n## Friendly home cook from Madrid\n\n## THE SCENE: A bright kitchen in Madrid, Spain\nLucía is chatting with a close friend at home while cooking, relaxed and smiling.\n\n### DIRECTOR'S NOTES\nStyle: Natural, warm and conversational, like talking to a friend. Not an advert, not a radio presenter.\nAccent: Castilian Spanish exactly as spoken in Madrid, Spain (European Spanish, with the Spanish \"c\"/\"z\" sound). No Latin American accent at all.\nPacing: Flowing and continuous, one sentence straight into the next with only very short pauses.\n\n#### TRANSCRIPT\n[warm, friendly] ¿No sabes qué cocinar hoy? Con Yococino tienes el menú de todo el mes, ya hecho. [smiling] Recetas caseras y sanas, también para tu airfryer. Y tu lista de la compra, preparada. [upbeat] Yococino: pruébala gratis siete días."
+    },
+    {
+      "tipo": "voz",
+      "nombre": "guion-31-sulafat",
+      "modelo": "gemini-3.1-flash-tts-preview",
+      "voz": "Sulafat",
+      "texto": "# AUDIO PROFILE: Lucía\n## Friendly home cook from Madrid\n\n## THE SCENE: A bright kitchen in Madrid, Spain\nLucía is chatting with a close friend at home while cooking, relaxed and smiling.\n\n### DIRECTOR'S NOTES\nStyle: Natural, warm and conversational, like talking to a friend. Not an advert, not a radio presenter.\nAccent: Castilian Spanish exactly as spoken in Madrid, Spain (European Spanish, with the Spanish \"c\"/\"z\" sound). No Latin American accent at all.\nPacing: Flowing and continuous, one sentence straight into the next with only very short pauses.\n\n#### TRANSCRIPT\n[warm, friendly] ¿No sabes qué cocinar hoy? Con Yococino tienes el menú de todo el mes, ya hecho. [smiling] Recetas caseras y sanas, también para tu airfryer. Y tu lista de la compra, preparada. [upbeat] Yococino: pruébala gratis siete días."
+    }
+  ]
+}
