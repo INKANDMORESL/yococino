@@ -22,6 +22,8 @@ jobs:
             'recetas', (select count(*) from public.recetas where not oculta),
             'con_foto', (select count(*) from public.recetas where not oculta and imagen is not null),
             'en_lote', (select count(*) from public.recetas where foto_en_lote),
+            'uranio', (select json_agg(json_build_object('id', id, 'nombre', nombre, 'descripcion', descripcion, 'consejos', consejos, 'sustituciones', sustituciones)) from public.recetas where (nombre || ' ' || coalesce(descripcion,'') || pasos::text || consejos::text || sustituciones::text) ilike '%uranio%'),
+            'variantes_uranio', (select json_agg(v) from public.variantes_receta v where por ilike '%uranio%'),
             'sin_rls', (select json_agg(tablename) from pg_tables where schemaname = 'public' and not rowsecurity),
             'politicas_anon', (select json_agg(tablename || ':' || policyname) from pg_policies where schemaname = 'public' and 'anon' = any(roles)),
             'buckets', (select json_agg(id || ':' || public) from storage.buckets),

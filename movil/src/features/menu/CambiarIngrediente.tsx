@@ -24,18 +24,22 @@ export function CambiarIngrediente({
   const [por, setPor] = useState('');
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [alternativas, setAlternativas] = useState<string[]>([]);
   const opciones = ingredientes.filter((i) => i.unidad !== 'al gusto');
 
-  const adaptar = async () => {
+  const adaptar = async (texto = por) => {
     if (!elegido) return setError('Elige qué ingrediente quieres cambiar.');
-    if (!por.trim()) return setError('Escribe por cuál lo quieres cambiar.');
+    if (!texto.trim()) return setError('Escribe por cuál lo quieres cambiar.');
     setError(null);
+    setAlternativas([]);
     setCargando(true);
     try {
-      const r = await cambiarIngrediente(recetaId, elegido, por.trim(), comidaId);
+      const r = await cambiarIngrediente(recetaId, elegido, texto.trim(), comidaId);
       listo(r.receta_id);
     } catch (e) {
       setError(e instanceof ErrorMenu ? e.message : 'No hemos podido adaptar la receta.');
+      // Si no es un ingrediente válido, se proponen otros que sí encajan.
+      if (e instanceof ErrorMenu && e.codigo === 'ingrediente_no_valido') setAlternativas((e.detalle ?? '').split('|').filter(Boolean));
       setCargando(false);
     }
   };
@@ -67,12 +71,27 @@ export function CambiarIngrediente({
           placeholder="Por ejemplo: pavo, quinoa, brócoli"
           maxLength={60}
           autoCapitalize="none"
-          onSubmitEditing={adaptar}
+          onSubmitEditing={() => adaptar()}
           returnKeyType="done"
         />
       ) : null}
       {error ? <Aviso tono="rosa" texto={error} /> : null}
-      <Boton texto={cargando ? 'Adaptando la receta…' : 'Adaptar la receta'} cargando={cargando} onPress={adaptar} />
+      {alternativas.length ? (
+        <View style={s.chips}>
+          {alternativas.map((a) => (
+            <Chip
+              key={a}
+              texto={mayuscula(a)}
+              elegido={false}
+              onPress={() => {
+                setPor(a);
+                adaptar(a);
+              }}
+            />
+          ))}
+        </View>
+      ) : null}
+      <Boton texto={cargando ? 'Adaptando la receta…' : 'Adaptar la receta'} cargando={cargando} onPress={() => adaptar()} />
       {cargando ? <Text style={[type.small, { textAlign: 'center' }]}>Tarda unos 30 segundos.</Text> : null}
       {!cargando ? (
         <Pressable onPress={() => setAbierto(false)} accessibilityRole="button" style={s.abrir}>
