@@ -224,7 +224,8 @@ export async function leerFotosDelLote(
   // la línea en curso se guarda en partes y, si su clave ya está hecha, sus trozos se tiran sin juntarlos.
   let partes: string[] = [];
   let cabeza = ''; // primeros caracteres de la línea, para leer la clave
-  let estado: 'clave' | 'guardar' | 'saltar' = 'clave';
+  let estado = 'clave' as 'clave' | 'guardar' | 'saltar';
+  const ahora = () => estado; // decidir() cambia el estado: se lee con ahora() para que TypeScript no lo dé por fijo
   const procesar = async (linea: string, clave: string) => {
     let foto: { bytes: Uint8Array; tipo: string } | null = null;
     try {
@@ -245,7 +246,7 @@ export async function leerFotosDelLote(
   };
   const finLinea = async () => {
     if (estado === 'clave') decidir();
-    if (estado === 'guardar' && claveActual) await procesar(partes.join(''), claveActual);
+    if (ahora() === 'guardar' && claveActual) await procesar(partes.join(''), claveActual);
     partes = [];
     cabeza = '';
     claveActual = '';
@@ -257,7 +258,7 @@ export async function leerFotosDelLote(
       cabeza += trozo;
       partes.push(trozo);
       decidir();
-      if (estado === 'saltar') partes = [];
+      if (ahora() === 'saltar') partes = [];
     } else if (estado === 'guardar') partes.push(trozo);
   };
   while (hechas.length < maximo) {
