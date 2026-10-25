@@ -52,6 +52,13 @@ const pie = (raiz) => `
     </div>
   </footer>`;
 
+// Título corto de un paso (para Google): la primera frase, sin pasar de unas 8 palabras.
+const nombrePaso = (texto, i) => {
+  const frase = String(texto).split(/[.,;:]/)[0].trim();
+  const palabras = frase.split(/\s+/);
+  return `Paso ${i + 1}: ${palabras.slice(0, 8).join(' ')}${palabras.length > 8 ? '…' : ''}`;
+};
+
 const pagina = ({ titulo, descripcion, url, imagen, raiz, cuerpo, datos }) => `<!doctype html>
 <html lang="es">
 <head>
@@ -113,7 +120,7 @@ function paginaReceta(a) {
     recipeYield: '1 ración',
     nutrition: r.kcal ? { '@type': 'NutritionInformation', calories: `${r.kcal} kcal` } : undefined,
     recipeIngredient: r.ingredientes,
-    recipeInstructions: r.pasos_visibles.map((p) => ({ '@type': 'HowToStep', text: p })),
+    recipeInstructions: r.pasos_visibles.map((p, i) => ({ '@type': 'HowToStep', name: nombrePaso(p, i), text: p, url: `${url}#paso-${i + 1}` })),
   };
   const faq = (c.preguntas || []).length
     ? { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: c.preguntas.map((p) => ({ '@type': 'Question', name: p.pregunta, acceptedAnswer: { '@type': 'Answer', text: p.respuesta } })) }
@@ -138,7 +145,7 @@ function paginaReceta(a) {
       <p><b>Las cantidades exactas, ajustadas a tu ración y a los que coméis en casa, están en la app.</b></p>
 
       <h2>Cómo hacer ${esc(r.nombre.toLowerCase())}</h2>
-      <ol class="pasos-lista">${r.pasos_visibles.map((p) => `<li>${esc(p)}</li>`).join('')}</ol>
+      <ol class="pasos-lista">${r.pasos_visibles.map((p, i) => `<li id="paso-${i + 1}">${esc(p)}</li>`).join('')}</ol>
       ${quedan ? `<div class="mas-pasos">
         <p class="borroso" aria-hidden="true">Continúa la preparación con el siguiente paso, controlando el tiempo y el punto de cocción hasta que quede perfecto para servir.</p>
         <h3>Faltan ${quedan} ${quedan === 1 ? 'paso' : 'pasos'} para terminarla</h3>
