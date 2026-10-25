@@ -196,6 +196,7 @@ def montar_con_narracion(plan, plan_ruta):
     clips = RAIZ / 'redes' / 'clips'
     voz = clips / n['archivo']
     retraso = n.get('retraso', 0.8)
+    # La voz se corta al acabar la última frase: el archivo de Google a veces trae un chasquido al final.
     fin_voz = n.get('fin', duracion(voz))
     cortes = [c + retraso for c in n['cortes']]
     total = fin_voz + retraso + n.get('cola', 1.4)
@@ -236,7 +237,7 @@ def montar_con_narracion(plan, plan_ruta):
     iv, im = len(partes), len(partes) + 1
     ms = int(retraso * 1000)
     fa = [
-        f"[{iv}:a]aresample=48000,pan=stereo|c0=c0|c1=c0,highpass=f=80,acompressor=threshold=-18dB:ratio=3:attack=5:release=80,volume=1.5,adelay={ms}|{ms},apad[vz]",
+        f"[{iv}:a]atrim=0:{fin_voz + 0.25:.3f},afade=out:st={fin_voz + 0.05:.3f}:d=0.2,aresample=48000,pan=stereo|c0=c0|c1=c0,highpass=f=80,acompressor=threshold=-18dB:ratio=3:attack=5:release=80,volume=1.5,adelay={ms}|{ms},apad[vz]",
         f"[{im}:a]aresample=48000,aformat=channel_layouts=stereo,volume={vol},afade=in:d=0.6,afade=out:st={total - 1.2:.2f}:d=1.2[mu]",
         f"[vz][mu]amix=inputs=2:duration=longest:normalize=0,atrim=0:{total:.3f}[ao]",
     ]
