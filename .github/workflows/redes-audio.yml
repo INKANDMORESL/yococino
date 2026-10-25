@@ -1,0 +1,42 @@
+# Voces y música para redes: lee redes/audio/<plan>.json y guarda cada audio en redes/clips/. Se lanza a mano.
+name: Audio para redes
+on:
+  workflow_dispatch:
+    inputs:
+      plan:
+        description: 'Plan de audio (nombre del archivo en redes/audio, sin .json)'
+        required: true
+permissions:
+  contents: write
+jobs:
+  audio:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      URL: ${{ vars.SUPABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Hacer los audios
+        run: |
+          PLAN="redes/audio/${{ inputs.plan }}.json"
+          [ -f "$PLAN" ] || { echo "::error title=Audio::No existe $PLAN"; exit 1; }
+          jq -n '{query: "select clave_tareas from public.ajustes_internos where id = 1", read_only: true}' > q.json
+          CLAVE=$(curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @q.json | jq -r '.[0].clave_tareas // empty')
+          echo "::add-mask::$CLAVE"
+          mkdir -p redes/clips
+          jq -c '.items[]' "$PLAN" | while read -r I; do
+            NOMBRE=$(echo "$I" | jq -r .nombre)
+            if ls redes/clips/$NOMBRE.* >/dev/null 2>&1; then echo "$NOMBRE ya existe"; continue; fi
+            R=$(curl -sS -X POST "$URL/functions/v1/video-redes" -H "x-tarea: $CLAVE" -H 'Content-Type: application/json' --max-time 300 \
+              --data "$(echo "$I" | jq -c '{accion: .tipo, nombre, texto, prompt, modelo, voz, estilo: (.estilo // "")}')")
+            if [ "$(echo "$R" | jq -r '.listo // empty')" = "true" ]; then
+              URLA=$(echo "$R" | jq -r .url); curl -sS -o "redes/clips/$NOMBRE.${URLA##*.}" "$URLA"; echo "$NOMBRE listo $(echo "$R" | jq -c '{modelo, tipo}')"
+            else echo "::error title=Audio $NOMBRE::$(echo "$R" | head -c 500)"; fi
+          done
+          echo "::notice title=Audio::$(ls redes/clips | tr '\n' ' ')"
+      - name: Guardar
+        run: |
+          git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+          git add redes/clips
+          git diff --cached --quiet || { git commit -m "Audio: ${{ inputs.plan }}"; git pull --rebase; git push; }

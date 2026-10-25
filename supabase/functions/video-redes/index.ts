@@ -119,8 +119,8 @@ function wavDe(pcm: Uint8Array, hz: number): Uint8Array {
   return out;
 }
 
-async function voz(admin: Cliente, texto: string, nombre: string, voz: string, estilo: string) {
-  const modelo = await modeloVoz();
+async function voz(admin: Cliente, texto: string, nombre: string, voz: string, estilo: string, modeloPedido = '') {
+  const modelo = modeloPedido || (await modeloVoz());
   const r = await fetch(`${BASE}/models/${modelo}:generateContent`, {
     method: 'POST',
     headers: cabeceras(),
@@ -143,6 +143,30 @@ async function voz(admin: Cliente, texto: string, nombre: string, voz: string, e
   return { listo: true, modelo, url: admin.storage.from('redes').getPublicUrl(`${nombre}.wav`).data.publicUrl };
 }
 
+// Música de fondo con Lyria (clip de unos 30 s, sin voz). Se guarda tal cual la devuelve (MP3 o WAV).
+async function musica(admin: Cliente, prompt: string, nombre: string, modelo: string) {
+  const r = await fetch(`${BASE}/models/${modelo}:generateContent`, {
+    method: 'POST',
+    headers: cabeceras(),
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseModalities: ['AUDIO'] } }),
+  });
+  const d = (await r.json().catch(() => ({}))) as Record<string, any>;
+  const parte = d.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData?.data);
+  if (!r.ok || !parte) throw new Error(`Google no hizo la música (${modelo}): ${r.status} ${d.error?.message ?? JSON.stringify(d).slice(0, 300)}`);
+  const tipo = String(parte.inlineData.mimeType ?? 'audio/mpeg');
+  const bin = atob(parte.inlineData.data);
+  let bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  let ext = /wav/.test(tipo) ? 'wav' : 'mp3';
+  if (/L16|pcm/i.test(tipo)) {
+    bytes = wavDe(bytes, Number(tipo.match(/rate=(\d+)/)?.[1]) || 48000);
+    ext = 'wav';
+  }
+  const { error } = await admin.storage.from('redes').upload(`${nombre}.${ext}`, bytes, { contentType: ext === 'wav' ? 'audio/wav' : 'audio/mpeg', upsert: true });
+  if (error) throw error;
+  return { listo: true, modelo, tipo, ext, url: admin.storage.from('redes').getPublicUrl(`${nombre}.${ext}`).data.publicUrl };
+}
+
 async function video(req: Request): Promise<Response> {
   const { usuario, admin } = crearClientes(req);
   const claveTarea = req.headers.get('x-tarea') ?? '';
@@ -157,7 +181,7 @@ async function video(req: Request): Promise<Response> {
     const { data: esAdmin } = await admin.from('admins').select('user_id').eq('user_id', auth.user.id).maybeSingle();
     if (!esAdmin) return fallo(403, 'no_admin', 'Solo el administrador puede hacer esto.');
   }
-  const cuerpo = (await req.json().catch(() => ({}))) as { accion?: string; prompt?: string; operacion?: string; nombre?: string; texto?: string; voz?: string; estilo?: string };
+  const cuerpo = (await req.json().catch(() => ({}))) as { accion?: string; prompt?: string; operacion?: string; nombre?: string; texto?: string; voz?: string; estilo?: string; modelo?: string };
   const nombre = String(cuerpo.nombre ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 60) || `clip-${Date.now()}`;
   if (cuerpo.accion === 'crear') {
     const prompt = String(cuerpo.prompt ?? '').trim().slice(0, 2000);
@@ -170,10 +194,16 @@ async function video(req: Request): Promise<Response> {
     return responder({ ok: true, modelos: (d.models ?? []).filter((m) => /tts|lyria|music|omni|veo|audio/i.test(m.name)).map((m) => `${m.name} [${(m.supportedGenerationMethods ?? []).join(',')}] ${(m.description ?? '').slice(0, 80)}`) });
   }
   if (cuerpo.accion === 'voz') {
-    const texto = String(cuerpo.texto ?? '').trim().slice(0, 1000);
+    const texto = String(cuerpo.texto ?? '').trim().slice(0, 3000);
     if (!texto) return fallo(400, 'texto', 'Falta el texto de la voz.');
     const estilo = String(cuerpo.estilo ?? '').slice(0, 500);
-    return responder({ ok: true, ...(await voz(admin, texto, nombre, String(cuerpo.voz ?? 'Kore').replace(/[^A-Za-z]/g, '') || 'Kore', estilo)) });
+    const modelo = String(cuerpo.modelo ?? '').replace(/[^a-z0-9.-]/g, '');
+    return responder({ ok: true, ...(await voz(admin, texto, nombre, String(cuerpo.voz ?? 'Kore').replace(/[^A-Za-z]/g, '') || 'Kore', estilo, modelo)) });
+  }
+  if (cuerpo.accion === 'musica') {
+    const prompt = String(cuerpo.prompt ?? '').trim().slice(0, 1000);
+    if (!prompt) return fallo(400, 'prompt', 'Falta la descripción de la música.');
+    return responder({ ok: true, ...(await musica(admin, prompt, nombre, String(cuerpo.modelo ?? '').replace(/[^a-z0-9.-]/g, '') || 'lyria-3-clip-preview')) });
   }
   if (cuerpo.accion === 'recoger') {
     if (!/^(interactions\/[\w.-]+|espera\/[a-z0-9-]+)$/.test(String(cuerpo.operacion ?? ''))) return fallo(400, 'operacion', 'Operación no válida.');
