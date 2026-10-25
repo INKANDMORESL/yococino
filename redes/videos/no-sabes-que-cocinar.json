@@ -29,7 +29,7 @@
     {
       "nombre": "nsqc-4-mesa",
       "prompt": "Cinematic vertical shot, food commercial style. Hands place a beautiful plate of baked salmon with roasted vegetables and a lemon wedge on a wooden dining table set for a family dinner, with a salad bowl and glasses of water; warm evening light from a window, people's arms reaching for bread in the soft-focus background, cozy and joyful atmosphere. Slow dolly-in, shallow depth of field, realistic, home-cooked. No text, no logos.",
-      "texto": "Con la lista de la compra hecha",
+      "texto": "Tu lista de la compra, preparada",
       "destacado": "Y mucho más",
       "segundos": 3.4,
       "desde": 1.0,
@@ -46,5 +46,21 @@
       "voz": "Yococino. Pruébala gratis siete días."
     }
   },
-  "voz": "Aoede"
+  "voz": "Aoede",
+  "narracion": {
+    "archivo": "guion-38-leda.wav",
+    "retraso": 0.8,
+    "cortes": [
+      1.83,
+      5.16,
+      8.5,
+      10.49
+    ],
+    "fin": 13.08,
+    "cola": 1.4
+  },
+  "musica": {
+    "archivo": "nsqc-musica.mp3",
+    "volumen": 0.18
+  }
 }

@@ -188,5 +188,68 @@ def main(plan_ruta):
     print(final, f'{duracion(final):.1f} s')
 
 
+def montar_con_narracion(plan, plan_ruta):
+    """Una sola locución seguida para todo el vídeo + música de fondo. Las escenas se cortan al ritmo de la voz
+    (plan.narracion.cortes, en segundos de la locución) y los clips van sin su sonido (así no hay ruidos entre partes)."""
+    m, n = plan['montaje'], plan['narracion']
+    tmp = Path(tempfile.mkdtemp())
+    clips = RAIZ / 'redes' / 'clips'
+    voz = clips / n['archivo']
+    retraso = n.get('retraso', 0.8)
+    fin_voz = n.get('fin', duracion(voz))
+    cortes = [c + retraso for c in n['cortes']]
+    total = fin_voz + retraso + n.get('cola', 1.4)
+    limites = [0.0, *cortes, total]
+    escenas = [limites[i + 1] - limites[i] for i in range(len(limites) - 1)]
+    assert len(escenas) == len(plan['clips']) + 1, 'Hace falta un corte por clip (el último tramo es el cierre).'
+    partes = []
+    for i, c in enumerate(plan['clips']):
+        t = escenas[i] + FUNDIDO
+        rot = tmp / f'r{i}.png'
+        rotulo(c['texto'], c.get('destacado'), rot)
+        salida = tmp / f'p{i}.mp4'
+        subprocess.run([
+            'ffmpeg', '-y', '-v', 'error', '-ss', str(c.get('desde', 0.5)), '-t', f'{t:.3f}', '-i', str(clips / f"{c['nombre']}.mp4"), '-loop', '1', '-t', f'{t:.3f}', '-i', str(rot),
+            '-filter_complex', f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=30,setsar=1,eq=contrast=1.04:saturation=1.08[v];"
+            f"[1:v]format=rgba,fade=in:st=0.1:d=0.3:alpha=1[t];[v][t]overlay=0:0:format=auto,format=yuv420p[vo]",
+            '-map', '[vo]', '-an', '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', str(salida),
+        ], check=True)
+        partes.append(salida)
+    fin = tmp / 'cierre.png'
+    cierre(m['cierre'], fin)
+    salida = tmp / 'pfin.mp4'
+    subprocess.run(['ffmpeg', '-y', '-v', 'error', '-loop', '1', '-framerate', '30', '-t', f'{escenas[-1]:.3f}', '-i', str(fin),
+                    '-vf', 'fps=30,setsar=1,format=yuv420p', '-an', '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-tune', 'stillimage', str(salida)], check=True)
+    partes.append(salida)
+    # Vídeo: todo junto con fundidos que caen justo en cada corte.
+    cmd = ['ffmpeg', '-y', '-v', 'error']
+    for p in partes:
+        cmd += ['-i', str(p)]
+    fv, ult = [], '0:v'
+    for k in range(1, len(partes)):
+        fv.append(f"[{ult}][{k}:v]xfade=transition=fade:duration={FUNDIDO}:offset={limites[k] - FUNDIDO / 2:.3f}[v{k}]")
+        ult = f'v{k}'
+    # Audio: la voz y, debajo, la música bajita que se apaga al final.
+    musica = clips / plan['musica']['archivo']
+    vol = plan['musica'].get('volumen', 0.14)
+    cmd += ['-i', str(voz), '-i', str(musica)]
+    iv, im = len(partes), len(partes) + 1
+    ms = int(retraso * 1000)
+    fa = [
+        f"[{iv}:a]aresample=48000,pan=stereo|c0=c0|c1=c0,highpass=f=80,acompressor=threshold=-18dB:ratio=3:attack=5:release=80,volume=1.5,adelay={ms}|{ms},apad[vz]",
+        f"[{im}:a]aresample=48000,aformat=channel_layouts=stereo,volume={vol},afade=in:d=0.6,afade=out:st={total - 1.2:.2f}:d=1.2[mu]",
+        f"[vz][mu]amix=inputs=2:duration=longest:normalize=0,atrim=0:{total:.3f}[ao]",
+    ]
+    final = RAIZ / 'redes' / 'reels' / f"{Path(plan_ruta).stem}.mp4"
+    final.parent.mkdir(parents=True, exist_ok=True)
+    cmd += ['-filter_complex', ';'.join(fv + fa), '-map', f'[{ult}]', '-map', '[ao]', '-t', f'{total:.3f}',
+            '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-c:a', 'aac', '-b:a', '192k', str(final)]
+    subprocess.run(cmd, check=True)
+    subprocess.run(['ffmpeg', '-y', '-v', 'error', '-ss', '1.0', '-i', str(final), '-frames:v', '1', '-q:v', '2', str(final.with_suffix('.jpg'))], check=True)
+    print(final, f'{duracion(final):.1f} s')
+
+
 if __name__ == '__main__':
-    main(sys.argv[1])
+    ruta = sys.argv[1]
+    datos = json.loads(Path(ruta).read_text())
+    montar_con_narracion(datos, ruta) if 'narracion' in datos else main(ruta)
