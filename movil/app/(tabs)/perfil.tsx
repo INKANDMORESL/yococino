@@ -41,7 +41,8 @@ function resumenSeccion(c: Seccion, e: Encuesta): string {
     return { nada: 'No hago deporte', poca: '1 o 2 días por semana', media: '3 o 4 días por semana', alta: '5 días o más' }[e.actividad ?? 'nada'];
   if (c === 'salud') return e.alergias.length ? e.alergias.join(', ') : 'Ninguna';
   if (c === 'gustos') return e.noMeGusta.length ? e.noMeGusta.join(', ') : 'Nada en especial';
-  if (c === 'cocina') return `${{ facil: 'Fácil', medio: 'Medio', elaborado: 'Me gusta cocinar' }[e.nivel ?? 'facil']}, ${e.comidas} comidas al día`;
+  if (c === 'cocina')
+    return `${{ facil: 'Fácil', medio: 'Medio', elaborado: 'Me gusta cocinar' }[e.nivel ?? 'facil']}, ${e.comidas} comidas al día${(e.aparatos ?? []).includes('airfryer') ? ', con airfryer' : ''}`;
   return e.hayPeques ? `${e.numPeques === 4 ? '4 o más' : e.numPeques} en casa` : 'No';
 }
 

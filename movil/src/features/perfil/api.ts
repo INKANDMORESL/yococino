@@ -14,6 +14,7 @@ export interface PerfilCompleto {
   peso_objetivo_kg: number | null;
   actividad: Encuesta['actividad'];
   nivel_cocina: Encuesta['nivel'];
+  aparatos: Encuesta['aparatos'] | null;
   comidas_dia: number | null;
   alergias: string[] | null;
   condiciones: string[] | null;
@@ -52,6 +53,7 @@ export function aEncuesta(p: PerfilCompleto, pesoActual: number | null): Encuest
     condiciones: p.condiciones ?? [],
     noMeGusta: p.no_me_gusta ?? [],
     nivel: p.nivel_cocina,
+    aparatos: p.aparatos ?? encuestaVacia.aparatos,
     comidas,
     hayPeques: (p.num_peques ?? 0) > 0,
     numPeques: Math.max(1, p.num_peques ?? 1),
@@ -74,6 +76,7 @@ export async function guardarPreferencias(userId: string, e: Encuesta, cambiaron
       peso_objetivo_kg: e.objetivo === 'perder' ? numero(e.pesoObjetivo) : null,
       actividad: e.actividad,
       nivel_cocina: e.nivel,
+      aparatos: e.aparatos,
       comidas_dia: e.comidas,
       alergias: e.alergias,
       condiciones: e.condiciones,

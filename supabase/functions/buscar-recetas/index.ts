@@ -8,7 +8,7 @@ import { CATEGORIAS, categoriasDe, SUBCATEGORIAS } from '../_shared/categorias.t
 
 const TIPOS = ['desayuno', 'media_manana', 'almuerzo', 'merienda', 'cena'];
 const MAX_RESULTADOS = 60;
-const COLUMNAS = 'id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini, alergenos, ingredientes(nombre, nota)';
+const COLUMNAS = 'id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini, alergenos, aparatos, nota_airfryer, ingredientes(nombre, nota)';
 
 async function buscar(req: Request): Promise<Response> {
   const { usuario, admin } = crearClientes(req);
@@ -22,8 +22,8 @@ async function buscar(req: Request): Promise<Response> {
   const q = normalizar(String(cuerpo.texto ?? '')).slice(0, 60);
   const tipo = TIPOS.includes(cuerpo.tipo ?? '') ? (cuerpo.tipo as string) : null;
 
-  const { data: perfil } = await admin.from('profiles').select('alergias, no_me_gusta').eq('id', user.id).maybeSingle();
-  const restr = restriccionesDe((perfil?.alergias as string[] | null) ?? [], (perfil?.no_me_gusta as string[] | null) ?? []);
+  const { data: perfil } = await admin.from('profiles').select('alergias, no_me_gusta, aparatos').eq('id', user.id).maybeSingle();
+  const restr = restriccionesDe((perfil?.alergias as string[] | null) ?? [], (perfil?.no_me_gusta as string[] | null) ?? [], perfil?.aparatos);
 
   // Recetas cuyo nombre coincide y recetas que llevan ese ingrediente.
   let ids: number[] | null = null;

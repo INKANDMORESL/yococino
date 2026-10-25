@@ -1,6 +1,8 @@
 // sembrar-recetas: carga del recetario compartido y fotos, por LOTES a mitad de precio. Solo para administradores.
 // - enviar: pide ideas de platos (llamada barata) y manda las recetas a un lote de Claude.
 // - tipicas: como enviar, con la lista de platos típicos españoles.
+// - airfryer: como enviar, con la lista de platos hechos en airfryer (_shared/airfryer.ts).
+// - notas_airfryer: a las recetas de horno ya guardadas les añade cómo hacerlas en airfryer (llamada barata, por tandas).
 // - fotos: pone en marcha la cola de fotos (aligerar-fotos), que hace las que faltan de una en una.
 // - estado: recoge los lotes de recetas terminados y enseña cómo van.
 // Respeta el cupo global de recetas del mes, revisa alergias igual que siempre y no cobra nada a ningún cliente.
@@ -26,6 +28,7 @@ import {
 import { frutasDelMes, mesDe } from '../_shared/temporada.ts';
 import { normalizar } from '../_shared/texto.ts';
 import { TIPICAS } from '../_shared/tipicas.ts';
+import { AIRFRYER } from '../_shared/airfryer.ts';
 
 const MODELO_IDEAS = Deno.env.get('MODELO_MENU') || 'claude-haiku-5-5';
 const MAX_POR_LOTE = 100;
@@ -40,6 +43,7 @@ interface Idea {
   tipo_comida: TipoComida;
   nivel: Nivel;
   variante: 'normal' | 'sin_gluten' | 'sin_lactosa';
+  airfryer?: boolean; // el plato se cocina en airfryer
 }
 
 const ESQUEMA = {
@@ -100,7 +104,29 @@ ${[...ideas.map((i) => i.plato), ...filas.slice(0, 400).map((f) => f.nombre)].jo
   return ideas.slice(0, cantidad);
 }
 
-const restriccionDe = (variante: Idea['variante']) => restriccionesDe(variante === 'sin_gluten' ? ['gluten'] : variante === 'sin_lactosa' ? ['lactosa'] : [], []);
+const restriccionDe = (idea: Pick<Idea, 'variante' | 'airfryer'>) =>
+  restriccionesDe(
+    idea.variante === 'sin_gluten' ? ['gluten'] : idea.variante === 'sin_lactosa' ? ['lactosa'] : [],
+    [],
+    idea.airfryer ? ['horno', 'microondas', 'airfryer'] : undefined,
+  );
+
+// Platos de airfryer que aún no están en el recetario (por su nombre).
+async function ideasAirfryer(admin: Cliente): Promise<Idea[]> {
+  const { data } = await admin.from('recetas').select('nombre_norm').is('privada_de', null).limit(10000);
+  const existentes = (data ?? []).map((r) => String(r.nombre_norm));
+  return AIRFRYER.filter(([plato]) => {
+    const n = normalizar(plato);
+    return !existentes.some((e) => e === n || e.startsWith(`${n} `));
+  }).map(([plato, tipo_comida, nivel]) => ({
+    plato,
+    descripcion: 'Plato casero hecho en airfryer (freidora de aire): crujiente y con muy poco aceite.',
+    tipo_comida,
+    nivel,
+    variante: 'normal' as const,
+    airfryer: true,
+  }));
+}
 
 // Platos típicos españoles que aún no están en el recetario (por su nombre).
 async function ideasTipicas(admin: Cliente): Promise<Idea[]> {
@@ -119,7 +145,7 @@ async function ideasTipicas(admin: Cliente): Promise<Idea[]> {
   }));
 }
 
-async function enviarRecetas(admin: Cliente, pedidas: number, tipicas = false) {
+async function enviarRecetas(admin: Cliente, pedidas: number, lista: 'ideas' | 'tipicas' | 'airfryer' = 'ideas') {
   const cupo = await cupoRecetas(admin);
   // Lo que ya está en lotes sin recoger también cuenta para el cupo del mes.
   const { data: abiertos } = await admin.from('lotes_ia').select('datos').eq('tipo', 'recetas').eq('estado', 'enviado');
@@ -127,8 +153,14 @@ async function enviarRecetas(admin: Cliente, pedidas: number, tipicas = false) {
   const cantidad = Math.min(MAX_POR_LOTE, Math.max(1, Math.round(pedidas) || MAX_POR_LOTE), cupo.quedan - enCola);
   if (cantidad <= 0) return { enviadas: 0, aviso: `Este mes ya no quedan recetas nuevas en el cupo (${cupo.tope}).` };
   const mes = mesDe(hoyEspana());
-  const ideas = tipicas ? (await ideasTipicas(admin)).slice(0, cantidad) : await ideasNuevas(admin, cantidad, mes);
-  if (tipicas && !ideas.length) return { enviadas: 0, aviso: 'Ya están todas las recetas típicas en el recetario.' };
+  const ideas =
+    lista === 'tipicas'
+      ? (await ideasTipicas(admin)).slice(0, cantidad)
+      : lista === 'airfryer'
+        ? (await ideasAirfryer(admin)).slice(0, cantidad)
+        : await ideasNuevas(admin, cantidad, mes);
+  if (lista === 'tipicas' && !ideas.length) return { enviadas: 0, aviso: 'Ya están todas las recetas típicas en el recetario.' };
+  if (lista === 'airfryer' && !ideas.length) return { enviadas: 0, aviso: 'Ya están todas las recetas de airfryer en el recetario.' };
   if (!ideas.length) return { enviadas: 0, aviso: 'No se han podido preparar ideas de platos. Prueba otra vez.' };
   const porClave: Record<string, Idea> = {};
   const peticiones = ideas.map((i, n) => {
@@ -138,7 +170,7 @@ async function enviarRecetas(admin: Cliente, pedidas: number, tipicas = false) {
       id,
       peticion: {
         modelo: modeloReceta(i.tipo_comida),
-        sistema: sistemaReceta(i.tipo_comida, i.nivel, restriccionDe(i.variante), mes),
+        sistema: sistemaReceta(i.tipo_comida, i.nivel, restriccionDe(i), mes, i.airfryer === true),
         mensaje: mensajeReceta(i.plato, i.descripcion, i.tipo_comida),
         esquema: ESQUEMA_RECETA,
         maxTokens: 4000,
@@ -276,7 +308,9 @@ async function recogerRecetas(
     } catch {
       receta = null;
     }
-    const restr = restriccionDe(idea.variante);
+    const restr = restriccionDe(idea);
+    // Los platos de airfryer siempre quedan marcados como tales.
+    if (receta && idea.airfryer && !(receta.aparatos ?? []).includes('airfryer')) receta.aparatos = [...(receta.aparatos ?? []).filter((a) => a !== 'horno'), 'airfryer'];
     if (problemaReceta(receta, restr)) {
       descartadas++;
       continue;
@@ -297,17 +331,62 @@ async function recogerRecetas(
 }
 
 // Vuelve a llamarse a sí misma para seguir recogiendo (con la clave interna de tareas).
-async function seguirRecogiendo(admin: Cliente) {
+async function seguirRecogiendo(admin: Cliente, accion = 'estado') {
   const { data } = await admin.from('ajustes_internos').select('clave_tareas').eq('id', 1).maybeSingle();
   if (!data?.clave_tareas) return;
   const tarea = fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sembrar-recetas`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-tarea': data.clave_tareas },
-    body: JSON.stringify({ accion: 'estado' }),
+    body: JSON.stringify({ accion }),
   }).catch(() => {});
   // deno-lint-ignore no-explicit-any
   const er = (globalThis as any).EdgeRuntime;
   if (er?.waitUntil) er.waitUntil(tarea);
+}
+
+// Recetas de horno ya guardadas: se pregunta (modelo barato, de 25 en 25) si se pueden hacer en airfryer y cómo.
+// nota_airfryer vacío ('') = revisada y no se adapta; null = sin revisar.
+const NOTAS_POR_TANDA = 25;
+async function notasAirfryer(admin: Cliente) {
+  const { data } = await admin
+    .from('recetas')
+    .select('id, nombre, pasos')
+    .contains('aparatos', ['horno'])
+    .is('nota_airfryer', null)
+    .is('privada_de', null)
+    .order('id')
+    .limit(NOTAS_POR_TANDA);
+  const recetas = (data ?? []) as { id: number; nombre: string; pasos: string[] }[];
+  if (!recetas.length) return { revisadas: 0, aviso: 'Todas las recetas de horno están revisadas para airfryer.' };
+  const r = await pedirJSON<{ recetas: { id: number; nota: string }[] }>({
+    modelo: MODELO_IDEAS,
+    sistema: `Eres cocinero y sabes usar la airfryer (freidora de aire). Para cada receta que se hace al horno, di si se puede hacer igual de bien en una airfryer doméstica de unos 4-5 litros para una ración.
+Si se puede, "nota": una sola frase práctica con temperatura en °C, minutos y si hay que darle la vuelta o agitar (por ejemplo: "En airfryer: 180 °C durante 15 minutos, dándole la vuelta a mitad."). Empieza siempre por "En airfryer:".
+Si no queda bien (masas que suben mucho, bandejas grandes, líquidos, gratinados grandes), "nota" vacía.`,
+    mensaje: recetas.map((x) => `${x.id} · ${x.nombre}\n${(x.pasos ?? []).join(' ')}`).join('\n\n'),
+    esquema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['recetas'],
+      properties: {
+        recetas: {
+          type: 'array',
+          items: { type: 'object', additionalProperties: false, required: ['id', 'nota'], properties: { id: { type: 'integer' }, nota: { type: 'string' } } },
+        },
+      },
+    },
+    maxTokens: 6000,
+  });
+  const notas = new Map((r.recetas ?? []).map((x) => [Number(x.id), texto(x.nota, 300)]));
+  let adaptadas = 0;
+  for (const x of recetas) {
+    const nota = notas.get(x.id) ?? '';
+    if (nota) adaptadas++;
+    await admin.from('recetas').update({ nota_airfryer: nota }).eq('id', x.id);
+  }
+  // Quedan más: se sigue sola.
+  if (recetas.length === NOTAS_POR_TANDA) seguirRecogiendo(admin, 'notas_airfryer');
+  return { revisadas: recetas.length, adaptadas, aviso: `${recetas.length} recetas de horno revisadas para airfryer (${adaptadas} se pueden hacer en airfryer).` };
 }
 
 async function estado(admin: Cliente) {
@@ -413,7 +492,9 @@ async function sembrar(req: Request): Promise<Response> {
 
   const cuerpo = (await req.json().catch(() => ({}))) as { accion?: string; cantidad?: number };
   if (cuerpo.accion === 'enviar') return responder({ ok: true, ...(await enviarRecetas(admin, Number(cuerpo.cantidad))), lotes: [], cupo: await cupoRecetas(admin) });
-  if (cuerpo.accion === 'tipicas') return responder({ ok: true, ...(await enviarRecetas(admin, MAX_POR_LOTE, true)), lotes: [], cupo: await cupoRecetas(admin) });
+  if (cuerpo.accion === 'tipicas') return responder({ ok: true, ...(await enviarRecetas(admin, MAX_POR_LOTE, 'tipicas')), lotes: [], cupo: await cupoRecetas(admin) });
+  if (cuerpo.accion === 'airfryer') return responder({ ok: true, ...(await enviarRecetas(admin, MAX_POR_LOTE, 'airfryer')), lotes: [], cupo: await cupoRecetas(admin) });
+  if (cuerpo.accion === 'notas_airfryer') return responder({ ok: true, ...(await notasAirfryer(admin)), lotes: [], cupo: await cupoRecetas(admin) });
   if (cuerpo.accion === 'fotos') return responder({ ok: true, ...(await enviarFotos(admin, Number(cuerpo.cantidad))), ...(await estado(admin)) });
   return responder({ ok: true, ...(await estado(admin)) });
 }

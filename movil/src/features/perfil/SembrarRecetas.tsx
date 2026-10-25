@@ -16,20 +16,20 @@ const euros = (usd?: number) => `${((usd ?? 0) * 0.9).toFixed(2).replace('.', ',
 export function SembrarRecetas() {
   const [cantidad, setCantidad] = useState(200);
   const [datos, setDatos] = useState<EstadoLotes | null>(null);
-  const [ocupado, setOcupado] = useState<'estado' | 'enviar' | 'fotos' | 'tipicas' | null>(null);
+  const [ocupado, setOcupado] = useState<'estado' | 'enviar' | 'fotos' | 'tipicas' | 'airfryer' | 'notas_airfryer' | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
 
-  const hacer = useCallback(async (accion: 'estado' | 'enviar' | 'fotos' | 'tipicas', n?: number) => {
+  const hacer = useCallback(async (accion: 'estado' | 'enviar' | 'fotos' | 'tipicas' | 'airfryer' | 'notas_airfryer', n?: number) => {
     setOcupado(accion);
     setMensaje(null);
     try {
       const r = await sembrarRecetas(accion, n);
       setDatos(r);
       if (r.aviso) setMensaje(r.aviso);
-      else if ((accion === 'enviar' || accion === 'tipicas') && r.enviadas) setMensaje(`Enviadas ${r.enviadas} recetas a la cola. Estarán listas en unos minutos o unas horas.`);
+      else if ((accion === 'enviar' || accion === 'tipicas' || accion === 'airfryer') && r.enviadas) setMensaje(`Enviadas ${r.enviadas} recetas a la cola. Estarán listas en unos minutos o unas horas.`);
       else if (accion === 'fotos' && r.enviadas) setMensaje(`Enviadas ${r.enviadas} fotos a la cola.`);
       if (r.errores?.length) setMensaje(`Detalle técnico: ${r.errores[0]}`);
-      if (accion === 'enviar' || accion === 'tipicas') sembrarRecetas('estado').then(setDatos).catch(() => {});
+      if (accion === 'enviar' || accion === 'tipicas' || accion === 'airfryer') sembrarRecetas('estado').then(setDatos).catch(() => {});
     } catch (e) {
       setMensaje(e instanceof ErrorMenu ? `${e.message}${e.detalle ? ` (${e.detalle})` : ''}` : 'Se ha cortado la conexión.');
     } finally {
@@ -77,6 +77,14 @@ export function SembrarRecetas() {
         cargando={ocupado === 'tipicas'}
         desactivado={!!ocupado}
         onPress={() => hacer('tipicas')}
+      />
+      <Boton texto="Añadir recetas de airfryer" variante="suave" cargando={ocupado === 'airfryer'} desactivado={!!ocupado} onPress={() => hacer('airfryer')} />
+      <Boton
+        texto="Adaptar a airfryer las recetas de horno"
+        variante="linea"
+        cargando={ocupado === 'notas_airfryer'}
+        desactivado={!!ocupado}
+        onPress={() => hacer('notas_airfryer')}
       />
       <Boton texto="Hacer todas las fotos que faltan" variante="linea" cargando={ocupado === 'fotos'} desactivado={!!ocupado} onPress={() => hacer('fotos', 0)} />
 

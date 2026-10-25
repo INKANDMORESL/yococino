@@ -51,6 +51,7 @@ const CATEGORIAS: { clave: string; texto: string; subs?: { clave: string; texto:
   { clave: 'legumbres', texto: '🫘 Legumbres' },
   { clave: 'vegetal', texto: '🥦 Sin carne ni pescado' },
   { clave: 'pasta_arroz', texto: '🍝 Pasta y arroz' },
+  { clave: 'airfryer', texto: '🍟 Airfryer' },
 ];
 
 export default function Recetas() {

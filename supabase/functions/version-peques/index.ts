@@ -120,8 +120,8 @@ async function version(req: Request): Promise<Response> {
   }
 
   // Las alternativas se enseñan solo si encajan con las alergias y gustos de esta casa.
-  const { data: perfil } = await admin.from('profiles').select('alergias, no_me_gusta').eq('id', user.id).maybeSingle();
-  const restr = restriccionesDe((perfil?.alergias as string[] | null) ?? [], (perfil?.no_me_gusta as string[] | null) ?? []);
+  const { data: perfil } = await admin.from('profiles').select('alergias, no_me_gusta, aparatos').eq('id', user.id).maybeSingle();
+  const restr = restriccionesDe((perfil?.alergias as string[] | null) ?? [], (perfil?.no_me_gusta as string[] | null) ?? [], perfil?.aparatos);
   const alternativas = peques.alternativas.filter(
     (a) => motivosNoApta({ nombre: a.nombre, alergenos: [], ingredientes: [...a.ingredientes, a.descripcion].map((nombre) => ({ nombre })) }, restr).length === 0,
   );

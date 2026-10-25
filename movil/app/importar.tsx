@@ -99,7 +99,7 @@ export default function Importar() {
               <Text style={[type.title, s.centrado]}>Pega el texto de la receta</Text>
               <Text style={[type.body, s.centrado]}>{error}</Text>
               <Text style={[type.small, s.centrado]}>
-                Abre el vídeo, toca la descripción para verla entera, mantén pulsado el texto y elige «Copiar». El vídeo seguirá enlazado en la receta.
+                Abre el vídeo, toca la descripción para verla entera, mantén pulsado el texto y elige «Copiar».
               </Text>
               <TextInput
                 value={descripcion}

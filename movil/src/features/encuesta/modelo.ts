@@ -6,6 +6,7 @@ export type Objetivo = 'perder' | 'mantener' | 'musculo';
 export type Actividad = 'nada' | 'poca' | 'media' | 'alta';
 export type Nivel = 'facil' | 'medio' | 'elaborado';
 export type FranjaPeques = '1-3' | '4-8' | '9-13' | '14-17';
+export type Aparato = 'horno' | 'airfryer' | 'microondas' | 'robot';
 
 export interface Fecha {
   dia: string;
@@ -26,6 +27,7 @@ export interface Encuesta {
   condiciones: string[];
   noMeGusta: string[];
   nivel: Nivel | null;
+  aparatos: Aparato[];
   comidas: 3 | 4 | 5;
   hayPeques: boolean | null;
   numPeques: number;
@@ -45,6 +47,7 @@ export const encuestaVacia: Encuesta = {
   condiciones: [],
   noMeGusta: [],
   nivel: null,
+  aparatos: ['horno', 'microondas'],
   comidas: 5,
   hayPeques: null,
   numPeques: 1,
@@ -91,6 +94,12 @@ export const OPCIONES = {
     { valor: 'facil', texto: 'Fácil', detalle: 'Menos de 20 minutos al día' },
     { valor: 'medio', texto: 'Medio', detalle: 'Entre 20 y 40 minutos' },
     { valor: 'elaborado', texto: 'Me gusta cocinar', detalle: 'Más de 40 minutos, recetas con más pasos' },
+  ],
+  aparatos: [
+    { valor: 'airfryer', texto: '🍟 Airfryer' },
+    { valor: 'horno', texto: '🔥 Horno' },
+    { valor: 'microondas', texto: '📡 Microondas' },
+    { valor: 'robot', texto: '🥣 Robot de cocina' },
   ],
   comidas: [3, 4, 5] as const,
   franjasPeques: [

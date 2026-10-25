@@ -41,7 +41,7 @@ async function asignar(req: Request): Promise<Response> {
   if (error) throw error;
   // Las recetas privadas (guardadas de redes) solo las puede usar su dueño.
   if (!receta || (receta.privada_de && receta.privada_de !== user.id)) return fallo(404, 'no_encontrada', 'No encontramos esa receta.');
-  const restr = restriccionesDe(perfil.alergias ?? [], perfil.no_me_gusta ?? []);
+  const restr = restriccionesDe(perfil.alergias ?? [], perfil.no_me_gusta ?? [], perfil.aparatos);
   const motivos = motivosNoApta(
     { nombre: receta.nombre, alergenos: (receta.alergenos as string[] | null) ?? [], ingredientes: (receta.ingredientes ?? []) as { nombre: string; nota: string | null }[] },
     restr,

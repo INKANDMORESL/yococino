@@ -72,7 +72,7 @@ async function importar(req: Request): Promise<Response> {
   const seguro = await perfilSeguro(admin, user.id, hoy);
   if ('respuesta' in seguro) return seguro.respuesta;
   const perfil = seguro.perfil;
-  const restr = restriccionesDe(perfil.alergias ?? [], perfil.no_me_gusta ?? []);
+  const restr = restriccionesDe(perfil.alergias ?? [], perfil.no_me_gusta ?? [], perfil.aparatos);
 
   const plan = await planDe(admin, user.id);
   if (plan.estado === 'caducada') return respuestaSuscripcion();

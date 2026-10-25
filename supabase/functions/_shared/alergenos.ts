@@ -3,6 +3,7 @@
 // Segunda barrera (esta): se revisan los ingredientes por palabras clave, por si la etiqueta falla.
 // Ante la duda, la receta se descarta para esa persona.
 import { contieneAlimento, contienePalabra, normalizar } from './texto.ts';
+import { APARATOS_POR_DEFECTO, aparatosDe, aparatosQueFaltan, NOMBRE_APARATO, type Aparato } from './aparatos.ts';
 
 // Los 14 alérgenos del Reglamento (UE) 1169/2011.
 export const ALERGENOS_UE = [
@@ -70,9 +71,10 @@ const DESDE_ENCUESTA: Record<string, Restriccion[]> = {
 export interface Restricciones {
   codigos: Restriccion[];
   otrosAlimentos: string[]; // alergias escritas a mano que no son alérgenos UE + "no me gusta"
+  aparatos?: Aparato[]; // lo que tiene en su cocina (sin dato = horno y microondas, ver aparatos.ts)
 }
 
-export function restriccionesDe(alergias: string[], noMeGusta: string[]): Restricciones {
+export function restriccionesDe(alergias: string[], noMeGusta: string[], aparatos?: unknown): Restricciones {
   const codigos = new Set<Restriccion>();
   const otros = new Set<string>();
   for (const a of alergias) {
@@ -84,7 +86,7 @@ export function restriccionesDe(alergias: string[], noMeGusta: string[]): Restri
   // Quien no tolera la proteína de leche tampoco puede tomar lácteos sin lactosa.
   if (codigos.has('lacteos')) codigos.delete('lactosa');
   for (const n of noMeGusta) if (normalizar(n)) otros.add(n.trim());
-  return { codigos: [...codigos], otrosAlimentos: [...otros] };
+  return { codigos: [...codigos], otrosAlimentos: [...otros], aparatos: aparatosDe(aparatos) };
 }
 
 // Palabras clave por restricción.
@@ -163,6 +165,8 @@ export interface RecetaRevisable {
   nombre: string;
   alergenos: string[];
   ingredientes: { nombre: string; nota?: string | null }[];
+  aparatos?: string[] | null; // si se sabe, se comprueba que la persona tenga esos aparatos
+  nota_airfryer?: string | null;
 }
 
 // ¿Algún ingrediente es un sustituto apto ("pan sin gluten", "harina de arroz", "yogur sin lactosa")?
@@ -192,6 +196,9 @@ export function motivosNoApta(receta: RecetaRevisable, r: Restricciones): string
   for (const alimento of r.otrosAlimentos) {
     const culpable = [receta.nombre, ...ingredientes].find((t) => contieneAlimento(t, alimento));
     if (culpable) motivos.push(`${alimento} en «${culpable}»`);
+  }
+  if (receta.aparatos) {
+    for (const a of aparatosQueFaltan(receta.aparatos, receta.nota_airfryer, r.aparatos ?? APARATOS_POR_DEFECTO)) motivos.push(`necesita ${NOMBRE_APARATO[a]}`);
   }
   return motivos;
 }

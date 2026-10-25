@@ -41,7 +41,7 @@ async function cambiar(req: Request): Promise<Response> {
   const energia = await energiaDe(admin, perfil, hoy);
   const parte = comidasDelDia(perfil.comidas_dia ?? 5).find((c) => c.tipo === tipo)?.parte ?? 0.3;
   const nivel: Nivel = perfil.nivel_cocina ?? 'facil';
-  const restr = restriccionesDe(perfil.alergias ?? [], perfil.no_me_gusta ?? []);
+  const restr = restriccionesDe(perfil.alergias ?? [], perfil.no_me_gusta ?? [], perfil.aparatos);
 
   // Platos de los días cercanos: no se proponen otra vez.
   const { data: cercanas } = await admin

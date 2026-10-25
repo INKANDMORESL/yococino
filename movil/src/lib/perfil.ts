@@ -22,6 +22,7 @@ export function aPerfil(e: Encuesta, consentimientoAt: string | null) {
     peso_objetivo_kg: e.objetivo === 'perder' ? numero(e.pesoObjetivo) : null,
     actividad: e.actividad,
     nivel_cocina: e.nivel,
+    aparatos: e.aparatos ?? ['horno', 'microondas'],
     comidas_dia: e.comidas,
     alergias: e.alergias,
     condiciones: e.condiciones,

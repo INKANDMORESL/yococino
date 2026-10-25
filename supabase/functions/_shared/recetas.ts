@@ -7,6 +7,7 @@ import { KCAL_RACION_ESTANDAR, type TipoComida } from './nutricion.ts';
 import { frutasDelMes, frutasFueraDeTemporada } from './temporada.ts';
 import { limpiarNombre, normalizar } from './texto.ts';
 import { fotoAlCrear } from './fotos.ts';
+import { APARATOS, APARATOS_POR_DEFECTO, aparatosValidos, describirCocina } from './aparatos.ts';
 
 // Límite global de recetas nuevas al mes (ver migración cupo_recetas): si se llega, no se crean más.
 export class ErrorCupo extends Error {
@@ -52,6 +53,8 @@ export interface RecetaGuardada {
   kcal: number | null;
   alergenos: string[];
   ingredientes: { nombre: string; nota: string | null }[];
+  aparatos?: string[] | null;
+  nota_airfryer?: string | null;
 }
 
 export interface RecetaIA {
@@ -66,14 +69,16 @@ export interface RecetaIA {
   nutricion: { kcal: number; proteinas: number; hidratos: number; grasas: number; fibra: number };
   alergenos: string[];
   etiquetas?: string[];
+  aparatos?: string[];
+  nota_airfryer?: string;
 }
 
-export const COLUMNAS_RECETA = 'id, nombre, tipo_comida, kcal, alergenos, ingredientes(nombre, nota)';
+export const COLUMNAS_RECETA = 'id, nombre, tipo_comida, kcal, alergenos, aparatos, nota_airfryer, ingredientes(nombre, nota)';
 
 export const ESQUEMA_RECETA = {
   type: 'object',
   additionalProperties: false,
-  required: ['nombre', 'descripcion', 'minutos', 'nivel', 'ingredientes', 'pasos', 'consejos', 'sustituciones', 'nutricion', 'alergenos', 'etiquetas'],
+  required: ['nombre', 'descripcion', 'minutos', 'nivel', 'ingredientes', 'pasos', 'consejos', 'sustituciones', 'nutricion', 'alergenos', 'etiquetas', 'aparatos', 'nota_airfryer'],
   properties: {
     nombre: { type: 'string', description: 'Nombre apetecible del plato, sin cantidades.' },
     descripcion: { type: 'string', description: 'Una frase que invite a cocinarlo.' },
@@ -111,6 +116,8 @@ export const ESQUEMA_RECETA = {
     },
     alergenos: { type: 'array', items: { type: 'string', enum: ALERGENOS_UE }, description: 'Todos los alérgenos UE presentes.' },
     etiquetas: { type: 'array', items: { type: 'string' }, description: 'Por ejemplo: sin gluten, sin lactosa, vegetariana.' },
+    aparatos: { type: 'array', items: { type: 'string', enum: APARATOS }, description: 'Aparatos que hacen falta. Los fuegos no cuentan.' },
+    nota_airfryer: { type: 'string', description: 'Si usa horno y se puede hacer en airfryer: cómo (°C, minutos). Si no, vacío.' },
   },
 };
 
@@ -130,7 +137,10 @@ export async function enParalelo<T, R>(elementos: T[], limite: number, tarea: (e
 }
 
 export const esApta = (r: RecetaGuardada, restr: Restricciones) =>
-  motivosNoApta({ nombre: r.nombre, alergenos: r.alergenos ?? [], ingredientes: r.ingredientes ?? [] }, restr).length === 0;
+  motivosNoApta(
+    { nombre: r.nombre, alergenos: r.alergenos ?? [], ingredientes: r.ingredientes ?? [], aparatos: r.aparatos ?? [], nota_airfryer: r.nota_airfryer ?? null },
+    restr,
+  ).length === 0;
 
 export const texto = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 export const listaTextos = (v: unknown, maxItems: number, maxLargo: number) =>
@@ -161,7 +171,9 @@ export async function cargarCatalogo(admin: Cliente, tipos: TipoComida[], nivel:
   return [...porTipo.values()].flat();
 }
 
-export function sistemaReceta(tipo: TipoComida, nivel: Nivel, restr: Restricciones, mes: number | null = null) {
+// airfryer = el plato se cocina en airfryer (recetas de airfryer del recetario).
+export function sistemaReceta(tipo: TipoComida, nivel: Nivel, restr: Restricciones, mes: number | null = null, airfryer = false) {
+  const cocina = airfryer ? [...new Set([...(restr.aparatos ?? APARATOS_POR_DEFECTO), 'airfryer' as const])] : (restr.aparatos ?? APARATOS_POR_DEFECTO);
   return `Eres cocinero y dietista-nutricionista. Escribes recetas caseras de cocina mediterránea española, fáciles de seguir mientras se cocina, para UNA ración de una persona adulta.
 
 Reglas:
@@ -176,6 +188,7 @@ Reglas:
 - Alérgenos: marca TODOS los de la lista de la UE presentes en cualquier ingrediente, incluidos pan, salsas, caldos y productos elaborados.
 - Esta receta debe ser apta por completo para alguien que no puede tomar: ${describirRestricciones(restr)}. Usa sustitutos aptos (por ejemplo, pan sin gluten o yogur sin lactosa).
 - Nombre: el del plato tal cual, apetecible y natural. No menciones en el nombre lo que se ha quitado ni las restricciones, y no uses paréntesis (nada de "sin pescado" o "sin gluten"): eso va en las etiquetas.
+${describirCocina(cocina, airfryer)}
 - Español de España, tono cercano. Sin consejos médicos.${
     mes ? `\n- Si lleva fruta fresca, que sea de temporada en España este mes: ${frutasDelMes(mes).join(', ')}.` : ''
   }`;
@@ -243,6 +256,9 @@ export async function guardarReceta(
         kcal: nutricion.kcal === null ? null : Math.round(nutricion.kcal),
         alergenos: (r.alergenos ?? []).filter((a) => (ALERGENOS_UE as readonly string[]).includes(a)),
         etiquetas: listaTextos(r.etiquetas, 6, 30),
+        aparatos: aparatosValidos(r.aparatos),
+        // '' = revisada y no se adapta a airfryer; null = sin revisar.
+        nota_airfryer: typeof r.nota_airfryer === 'string' ? texto(r.nota_airfryer, 300) : null,
         modelo,
         ...(privada ? { privada_de: privada, oculta: true } : {}),
         // Recetas de lotes: ocultas hasta que llegue su foto.
@@ -274,6 +290,8 @@ export async function guardarReceta(
       kcal: nutricion.kcal === null ? null : Math.round(nutricion.kcal),
       alergenos: r.alergenos ?? [],
       ingredientes: ingredientes.map((i) => ({ nombre: i.nombre, nota: i.nota })),
+      aparatos: aparatosValidos(r.aparatos),
+      nota_airfryer: texto(r.nota_airfryer, 300) || null,
     };
   }
   throw new Error('No se encontró un nombre libre para la receta');
@@ -291,7 +309,7 @@ export const mensajeReceta = (plato: string, descripcion: string, tipo: TipoComi
 export function problemaReceta(r: RecetaIA | null, restr: Restricciones): string | null {
   if (!r || !Array.isArray(r.ingredientes) || r.ingredientes.length === 0 || !Array.isArray(r.pasos) || !texto(r.nombre, 80)) return 'incompleta';
   const motivos = motivosNoApta(
-    { nombre: r.nombre, alergenos: r.alergenos ?? [], ingredientes: r.ingredientes.map((i) => ({ nombre: i.nombre, nota: i.nota ?? null })) },
+    { nombre: r.nombre, alergenos: r.alergenos ?? [], ingredientes: r.ingredientes.map((i) => ({ nombre: i.nombre, nota: i.nota ?? null })), aparatos: r.aparatos ?? [], nota_airfryer: r.nota_airfryer ?? null },
     restr,
   );
   return motivos.length ? motivos.join('; ') : null;
@@ -332,7 +350,7 @@ export async function crearReceta(
       continue;
     }
     const motivos = motivosNoApta(
-      { nombre: r.nombre, alergenos: r.alergenos ?? [], ingredientes: r.ingredientes.map((i) => ({ nombre: i.nombre, nota: i.nota ?? null })) },
+      { nombre: r.nombre, alergenos: r.alergenos ?? [], ingredientes: r.ingredientes.map((i) => ({ nombre: i.nombre, nota: i.nota ?? null })), aparatos: r.aparatos ?? [], nota_airfryer: r.nota_airfryer ?? null },
       restr,
     );
     // Fruta fuera de temporada: se pide otra vez una sola vez; no es motivo de seguridad, así que la segunda se acepta.

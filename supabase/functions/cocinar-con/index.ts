@@ -40,7 +40,7 @@ async function cocinar(req: Request): Promise<Response> {
   if ('respuesta' in seguro) return seguro.respuesta;
   const perfil = seguro.perfil;
   const nivel: Nivel = perfil.nivel_cocina ?? 'facil';
-  const restr = restriccionesDe(perfil.alergias ?? [], perfil.no_me_gusta ?? []);
+  const restr = restriccionesDe(perfil.alergias ?? [], perfil.no_me_gusta ?? [], perfil.aparatos);
 
   const aptos: string[] = [];
   const descartados: string[] = [];

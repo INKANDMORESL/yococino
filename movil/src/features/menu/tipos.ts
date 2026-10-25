@@ -44,7 +44,8 @@ export interface Receta {
   imagen_mini?: string | null;
   ingredientes: Ingrediente[];
   // Solo en las recetas guardadas de redes: vídeo original (reproductor oficial), enlace y autor.
-  video_embed?: string | null;
+  nota_airfryer?: string | null;
+  aparatos?: string[] | null;
   origen_url?: string | null;
   origen_autor?: string | null;
 }

@@ -4,6 +4,7 @@ import { comidasDelDia, edadEn, energiaDiaria, factorRacion } from './nutricion.
 import { frutasDelMes, frutasFueraDeTemporada } from './temporada.ts';
 import { contieneAlimento, contienePalabra, limpiarNombre } from './texto.ts';
 import { categoriasDe } from './categorias.ts';
+import { aparatosEnTexto, aparatosQueFaltan } from './aparatos.ts';
 import { avisosNutricion, embedDe, extraerUrl, normalizarUrl, plataformaDe, textoAvisos, urlPermitida } from './importar_reglas.ts';
 
 type Caso = [string, () => boolean];
@@ -126,6 +127,14 @@ export const CASOS: Caso[] = [
   ['reparto: 3 comidas = desayuno, almuerzo, cena', () => comidasDelDia(3).map((c) => c.tipo).join() === 'desayuno,almuerzo,cena'],
   ['factor: limitado entre 0,6 y 1,6', () => factorRacion(2000, 500) === 1.6 && factorRacion(100, 500) === 0.6],
   ['factor: en pasos de 0,05', () => factorRacion(560, 500) === 1.1],
+  // Aparatos de cocina
+  ['aparatos: sin contestar, receta de horno apta', () => motivosNoApta({ nombre: 'Pollo asado', alergenos: [], ingredientes: [], aparatos: ['horno'] }, restriccionesDe([], [])).length === 0],
+  ['aparatos: sin airfryer, receta de airfryer no apta', () => motivosNoApta({ nombre: 'Alitas', alergenos: [], ingredientes: [], aparatos: ['airfryer'] }, restriccionesDe([], [])).length > 0],
+  ['aparatos: con airfryer y sin horno, horno con nota apta', () => aparatosQueFaltan(['horno'], 'En airfryer: 180 °C, 15 min.', ['airfryer']).length === 0],
+  ['aparatos: sin horno ni nota, no apta', () => aparatosQueFaltan(['horno'], '', ['airfryer', 'microondas']).length === 1],
+  ['aparatos: pasos con airfryer no son horno', () => { const a = aparatosEnTexto(['Precalienta la airfryer a 180 °C.']); return a.includes('airfryer') && !a.includes('horno'); }],
+  ['aparatos: pasos con horno', () => aparatosEnTexto(['Hornea 20 minutos a 200 °C.']).includes('horno')],
+  ['categorías: plato de airfryer', () => categoriasDe({ nombre: 'Alitas', ingredientes: [{ nombre: 'alitas de pollo' }], aparatos: ['airfryer'] }).categorias.includes('airfryer')],
 ];
 
 // Deno ejecuta cada caso como una prueba.

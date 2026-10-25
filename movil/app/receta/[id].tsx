@@ -12,7 +12,6 @@ import { ErrorMenu, avisosDeMiReceta, cambiarPlato, cargarComidas, cargarReceta,
 import { faltaFoto, pedirFoto } from '../../src/features/menu/fotos';
 import { AsignarDia } from '../../src/features/menu/AsignarDia';
 import { CambiarIngrediente } from '../../src/features/menu/CambiarIngrediente';
-import { VideoOriginal } from '../../src/features/menu/VideoOriginal';
 import { compartirReceta } from '../../src/features/menu/compartir';
 import Svg, { Path } from 'react-native-svg';
 import { Peques } from '../../src/features/menu/Peques';
@@ -422,6 +421,12 @@ export default function RecetaPantalla() {
             </View>
           </Aparecer>
 
+          {receta.nota_airfryer ? (
+            <View style={[s.nota, { backgroundColor: colors.lemonSoft }]}>
+              <Text style={[type.body, { color: colors.ink }]}>🍟 {receta.nota_airfryer}</Text>
+            </View>
+          ) : null}
+
           {receta.consejos?.length ? (
             <View>
               <Text style={s.seccion}>Consejos</Text>
@@ -463,13 +468,6 @@ export default function RecetaPantalla() {
                 ))}
               </View>
               <Text style={[type.small, { marginTop: space.sm }]}>Por ración, valores aproximados.</Text>
-            </View>
-          ) : null}
-
-          {receta.video_embed ? (
-            <View>
-              <Text style={s.seccion}>🎬 Vídeo original</Text>
-              <VideoOriginal embed={receta.video_embed} origen={receta.origen_url ?? null} autor={receta.origen_autor ?? null} />
             </View>
           ) : null}
 

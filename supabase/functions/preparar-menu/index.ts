@@ -29,6 +29,7 @@ import {
 } from '../_shared/recetas.ts';
 import { frutasDelMes, mesDe } from '../_shared/temporada.ts';
 import { normalizar } from '../_shared/texto.ts';
+import { seHaceEnAirfryer } from '../_shared/aparatos.ts';
 
 // Planificar es sencillo y se hace a diario: modelo barato (ver costes.ts). Las recetas nuevas usan MODELO_RECETA.
 const MODELO_MENU = Deno.env.get('MODELO_MENU') || 'claude-haiku-5-5';
@@ -127,7 +128,7 @@ async function preparar(req: Request): Promise<Response> {
   const comidas = comidasDelDia(perfil.comidas_dia ?? 5);
   const tipos = comidas.map((c) => c.tipo);
   const nivel: Nivel = perfil.nivel_cocina ?? 'facil';
-  const restr = restriccionesDe(perfil.alergias ?? [], perfil.no_me_gusta ?? []);
+  const restr = restriccionesDe(perfil.alergias ?? [], perfil.no_me_gusta ?? [], perfil.aparatos);
 
   // 3. Qué días faltan para tener 30 por delante.
   const fin = sumarDias(hoy, VENTANA_MAX - 1);
@@ -167,6 +168,7 @@ async function preparar(req: Request): Promise<Response> {
   const maxNuevas = Math.min(quedanNuevas, pocasDeAlgunTipo ? 2 * aPreparar.length + 2 : 1 + Math.floor(aPreparar.length / 2));
   const porId = new Map(catalogo.map((r) => [r.id, r]));
   const mes = MESES[numMes - 1];
+  const conAirfryer = (restr.aparatos ?? []).includes('airfryer');
 
   const sistemaMenu = `Eres dietista-nutricionista y cocinero de cocina mediterránea española. Planificas menús caseros, equilibrados, variados y apetecibles para una persona adulta sana.
 
@@ -181,16 +183,23 @@ Reglas obligatorias:
       ? `Solo si de verdad no hay ninguna adecuada, propón un plato nuevo con "plato" (nombre corto y apetecible, sin cantidades) y "descripcion" (una línea); como máximo ${maxNuevas} platos nuevos en total en esta respuesta.`
       : 'No propongas platos nuevos: usa solo recetas del catálogo (receta_id) y deja plato y descripcion en null.'
   }
-- Devuelve exactamente las comidas pedidas para cada día. Sin consejos médicos.`;
+${
+    conAirfryer
+      ? '- Tiene airfryer: incluye 2 o 3 almuerzos o cenas a la semana que se hagan en airfryer (marcados «airfryer» en el catálogo). No más, para que haya variedad.\n'
+      : ''
+  }- Devuelve exactamente las comidas pedidas para cada día. Sin consejos médicos.`;
 
   // Recetas ya usadas cerca: no se repiten al elegir del catálogo sin IA, y van al final de lo que se enseña a la IA.
   const usadas = new Set(filasExistentes.map((e) => e.receta_id).filter((x): x is number => x !== null));
   const catalogoIA = tipos.flatMap((t) => {
     const delTipo = catalogo.filter((r) => r.tipo_comida === t);
-    return [...delTipo.filter((r) => !usadas.has(r.id)), ...delTipo.filter((r) => usadas.has(r.id))].slice(0, CATALOGO_POR_TIPO);
+    const orden = [...delTipo.filter((r) => !usadas.has(r.id)), ...delTipo.filter((r) => usadas.has(r.id))];
+    // Con airfryer, que siempre se vean algunas de airfryer aunque el catálogo sea grande.
+    const deAirfryer = conAirfryer ? orden.filter((r) => seHaceEnAirfryer(r.aparatos, r.nota_airfryer)).slice(0, 6) : [];
+    return [...deAirfryer, ...orden.filter((r) => !deAirfryer.includes(r))].slice(0, CATALOGO_POR_TIPO);
   });
   const lineasCatalogo = catalogoIA.length
-    ? catalogoIA.map((r) => `${r.id} · ${r.tipo_comida} · ${r.nombre}`).join('\n')
+    ? catalogoIA.map((r) => `${r.id} · ${r.tipo_comida} · ${r.nombre}${conAirfryer && seHaceEnAirfryer(r.aparatos, r.nota_airfryer) ? ' · airfryer' : ''}`).join('\n')
     : '(vacío: propón platos nuevos)';
   const mensajeMenu = `Días a planificar:
 ${aPreparar.map((f) => `- ${f} (${diaSemana(f)})`).join('\n')}

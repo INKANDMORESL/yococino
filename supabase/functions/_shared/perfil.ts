@@ -21,6 +21,7 @@ export interface Perfil {
   alergias: string[] | null;
   condiciones: string[] | null;
   no_me_gusta: string[] | null;
+  aparatos: string[] | null;
   consentimiento_salud_at: string | null;
   num_peques: number | null;
   franjas_peques: string[] | null;

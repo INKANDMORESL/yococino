@@ -1,6 +1,7 @@
 // Categorías del recetario por ingrediente principal (carne, pescado…), para los filtros de la pestaña Recetas.
 // Se deducen del nombre del plato y de sus ingredientes, sin IA. Sin dependencias de Deno: se prueban en reglas_test.ts.
 import { contieneAlimento, normalizar } from './texto.ts';
+import { seHaceEnAirfryer } from './aparatos.ts';
 
 export const SUBCATEGORIAS: Record<string, Record<string, string[]>> = {
   carne: {
@@ -24,7 +25,7 @@ const GRUPOS: Record<string, string[]> = {
   pasta_arroz: ['pasta', 'espagueti', 'macarron', 'tallarin', 'fideo', 'lasaña', 'arroz', 'cuscus', 'ñoqui', 'quinoa'],
 };
 
-export const CATEGORIAS = ['carne', 'pescado', 'marisco', 'huevos', 'legumbres', 'vegetal', 'pasta_arroz'] as const;
+export const CATEGORIAS = ['carne', 'pescado', 'marisco', 'huevos', 'legumbres', 'vegetal', 'pasta_arroz', 'airfryer'] as const;
 export type Categoria = (typeof CATEGORIAS)[number];
 
 // "Jamón de pavo" no es cerdo y "lomo de salmón" no es carne: se quitan antes de buscar.
@@ -32,7 +33,7 @@ const quitarConfusiones = (t: string) => t.replace(/jamon de pavo/g, 'pavo').rep
 
 const hay = (texto: string, palabras: string[]) => palabras.some((p) => contieneAlimento(texto, p));
 
-export function categoriasDe(r: { nombre: string; ingredientes?: { nombre: string }[] | null }): { categorias: Categoria[]; sub: string[] } {
+export function categoriasDe(r: { nombre: string; ingredientes?: { nombre: string }[] | null; aparatos?: string[] | null; nota_airfryer?: string | null }): { categorias: Categoria[]; sub: string[] } {
   const texto = quitarConfusiones(normalizar([r.nombre, ...(r.ingredientes ?? []).map((i) => i.nombre)].join(' | ')));
   const categorias = new Set<Categoria>();
   const sub: string[] = [];
@@ -46,5 +47,7 @@ export function categoriasDe(r: { nombre: string; ingredientes?: { nombre: strin
   }
   for (const [cat, palabras] of Object.entries(GRUPOS)) if (hay(texto, palabras)) categorias.add(cat as Categoria);
   if (!categorias.has('carne') && !categorias.has('pescado') && !categorias.has('marisco')) categorias.add('vegetal');
+  // Se hace en airfryer (plato de airfryer o de horno con su nota para airfryer).
+  if (seHaceEnAirfryer(r.aparatos, r.nota_airfryer)) categorias.add('airfryer');
   return { categorias: [...categorias], sub };
 }
