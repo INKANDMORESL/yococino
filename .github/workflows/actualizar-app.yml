@@ -1,0 +1,44 @@
+# Actualiza la app ya instalada (desde Google Play o la App Store) sin subir otra versión a las tiendas.
+# Solo sirve para cambios de pantallas y textos; si cambian piezas nativas hay que crear una versión nueva.
+# Las personas la reciben al abrir la app (se aplica al volver a abrirla). Se lanza a mano.
+name: Actualizar la app instalada
+
+on:
+  workflow_dispatch:
+    inputs:
+      nota:
+        description: 'Qué cambia (para el registro)'
+        required: false
+        default: 'Mejoras'
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: movil
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Instalar dependencias
+        run: |
+          for intento in 1 2 3; do
+            npm install --no-audit --no-fund > instalar.txt 2>&1 && exit 0
+            sleep 15
+          done
+          tail -n 30 instalar.txt
+          exit 1
+      - name: Enlazar con el proyecto de Expo
+        run: |
+          npx --yes eas-cli@latest init --non-interactive --force
+          npx --yes eas-cli@latest update:configure --platform all --non-interactive
+      - name: Publicar la actualización
+        run: |
+          npx --yes eas-cli@latest update --branch production --platform android --message "${{ inputs.nota }}" --non-interactive
+          echo "::notice title=App actualizada::Las personas con la app instalada la recibirán al abrirla."

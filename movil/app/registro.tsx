@@ -95,7 +95,9 @@ export default function Registro() {
             <Text style={[type.small, s.centrado]}>¿No lo ves? Mira en la carpeta de correo no deseado.</Text>
           </Aparecer>
         </View>
-        <Boton texto="Ya lo he confirmado, entrar" onPress={() => router.replace('/entrar')} />
+        <View style={s.pieSuelto}>
+          <Boton texto="Ya lo he confirmado, entrar" onPress={() => router.replace('/entrar')} />
+        </View>
       </SafeAreaView>
     );
   }
@@ -182,6 +184,7 @@ const s = StyleSheet.create({
   centrado: { textAlign: 'center' },
   ver: { alignSelf: 'flex-end', paddingVertical: space.sm, paddingHorizontal: space.xs },
   verTexto: { fontSize: 14, fontWeight: '600', color: colors.olive },
+  pieSuelto: { paddingHorizontal: space.xl, paddingBottom: space.lg },
   pie: { padding: space.xl, paddingTop: space.md, gap: space.xs, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.bg },
   enlace: { alignSelf: 'center', padding: space.sm },
   enlaceTexto: { color: colors.olive, fontWeight: '700' },
