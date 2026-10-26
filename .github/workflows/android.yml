@@ -42,7 +42,7 @@ jobs:
       - name: Datos públicos del servidor para la app
         run: |
           jq --arg url "${{ vars.SUPABASE_URL }}" --arg clave "${{ vars.SUPABASE_ANON_KEY }}" --arg rc "${{ vars.REVENUECAT_ANDROID_KEY }}" \
-            '.build.production.env = {EXPO_PUBLIC_SUPABASE_URL: $url, EXPO_PUBLIC_SUPABASE_ANON_KEY: $clave, EXPO_PUBLIC_REVENUECAT_ANDROID_KEY: $rc}' eas.json > eas.tmp && mv eas.tmp eas.json
+            '.build.production.env = ({EXPO_PUBLIC_SUPABASE_URL: $url, EXPO_PUBLIC_SUPABASE_ANON_KEY: $clave} + (if $rc != "" then {EXPO_PUBLIC_REVENUECAT_ANDROID_KEY: $rc} else {} end))' eas.json > eas.tmp && mv eas.tmp eas.json
 
       - name: Crear la app de Android (.aab)
         run: |
