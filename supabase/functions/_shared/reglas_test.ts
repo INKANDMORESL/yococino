@@ -5,6 +5,7 @@ import { frutasDelMes, frutasFueraDeTemporada } from './temporada.ts';
 import { contieneAlimento, contienePalabra, limpiarNombre } from './texto.ts';
 import { categoriasDe } from './categorias.ts';
 import { aparatosEnTexto, aparatosQueFaltan } from './aparatos.ts';
+import { encajaPreferencia, interpretarPreferencias } from './preferencias.ts';
 import { avisosNutricion, embedDe, extraerUrl, normalizarUrl, plataformaDe, textoAvisos, urlPermitida } from './importar_reglas.ts';
 
 type Caso = [string, () => boolean];
@@ -135,6 +136,13 @@ export const CASOS: Caso[] = [
   ['aparatos: pasos con airfryer no son horno', () => { const a = aparatosEnTexto(['Precalienta la airfryer a 180 °C.']); return a.includes('airfryer') && !a.includes('horno'); }],
   ['aparatos: pasos con horno', () => aparatosEnTexto(['Hornea 20 minutos a 200 °C.']).includes('horno')],
   ['categorías: plato de airfryer', () => categoriasDe({ nombre: 'Alitas', ingredientes: [{ nombre: 'alitas de pollo' }], aparatos: ['airfryer'] }).categorias.includes('airfryer')],
+  // Preferencias escritas
+  ['preferencias: me gusta desayunar pan', () => interpretarPreferencias('Yo generalmente me gusta desayunar pan').prefs.mas.desayuno?.[0] === 'pan'],
+  ['preferencias: no me gusta el pimiento ni la cebolla', () => interpretarPreferencias('No me gusta el pimiento ni la cebolla').prefs.evitar.join() === 'pimiento,cebolla'],
+  ['preferencias: quiero más recetas con pollo', () => interpretarPreferencias('Quiero más recetas con pollo').prefs.mas.todas?.[0] === 'pollo'],
+  ['preferencias: cerveza no se acepta', () => interpretarPreferencias('quiero más cerveza').ignorado[0] === 'cerveza'],
+  ['preferencias: legumbres encaja con lentejas', () => encajaPreferencia({ nombre: 'Lentejas estofadas', ingredientes: [{ nombre: 'lentejas' }] }, ['legumbres'])],
+  ['preferencias: pan no es panceta', () => !encajaPreferencia({ nombre: 'Panceta asada', ingredientes: [] }, ['pan'])],
 ];
 
 // Deno ejecuta cada caso como una prueba.

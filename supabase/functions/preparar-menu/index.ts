@@ -30,6 +30,7 @@ import {
 import { frutasDelMes, mesDe } from '../_shared/temporada.ts';
 import { normalizar } from '../_shared/texto.ts';
 import { seHaceEnAirfryer } from '../_shared/aparatos.ts';
+import { encajaPreferencia, NOMBRE_TOMA, type Preferencias } from '../_shared/preferencias.ts';
 
 // Planificar es sencillo y se hace a diario: modelo barato (ver costes.ts). Las recetas nuevas usan MODELO_RECETA.
 const MODELO_MENU = Deno.env.get('MODELO_MENU') || 'claude-haiku-5-5';
@@ -170,7 +171,7 @@ async function preparar(req: Request): Promise<Response> {
 
   // 4. Pedir a la IA los platos de esos días.
   const numMes = mesDe(aPreparar[0]);
-  const catalogo = await cargarCatalogo(admin, tipos, nivel, restr, numMes, 60);
+  const catalogo = await cargarCatalogo(admin, tipos, nivel, restr, numMes, (perfil as { preferencias?: unknown }).preferencias ? 200 : 60);
   // Platos nuevos: solo si quedan en el cupo global del mes y pocos por llamada; lo normal es reutilizar.
   const quedanNuevas = modo === 'completo' ? (await cupoRecetas(admin)).quedan : 0;
   const pocasDeAlgunTipo = tipos.some((t) => catalogo.filter((r) => r.tipo_comida === t).length < 12);
@@ -178,6 +179,16 @@ async function preparar(req: Request): Promise<Response> {
   const porId = new Map(catalogo.map((r) => [r.id, r]));
   const mes = MESES[numMes - 1];
   const conAirfryer = (restr.aparatos ?? []).includes('airfryer');
+  // Lo que la persona ha escrito que le gusta (Perfil → Cómo te gusta comer). Se respeta reutilizando recetas.
+  const prefs = ((perfil as { preferencias?: Preferencias | null }).preferencias ?? null) as Preferencias | null;
+  const prefTipo = (t: TipoComida) => prefs?.mas?.[t] ?? [];
+  const prefGeneral = prefs?.mas?.todas ?? [];
+  const encajaTipo = (r: RecetaGuardada) => encajaPreferencia(r, prefTipo(r.tipo_comida));
+  const encajaGeneral = (r: RecetaGuardada) => encajaPreferencia(r, prefGeneral);
+  const lineasPrefs = [
+    ...tipos.filter((t) => prefTipo(t).length).map((t) => `${NOMBRE_TOMA[t]}: casi siempre con ${prefTipo(t).join(', ')} (marcados «le gusta»)`),
+    ...(prefGeneral.length ? [`en general, más platos con ${prefGeneral.join(', ')}, sin dejar de variar`] : []),
+  ];
 
   const sistemaMenu = `Eres dietista-nutricionista y cocinero de cocina mediterránea española. Planificas menús caseros, equilibrados, variados y apetecibles para una persona adulta sana.
 
@@ -193,6 +204,10 @@ Reglas obligatorias:
       : 'No propongas platos nuevos: usa solo recetas del catálogo (receta_id) y deja plato y descripcion en null.'
   }
 ${
+    lineasPrefs.length
+      ? `- Gustos de la persona (respétalos siempre que cumplan las demás reglas; elige del catálogo los marcados «le gusta»): ${lineasPrefs.join('; ')}.\n`
+      : ''
+  }${
     conAirfryer
       ? '- Tiene airfryer: incluye 2 o 3 almuerzos o cenas a la semana que se hagan en airfryer (marcados «airfryer» en el catálogo). No más, para que haya variedad.\n'
       : ''
@@ -205,10 +220,18 @@ ${
     const orden = [...delTipo.filter((r) => !usadas.has(r.id)), ...delTipo.filter((r) => usadas.has(r.id))];
     // Con airfryer, que siempre se vean algunas de airfryer aunque el catálogo sea grande.
     const deAirfryer = conAirfryer ? orden.filter((r) => seHaceEnAirfryer(r.aparatos, r.nota_airfryer)).slice(0, 6) : [];
-    return [...deAirfryer, ...orden.filter((r) => !deAirfryer.includes(r))].slice(0, CATALOGO_POR_TIPO);
+    // Primero lo que encaja con sus gustos de esa toma; luego algunos de sus gustos generales.
+    const gusta = [...orden.filter(encajaTipo), ...orden.filter((r) => !encajaTipo(r) && encajaGeneral(r)).slice(0, 8)];
+    const primero = [...new Set([...gusta, ...deAirfryer])];
+    return [...primero, ...orden.filter((r) => !primero.includes(r))].slice(0, CATALOGO_POR_TIPO);
   });
   const lineasCatalogo = catalogoIA.length
-    ? catalogoIA.map((r) => `${r.id} · ${r.tipo_comida} · ${r.nombre}${conAirfryer && seHaceEnAirfryer(r.aparatos, r.nota_airfryer) ? ' · airfryer' : ''}`).join('\n')
+    ? catalogoIA
+        .map(
+          (r) =>
+            `${r.id} · ${r.tipo_comida} · ${r.nombre}${encajaTipo(r) || encajaGeneral(r) ? ' · le gusta' : ''}${conAirfryer && seHaceEnAirfryer(r.aparatos, r.nota_airfryer) ? ' · airfryer' : ''}`,
+        )
+        .join('\n')
     : '(vacío: propón platos nuevos)';
   const mensajeMenu = `Días a planificar:
 ${aPreparar
@@ -232,7 +255,9 @@ ${lineasCatalogo}`;
   const elegirDelCatalogo = (tipo: TipoComida): RecetaGuardada | null => {
     const delTipo = catalogo.filter((r) => r.tipo_comida === tipo);
     const libres = delTipo.filter((r) => !usadas.has(r.id));
-    const lista = libres.length ? libres : delTipo;
+    // Sin IA: si tiene gustos para esta toma, primero las recetas que encajan.
+    const libresQueGustan = libres.filter(encajaTipo);
+    const lista = libresQueGustan.length ? libresQueGustan : libres.length ? libres : delTipo;
     if (!lista.length) return null;
     const r = lista[Math.floor(Math.random() * lista.length)];
     usadas.add(r.id);

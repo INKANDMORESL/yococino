@@ -223,3 +223,13 @@ export function textoAvisos(avisos: string[]): string | null {
   if (calorias) return 'Tiene muchas calorías.';
   return `Tiene alto contenido en ${lista(resto)}.`;
 }
+
+// «Cuéntanos cómo te gusta comer»: guarda lo escrito y cambia solo los platos afectados.
+export interface ResultadoPreferencias {
+  entendido: string[];
+  ignorado: string[];
+  quitadas: number;
+  cambiadas?: string[];
+}
+export const guardarComoComes = (texto: string) =>
+  llamar<ResultadoPreferencias>('preferencias', { texto }, 'No hemos podido guardar tus preferencias.');

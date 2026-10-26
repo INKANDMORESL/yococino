@@ -19,6 +19,7 @@ import { respuestasSinLeer } from '../../src/features/contacto/api';
 import { abrirLegal } from '../../src/features/cuenta/Legal';
 import { useAuth } from '../../src/lib/auth';
 import { cambiarPromociones } from '../../src/lib/perfil';
+import { ComoComes } from '../../src/features/perfil/ComoComes';
 import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../../src/theme';
 import { useSubirAlTocarPestana } from '../../src/lib/subirArriba';
@@ -63,6 +64,7 @@ export default function Perfil() {
   const [admin, setAdmin] = useState(false);
   const [sinLeer, setSinLeer] = useState(0);
   const [promociones, setPromociones] = useState<boolean | null>(null);
+  const [comoComes, setComoComes] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -77,6 +79,7 @@ export default function Perfil() {
           }
           setFavoritas(favs);
           setPromociones(!!(perfil as { promociones?: boolean } | null)?.promociones);
+          setComoComes((perfil as { preferencias_texto?: string | null } | null)?.preferencias_texto ?? null);
           esAdmin().then(setAdmin).catch(() => {});
           respuestasSinLeer().then(setSinLeer).catch(() => {});
         } catch (err) {
@@ -195,6 +198,24 @@ export default function Perfil() {
         {error ? <Aviso tono="rosa" texto={error} /> : null}
         {aviso ? <Aviso tono="hoja" texto={aviso} /> : null}
         {hayCambios ? <Boton texto="Guardar cambios" cargando={guardando} onPress={guardar} /> : null}
+
+        {e ? (
+          <Aparecer retraso={100}>
+            <ComoComes
+              inicial={comoComes}
+              alGuardar={() =>
+                cargarPerfil()
+                  .then(({ perfil, pesoActual }) => {
+                    if (!perfil) return;
+                    const { noMeGusta } = aEncuesta(perfil, pesoActual);
+                    setOriginal((o) => (o ? { ...o, noMeGusta } : o));
+                    setE((x) => (x ? { ...x, noMeGusta } : x));
+                  })
+                  .catch(() => {})
+              }
+            />
+          </Aparecer>
+        ) : null}
 
         <Aparecer retraso={120}>
           <Text style={s.titulo}>Recetas favoritas</Text>
