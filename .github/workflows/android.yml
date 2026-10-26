@@ -46,6 +46,10 @@ jobs:
 
       - name: Crear la app de Android (.aab)
         run: |
-          npx --yes eas-cli@latest build --platform android --profile production --non-interactive --no-wait --json > build.json || (cat build.json; exit 1)
+          if ! npx --yes eas-cli@latest build --platform android --profile production --non-interactive --no-wait --json > build.json 2> error.txt; then
+            cat build.json error.txt
+            echo "::error title=App Android::$(grep -v '^\s*$' error.txt | tail -n 12 | tr '\n' ' ' | cut -c1-1500)"
+            exit 1
+          fi
           ID=$(node -e "const b=require('./build.json'); console.log((Array.isArray(b)?b[0]:b).id)")
           echo "::notice title=App Android::Se está creando en Expo (tarda unos 15-30 minutos). Cuando acabe, el archivo .aab se descarga desde https://expo.dev/accounts/[cuenta]/projects/yococino/builds/$ID"
