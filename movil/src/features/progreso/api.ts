@@ -104,3 +104,65 @@ export async function borrarMedida(id: number) {
   const { error } = await supabase.from('medidas').delete().eq('id', id);
   if (error) throw new Error('No se ha podido borrar el registro.');
 }
+
+// ---------- Lo que comes: kcal y macros por día ----------
+// Se suman las comidas del menú de la persona de la cuenta. Las cantidades de cada receta son de una ración
+// estándar y se ajustan con comidas.factor (la ración de cada persona).
+export interface DiaNutricion {
+  fecha: string;
+  kcal: number; // de las comidas marcadas como hechas
+  proteinas: number;
+  hidratos: number;
+  grasas: number;
+  kcalPlan: number; // de todo el menú del día
+  proteinasPlan: number;
+  hidratosPlan: number;
+  grasasPlan: number;
+  hechas: number;
+  total: number;
+}
+
+export async function cargarNutricion(desde: string, hasta: string): Promise<{ dias: DiaNutricion[]; kcalObjetivo: number | null }> {
+  const [c, p] = await Promise.all([
+    supabase
+      .from('comidas')
+      .select('fecha, kcal, factor, hecha, receta:recetas(kcal, nutricion)')
+      .gte('fecha', desde)
+      .lte('fecha', hasta),
+    supabase.from('profiles').select('kcal_dia').maybeSingle(),
+  ]);
+  if (c.error) throw new Error('No hemos podido cargar lo que comes.');
+  const porDia = new Map<string, DiaNutricion>();
+  const filas = (c.data ?? []) as unknown as {
+    fecha: string;
+    kcal: number | null;
+    factor: number | null;
+    hecha: boolean;
+    receta: { kcal: number | null; nutricion: Record<string, number | null> | null } | null;
+  }[];
+  for (const f of filas) {
+    const d =
+      porDia.get(f.fecha) ??
+      { fecha: f.fecha, kcal: 0, proteinas: 0, hidratos: 0, grasas: 0, kcalPlan: 0, proteinasPlan: 0, hidratosPlan: 0, grasasPlan: 0, hechas: 0, total: 0 };
+    const factor = Number(f.factor) || 1;
+    const n = f.receta?.nutricion ?? {};
+    const kcal = Number(f.kcal) || (Number(f.receta?.kcal) || 0) * factor;
+    const pr = (Number(n.proteinas) || 0) * factor;
+    const hi = (Number(n.hidratos) || 0) * factor;
+    const gr = (Number(n.grasas) || 0) * factor;
+    d.total++;
+    d.kcalPlan += kcal;
+    d.proteinasPlan += pr;
+    d.hidratosPlan += hi;
+    d.grasasPlan += gr;
+    if (f.hecha) {
+      d.hechas++;
+      d.kcal += kcal;
+      d.proteinas += pr;
+      d.hidratos += hi;
+      d.grasas += gr;
+    }
+    porDia.set(f.fecha, d);
+  }
+  return { dias: [...porDia.values()].sort((a, b) => a.fecha.localeCompare(b.fecha)), kcalObjetivo: Number(p.data?.kcal_dia) || null };
+}

@@ -1,4 +1,4 @@
-// Progreso: peso, tendencia semanal hacia el objetivo y medidas corporales, de la persona de la cuenta y de su familia.
+// Progreso: lo que comes (kcal y macros), peso, tendencia semanal hacia el objetivo y medidas corporales, de la persona de la cuenta y de su familia.
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { guardarCache, leerCache } from '../../src/lib/cache';
@@ -24,6 +24,7 @@ import {
 import { kg, resumen } from '../../src/features/progreso/calculos';
 import { NuevoMiembro, SelectorPersona } from '../../src/features/progreso/Familia';
 import { Grafica } from '../../src/features/progreso/Grafica';
+import { LoQueComes } from '../../src/features/progreso/LoQueComes';
 import { useAuth } from '../../src/lib/auth';
 import { colors, radius, space, type } from '../../src/theme';
 
@@ -252,6 +253,9 @@ export default function Progreso() {
             {r.mensaje ? <Text style={[type.body, { color: colors.oliveInk }]}>{r.mensaje}</Text> : null}
           </Tarjeta>
         </Aparecer>
+
+        {/* Las comidas del menú son de la persona de la cuenta. */}
+        {persona === null ? <LoQueComes /> : null}
 
         <Aparecer retraso={120}>
           <Tarjeta style={{ gap: space.md }}>
