@@ -1,7 +1,7 @@
 // Contactar con Yococino: conversación con el equipo. Las respuestas llegan desde el panel de gestión.
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState, type ComponentRef } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aviso } from '../src/components';
 import { cargarMensajes, enviarMensaje, marcarLeidos, type Mensaje } from '../src/features/contacto/api';
@@ -77,7 +77,7 @@ export default function Contacto() {
         <Text style={s.instagramFlecha}>›</Text>
       </Pressable>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView ref={lista} contentContainerStyle={s.contenido} onContentSizeChange={() => lista.current?.scrollToEnd({ animated: false })}>
           {mensajes === null ? (
             <ActivityIndicator color={colors.olive} style={{ marginTop: space.xxl }} />

@@ -19,6 +19,7 @@ import { guardarCache, leerCache } from '../../src/lib/cache';
 import { AvisoPlan } from '../../src/features/plan/AvisoPlan';
 import { fueraDelPlan, usePlan } from '../../src/features/plan/plan';
 import { colors, radius, shadow, space, type } from '../../src/theme';
+import { useSubirAlTocarPestana } from '../../src/lib/subirArriba';
 
 const DIAS = 30;
 const fechaCorta = (iso: string) => {
@@ -38,6 +39,7 @@ type Estado =
   | { tipo: 'listo' };
 
 export default function Inicio() {
+  const arriba = useSubirAlTocarPestana();
   const { sesion, cargando: cargandoSesion, salir } = useAuth();
   const hoy = hoyISO();
   const dias = useMemo(() => Array.from({ length: DIAS }, (_, i) => sumarDias(hoy, i)), [hoy]);
@@ -271,6 +273,7 @@ export default function Inicio() {
   return (
     <SafeAreaView style={s.pantalla} edges={['top']}>
       <ScrollView
+        ref={arriba}
         contentContainerStyle={{ paddingBottom: space.xxl }}
         refreshControl={<RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={colors.olive} />}
       >

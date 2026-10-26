@@ -12,6 +12,7 @@ import { cargarFavoritas } from '../../src/features/perfil/api';
 import { MisRecetas } from '../../src/features/recetas/MisRecetas';
 import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../../src/theme';
+import { useSubirAlTocarPestana } from '../../src/lib/subirArriba';
 
 const FILTROS: { clave: string | null; texto: string }[] = [
   { clave: null, texto: 'Todas' },
@@ -55,6 +56,7 @@ const CATEGORIAS: { clave: string; texto: string; subs?: { clave: string; texto:
 ];
 
 export default function Recetas() {
+  const arriba = useSubirAlTocarPestana();
   const [texto, setTexto] = useState('');
   const { ver } = useLocalSearchParams<{ ver?: string }>();
   const [filtro, setFiltro] = useState<string | null>(ver === 'mias' ? 'mias' : null);
@@ -118,7 +120,7 @@ export default function Recetas() {
 
   return (
     <SafeAreaView style={s.pantalla} edges={['top']}>
-      <ScrollView contentContainerStyle={s.contenido} keyboardShouldPersistTaps="handled" stickyHeaderIndices={[1]}>
+      <ScrollView ref={arriba} contentContainerStyle={s.contenido} keyboardShouldPersistTaps="handled" stickyHeaderIndices={[1]}>
         <Aparecer>
           <Text style={type.display}>Recetas</Text>
           <Text style={[type.body, { marginTop: 2 }]}>Todas aptas para ti. Ábrelas y añádelas al día que quieras.</Text>

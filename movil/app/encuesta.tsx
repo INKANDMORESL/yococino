@@ -1,7 +1,7 @@
 // Encuesta inicial: un paso cada vez, con transición animada entre pasos.
 import { router } from 'expo-router';
 import { useRef, useState, type ComponentRef } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, BarraProgreso, Boton, useSacudida } from '../src/components';
 import { PASOS, erroresPaso } from '../src/features/encuesta/modelo';
@@ -41,7 +41,7 @@ export default function EncuestaPantalla() {
 
   return (
     <SafeAreaView style={s.pantalla}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <View style={s.cabecera}>
           <Pressable onPress={atras} accessibilityRole="button" accessibilityLabel="Volver" style={s.volver}>
             <Text style={s.flecha}>‹</Text>

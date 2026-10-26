@@ -12,6 +12,7 @@ import { TIPOS, type TipoComida } from '../../src/features/menu/tipos';
 import { useAuth } from '../../src/lib/auth';
 import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../../src/theme';
+import { useSubirAlTocarPestana } from '../../src/lib/subirArriba';
 
 const RANGOS = [
   { clave: 'hoy', texto: 'Hoy', dias: 1 },
@@ -27,6 +28,7 @@ const nombreDia = (iso: string) => {
 };
 
 export default function Compra() {
+  const arriba = useSubirAlTocarPestana();
   const { sesion } = useAuth();
   const [rango, setRango] = useState<(typeof RANGOS)[number]['clave']>('3d');
   const [comidas, setComidas] = useState<ComidaConIngredientes[]>(leerCache('compra:3d') ?? []);
@@ -129,7 +131,7 @@ export default function Compra() {
 
   return (
     <SafeAreaView style={s.pantalla} edges={['top']}>
-      <ScrollView contentContainerStyle={s.contenido}>
+      <ScrollView ref={arriba} contentContainerStyle={s.contenido}>
         <Aparecer>
           <Text style={type.display}>Lista de la compra</Text>
           <Text style={[type.body, { marginTop: 2 }]}>Sale sola de tu menú, con las cantidades ya sumadas.</Text>

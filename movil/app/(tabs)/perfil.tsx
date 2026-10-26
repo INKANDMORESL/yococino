@@ -21,6 +21,7 @@ import { useAuth } from '../../src/lib/auth';
 import { cambiarPromociones } from '../../src/lib/perfil';
 import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../../src/theme';
+import { useSubirAlTocarPestana } from '../../src/lib/subirArriba';
 
 type Seccion = 'objetivo' | 'actividad' | 'salud' | 'gustos' | 'cocina' | 'casa';
 
@@ -47,6 +48,7 @@ function resumenSeccion(c: Seccion, e: Encuesta): string {
 }
 
 export default function Perfil() {
+  const arriba = useSubirAlTocarPestana();
   const { sesion, salir } = useAuth();
   const previo = leerCache<{ enc: Encuesta | null; favs: { id: number; nombre: string; tipo_comida: string }[] }>('perfil');
   const [original, setOriginal] = useState<Encuesta | null>(previo?.enc ?? null);
@@ -132,7 +134,7 @@ export default function Perfil() {
 
   return (
     <SafeAreaView style={s.pantalla} edges={['top']}>
-      <ScrollView contentContainerStyle={s.contenido} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={arriba} contentContainerStyle={s.contenido} keyboardShouldPersistTaps="handled">
         <Aparecer>
           <Text style={type.display}>Perfil</Text>
           <Text style={[type.body, { marginTop: 2 }]}>{sesion?.user.email}</Text>

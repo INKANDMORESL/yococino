@@ -27,6 +27,7 @@ import { Grafica } from '../../src/features/progreso/Grafica';
 import { LoQueComes } from '../../src/features/progreso/LoQueComes';
 import { useAuth } from '../../src/lib/auth';
 import { colors, radius, space, type } from '../../src/theme';
+import { useSubirAlTocarPestana } from '../../src/lib/subirArriba';
 
 const numero = (t: string) => {
   const n = parseFloat(t.replace(',', '.'));
@@ -34,6 +35,7 @@ const numero = (t: string) => {
 };
 
 export default function Progreso() {
+  const arriba = useSubirAlTocarPestana();
   const { sesion } = useAuth();
   type Guardado = { pesos: Peso[]; medidas: Medida[]; perfil: PerfilPeso | null; miembros: Miembro[] };
   const previo = leerCache<Guardado>('progreso:yo');
@@ -183,7 +185,7 @@ export default function Progreso() {
 
   return (
     <SafeAreaView style={s.pantalla} edges={['top']}>
-      <ScrollView contentContainerStyle={s.contenido} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={arriba} contentContainerStyle={s.contenido} keyboardShouldPersistTaps="handled">
         <Aparecer>
           <Text style={type.display}>{miembro ? `Progreso de ${miembro.nombre}` : 'Mi progreso'}</Text>
           <Text style={[type.body, { marginTop: 2 }]}>

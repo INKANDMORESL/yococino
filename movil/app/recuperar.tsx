@@ -1,7 +1,7 @@
 // ¿Olvidaste tu contraseña? Se envía un enlace al email para poner una nueva.
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Campo, useSacudida } from '../src/components';
 import { Cabecera } from '../src/features/cuenta/Cabecera';
@@ -39,7 +39,7 @@ export default function Recuperar() {
 
   return (
     <SafeAreaView style={s.pantalla}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView contentContainerStyle={s.lista} keyboardShouldPersistTaps="handled">
           <Cabecera titulo="Recupera tu contraseña" subtitulo="Te enviamos un enlace para que pongas una nueva." />
           {enviado ? (

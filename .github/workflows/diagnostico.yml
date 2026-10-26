@@ -40,6 +40,14 @@ jobs:
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @q.json | tee r.txt
           echo "::notice title=Lotes::$(head -c 3500 r.txt | tr '\n' ' ')"
 
+      - name: Accesos activados (Google, email…)
+        env:
+          URL: ${{ vars.SUPABASE_URL }}
+          ANON: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          R=$(curl -sS "$URL/auth/v1/settings" -H "apikey: $ANON" | jq -c '{external, disable_signup, mailer_autoconfirm}')
+          echo "::notice title=Accesos::$R"
+
       - name: Registros de sembrar-recetas
         run: |
           SQL="select datetime(timestamp) as t, event_message from function_logs where regexp_contains(event_message, 'sembrar|lote|Gemini|foto|CPU|WORKER|memory') order by timestamp desc limit 30"

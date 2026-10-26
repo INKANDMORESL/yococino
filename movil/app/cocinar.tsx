@@ -2,7 +2,7 @@
 // con esos ingredientes (sin gastar IA) y, si ninguna le convence, se crea una nueva apta para ella.
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Campo, Chip } from '../src/components';
 import { ErrorMenu, cocinarCon, type SugerenciaCocinar } from '../src/features/menu/api';
@@ -69,7 +69,7 @@ export default function Cocinar() {
 
   return (
     <SafeAreaView style={s.pantalla} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView contentContainerStyle={s.contenido} keyboardShouldPersistTaps="handled">
           <Pressable onPress={() => router.navigate('/inicio')} accessibilityRole="button" accessibilityLabel="Volver" style={s.volver}>
             <Text style={s.flecha}>‹</Text>
