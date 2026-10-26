@@ -67,7 +67,24 @@ async function rehacerMenuDesde(fecha: string) {
   if (error) throw new Error('Se guardaron tus cambios, pero no pudimos rehacer el menú.');
 }
 
-export async function guardarPreferencias(userId: string, e: Encuesta, cambiaronAlergias: boolean) {
+export type CambioMenu = 'todo_hoy' | 'todo_manana' | 'solo_afectadas';
+
+// Qué hay que rehacer del menú al cambiar las preferencias:
+// - alergias o salud: por seguridad, todo desde hoy;
+// - objetivo, actividad o número de comidas: cambian las cantidades, todo desde mañana;
+// - gustos o aparatos de cocina: solo los platos afectados (lo demás se queda, por si ya se ha hecho la compra).
+export function cambioMenu(e: Encuesta, antes: Encuesta): CambioMenu {
+  const igual = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  const orden = (l: string[]) => [...l].sort();
+  if (!igual(orden(e.alergias), orden(antes.alergias)) || !igual(orden(e.condiciones), orden(antes.condiciones))) return 'todo_hoy';
+  if (e.objetivo !== antes.objetivo || e.actividad !== antes.actividad || e.comidas !== antes.comidas || (e.objetivo === 'perder' && e.pesoObjetivo !== antes.pesoObjetivo)) {
+    return 'todo_manana';
+  }
+  return 'solo_afectadas';
+}
+
+// Devuelve cuántas comidas se han quitado para rehacerlas (o null si se rehace todo).
+export async function guardarPreferencias(userId: string, e: Encuesta, antes: Encuesta): Promise<{ cambio: CambioMenu; quitadas: number | null }> {
   const { error } = await supabase
     .from('profiles')
     .update({
@@ -86,29 +103,57 @@ export async function guardarPreferencias(userId: string, e: Encuesta, cambiaron
     })
     .eq('id', userId);
   if (error) throw new Error('No hemos podido guardar los cambios.');
-  // Con alergias nuevas, por seguridad se rehace también lo que queda de hoy.
+  const cambio = cambioMenu(e, antes);
   const hoy = hoyISO();
-  await rehacerMenuDesde(cambiaronAlergias ? hoy : sumarDias(hoy, 1));
+  if (cambio === 'todo_hoy') {
+    await rehacerMenuDesde(hoy);
+    return { cambio, quitadas: null };
+  }
+  if (cambio === 'todo_manana') {
+    await rehacerMenuDesde(sumarDias(hoy, 1));
+    return { cambio, quitadas: null };
+  }
+  const nuevosNoGusta = e.noMeGusta.filter((x) => !antes.noMeGusta.some((y) => y.toLowerCase() === x.toLowerCase()));
+  const sinAparatos = (antes.aparatos ?? []).filter((a) => !(e.aparatos ?? []).includes(a));
+  if (!nuevosNoGusta.length && !sinAparatos.length) return { cambio, quitadas: 0 };
+  return { cambio, quitadas: await quitarAfectadas(nuevosNoGusta, e.aparatos ?? []) };
+}
+
+// Quita del menú (desde hoy y sin tocar lo ya hecho) solo los platos que llevan algo que no le gusta
+// o que necesitan un aparato que no tiene. Al volver a Inicio, el servidor rellena solo esos huecos.
+async function quitarAfectadas(noGusta: string[], aparatos: string[]): Promise<number> {
+  const { data } = await supabase
+    .from('comidas')
+    .select('id, receta:recetas(nombre, aparatos, nota_airfryer, ingredientes(nombre))')
+    .eq('hecha', false)
+    .gte('fecha', hoyISO());
+  type Fila = { id: number; receta: { nombre: string; aparatos: string[] | null; nota_airfryer: string | null; ingredientes: { nombre: string }[] } | null };
+  const faltaAparato = (r: NonNullable<Fila['receta']>) =>
+    (r.aparatos ?? []).some((a) => !aparatos.includes(a) && !(a === 'horno' && aparatos.includes('airfryer') && (r.nota_airfryer ?? '').trim()));
+  const afectadas = ((data ?? []) as unknown as Fila[])
+    .filter(
+      (c) =>
+        c.receta &&
+        (noGusta.some((al) => [c.receta!.nombre, ...c.receta!.ingredientes.map((i) => i.nombre)].some((t) => contieneAlimento(t, al))) || faltaAparato(c.receta)),
+    )
+    .map((c) => c.id);
+  if (afectadas.length) {
+    const { error } = await supabase.from('comidas').delete().in('id', afectadas);
+    if (error) throw new Error('Se guardaron tus cambios, pero no pudimos cambiar los platos afectados.');
+  }
+  return afectadas.length;
 }
 
 // "No me gusta" desde una receta: se guarda y se quitan los próximos días que lo llevan.
 export async function anadirNoMeGusta(userId: string, alimento: string): Promise<number> {
-  const { data: p } = await supabase.from('profiles').select('no_me_gusta').eq('id', userId).maybeSingle();
+  const { data: p } = await supabase.from('profiles').select('no_me_gusta, aparatos').eq('id', userId).maybeSingle();
   const lista: string[] = p?.no_me_gusta ?? [];
   if (!lista.some((x) => x.toLowerCase() === alimento.toLowerCase())) {
     const { error } = await supabase.from('profiles').update({ no_me_gusta: [...lista, alimento] }).eq('id', userId);
     if (error) throw new Error('No hemos podido guardarlo.');
   }
-  const { data } = await supabase
-    .from('comidas')
-    .select('id, receta:recetas(nombre, ingredientes(nombre))')
-    .eq('hecha', false)
-    .gt('fecha', hoyISO());
-  const afectadas = ((data ?? []) as unknown as { id: number; receta: { nombre: string; ingredientes: { nombre: string }[] } | null }[])
-    .filter((c) => c.receta && [c.receta.nombre, ...c.receta.ingredientes.map((i) => i.nombre)].some((t) => contieneAlimento(t, alimento)))
-    .map((c) => c.id);
-  if (afectadas.length) await supabase.from('comidas').delete().in('id', afectadas);
-  return afectadas.length;
+  // Solo se cambian los platos que lo llevan; para no tocar nada por los aparatos, se pasan todos.
+  return quitarAfectadas([alimento], ['horno', 'airfryer', 'microondas', 'robot']);
 }
 
 // Peques en casa (solo si la persona lo dijo en la encuesta) y sus franjas de edad.

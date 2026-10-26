@@ -126,6 +126,19 @@ export default function Inicio() {
     }
   }, [recargar]);
 
+  // ¿Falta algún día, o algún día tiene menos comidas que los demás (huecos por platos quitados)?
+  const faltaMenu = useCallback(
+    (lista: { fecha: string }[]) => {
+      const p = planRef.current;
+      if (p?.estado === 'caducada') return false;
+      const porDia = new Map<string, number>();
+      for (const c of lista) porDia.set(c.fecha, (porDia.get(c.fecha) ?? 0) + 1);
+      const completo = Math.max(0, ...porDia.values());
+      return dias.some((d) => !fueraDelPlan(p, d) && (porDia.get(d) ?? 0) < Math.max(1, completo));
+    },
+    [dias],
+  );
+
   // Al entrar: comprobar la encuesta, cargar el menú y completar lo que falte.
   useEffect(() => {
     if (!sesion) return;
@@ -144,15 +157,13 @@ export default function Inicio() {
         setNombre((perfil.nombre || meta?.full_name || meta?.name || '').trim().split(' ')[0] || null);
         const lista = await recargar();
         setEstado({ tipo: 'listo' });
-        const conMenu = new Set(lista.map((c) => c.fecha));
-        const p = planRef.current;
-        if (p?.estado !== 'caducada' && dias.some((d) => !fueraDelPlan(p, d) && !conMenu.has(d))) completarMes();
+        if (faltaMenu(lista)) completarMes();
       } catch (e) {
         setEstado({ tipo: 'listo' });
         setError(e instanceof Error ? e.message : 'No hemos podido cargar tu menú.');
       }
     })();
-  }, [sesion, recargar, completarMes, dias]);
+  }, [sesion, recargar, completarMes, faltaMenu]);
 
   useEffect(() => {
     if (comidas.length) guardarCache('inicio', { comidas, nombre });
@@ -166,8 +177,13 @@ export default function Inicio() {
         primeraVez.current = false;
         return;
       }
-      recargar().catch(() => {});
-    }, [recargar]),
+      recargar()
+        .then((lista) => {
+          // Si se quitaron platos (por ejemplo, un alimento que no le gusta), se rellenan solo esos huecos.
+          if (faltaMenu(lista)) completarMes();
+        })
+        .catch(() => {});
+    }, [recargar, completarMes, faltaMenu]),
   );
 
   const porDia = useMemo(() => {

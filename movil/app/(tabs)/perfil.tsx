@@ -105,14 +105,17 @@ export default function Perfil() {
     setError(null);
     setGuardando(true);
     try {
-      const cambiaronAlergias = JSON.stringify([...e.alergias].sort()) !== JSON.stringify([...original.alergias].sort());
-      await guardarPreferencias(sesion.user.id, e, cambiaronAlergias || JSON.stringify(e.condiciones) !== JSON.stringify(original.condiciones));
+      const { cambio, quitadas } = await guardarPreferencias(sesion.user.id, e, original);
       setOriginal(e);
       setAbierta(null);
       setAviso(
-        cambiaronAlergias
-          ? 'Guardado. Por seguridad, rehacemos tu menú desde hoy: ve a la pestaña Hoy y se preparará de nuevo.'
-          : 'Guardado. Tu menú se rehará a partir de mañana con estos cambios.',
+        cambio === 'todo_hoy'
+          ? 'Guardado. Por seguridad, rehacemos tu menú desde hoy: ve a la pestaña Inicio y se preparará de nuevo.'
+          : cambio === 'todo_manana'
+            ? 'Guardado. Tu menú se rehará a partir de mañana con estas cantidades.'
+            : quitadas
+              ? `Guardado. Solo cambiamos ${quitadas === 1 ? 'el plato que lo llevaba' : `los ${quitadas} platos que lo llevaban`}: el resto de tu menú sigue igual. Ve a Inicio y se completará.`
+              : 'Guardado. Tu menú sigue igual: ningún plato se ve afectado.',
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No hemos podido guardar.');

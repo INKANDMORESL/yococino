@@ -134,19 +134,28 @@ async function preparar(req: Request): Promise<Response> {
   const fin = sumarDias(hoy, VENTANA_MAX - 1);
   const { data: existentes, error: errorExist } = await admin
     .from('comidas')
-    .select('fecha, receta_id, receta:recetas(nombre)')
+    .select('fecha, orden, receta_id, receta:recetas(nombre)')
     .eq('user_id', user.id)
     .gte('fecha', sumarDias(hoy, -10))
     .lte('fecha', fin);
   if (errorExist) throw errorExist;
-  const filasExistentes = (existentes ?? []) as unknown as { fecha: string; receta_id: number | null; receta: { nombre: string } | null }[];
-  const conMenu = new Set(filasExistentes.filter((e) => e.fecha >= hoy).map((e) => e.fecha));
+  const filasExistentes = (existentes ?? []) as unknown as { fecha: string; orden: number; receta_id: number | null; receta: { nombre: string } | null }[];
+  // Comidas que ya tiene cada día. Un día con huecos (por ejemplo, porque se quitó un plato con un alimento
+  // que no le gusta) solo se completa: lo demás no se toca, por si ya se ha hecho la compra.
+  const ordenesDe = new Map<string, Set<number>>();
+  for (const e of filasExistentes) {
+    if (e.fecha < hoy) continue;
+    const set = ordenesDe.get(e.fecha) ?? new Set<number>();
+    set.add(e.orden);
+    ordenesDe.set(e.fecha, set);
+  }
+  const huecosDe = (f: string) => comidas.map((_, orden) => orden).filter((orden) => !ordenesDe.get(f)?.has(orden));
   const faltanEn = (dias: number) => {
     const lista: string[] = [];
     for (let i = 0; i < dias; i++) {
       const f = sumarDias(hoy, i);
       if (finPrueba && f > finPrueba) break;
-      if (!conMenu.has(f)) lista.push(f);
+      if (huecosDe(f).length) lista.push(f);
     }
     return lista;
   };
@@ -202,7 +211,12 @@ ${
     ? catalogoIA.map((r) => `${r.id} · ${r.tipo_comida} · ${r.nombre}${conAirfryer && seHaceEnAirfryer(r.aparatos, r.nota_airfryer) ? ' · airfryer' : ''}`).join('\n')
     : '(vacío: propón platos nuevos)';
   const mensajeMenu = `Días a planificar:
-${aPreparar.map((f) => `- ${f} (${diaSemana(f)})`).join('\n')}
+${aPreparar
+  .map((f) => {
+    const h = huecosDe(f);
+    return `- ${f} (${diaSemana(f)})${h.length < comidas.length ? `: SOLO ${h.map((o) => comidas[o].tipo).join(', ')} (el resto del día ya está)` : ''}`;
+  })
+  .join('\n')}
 
 Comidas de cada día, con su energía orientativa (las cantidades se ajustan después):
 ${comidas.map((c) => `- ${c.tipo}: unas ${Math.round((energia.kcal * c.parte) / 10) * 10} kcal`).join('\n')}
@@ -246,6 +260,8 @@ ${lineasCatalogo}`;
     for (const c of dia.comidas ?? []) {
       const tipo = c.tipo_comida as TipoComida;
       if (!tipos.includes(tipo) || porTipo.has(tipo)) continue;
+      // Solo los huecos del día: lo que ya está no se cambia.
+      if (!huecosDe(dia.fecha).some((o) => comidas[o].tipo === tipo)) continue;
       if (c.receta_id && porId.get(c.receta_id)?.tipo_comida === tipo) {
         porTipo.set(tipo, { recetaId: c.receta_id });
       } else if (texto(c.plato, 80)) {
@@ -288,7 +304,9 @@ ${lineasCatalogo}`;
   for (const fecha of aPreparar) {
     const porTipo = plan.get(fecha) ?? new Map<TipoComida, { recetaId?: number; clave?: string }>();
     const filasDia: Record<string, unknown>[] = [];
+    const huecos = huecosDe(fecha);
     for (const [orden, { tipo, parte }] of comidas.entries()) {
+      if (!huecos.includes(orden)) continue;
       const eleccion = porTipo.get(tipo);
       const receta =
         (eleccion?.recetaId ? porId.get(eleccion.recetaId) : eleccion?.clave ? resueltas.get(eleccion.clave) : null) ?? elegirDelCatalogo(tipo);
@@ -298,7 +316,7 @@ ${lineasCatalogo}`;
       const factor = factorRacion(energia.kcal * parte, kcalReceta);
       filasDia.push({ user_id: user.id, fecha, orden, tipo_comida: tipo, receta_id: receta.id, factor, kcal: Math.round(kcalReceta * factor) });
     }
-    if (filasDia.length === comidas.length) {
+    if (filasDia.length === huecos.length) {
       filas.push(...filasDia);
       creados.push(fecha);
     }

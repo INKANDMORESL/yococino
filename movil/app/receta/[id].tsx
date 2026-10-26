@@ -207,7 +207,7 @@ export default function RecetaPantalla() {
       const quitados = await anadirNoMeGusta(sesion.user.id, alimento);
       setAviso(
         quitados
-          ? `Apuntado: ${alimento} no volverá a aparecer. Hemos rehecho ${quitados === 1 ? '1 comida' : `${quitados} comidas`} de los próximos días.`
+          ? `Apuntado: ${alimento} no volverá a aparecer. Cambiamos solo ${quitados === 1 ? 'el plato que lo llevaba' : `los ${quitados} platos que lo llevaban`}; el resto de tu menú sigue igual.`
           : `Apuntado: ${alimento} no aparecerá en tus próximos menús.`,
       );
     } catch (e) {
