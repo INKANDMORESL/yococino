@@ -1,0 +1,33 @@
+# Añade paquetes a la app con la versión compatible con nuestro Expo («expo install») y guarda el package.json.
+# (En la sesión de Claude no hay acceso al registro de npm; esto lo hace GitHub.) Se lanza a mano.
+name: Instalar paquetes de la app
+on:
+  workflow_dispatch:
+    inputs:
+      paquetes:
+        description: 'Paquetes separados por espacios'
+        required: true
+permissions:
+  contents: write
+jobs:
+  instalar:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: movil
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Instalar
+        run: |
+          for intento in 1 2 3; do npm install --no-audit --no-fund > instalar.txt 2>&1 && break; sleep 15; done
+          npx expo install ${{ inputs.paquetes }}
+          git diff package.json
+          echo "::notice title=Paquetes::$(git diff package.json | grep '^+ ' | tr '\n' ' ')"
+      - name: Guardar
+        run: |
+          git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+          git add package.json
+          git diff --cached --quiet || { git commit -m "Paquetes: ${{ inputs.paquetes }}"; git pull --rebase; git push; }
