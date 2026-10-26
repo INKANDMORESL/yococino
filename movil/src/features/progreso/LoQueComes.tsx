@@ -21,7 +21,7 @@ const MACROS = [
 export function LoQueComes() {
   const hoy = hoyISO();
   type Datos = { dias: DiaNutricion[]; kcalObjetivo: number | null };
-  const [datos, setDatos] = useState<Datos | null>(leerCache<Datos>('progreso:nutricion'));
+  const [datos, setDatos] = useState<Datos | null>(leerCache<Datos>('progreso:nutricion') ?? null);
   const [dia, setDia] = useState(hoy);
 
   useFocusEffect(
