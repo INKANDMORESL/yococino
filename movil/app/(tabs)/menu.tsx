@@ -5,15 +5,14 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BarraPestanasSuelta } from '../src/components/BarraPestanas';
-import { Aviso } from '../src/components';
-import { ErrorMenu, cambiarPlato, cargarComidas, marcarHecha } from '../src/features/menu/api';
-import { faltaFoto, fotoPequena, pedirFoto } from '../src/features/menu/fotos';
-import { deISO, hoyISO, sumarDias } from '../src/features/menu/fechas';
-import { TIPOS, type Comida } from '../src/features/menu/tipos';
-import { guardarCache, leerCache } from '../src/lib/cache';
-import { fueraDelPlan, usePlan } from '../src/features/plan/plan';
-import { colors, radius, shadow, space, type } from '../src/theme';
+import { Aviso } from '../../src/components';
+import { ErrorMenu, cambiarPlato, cargarComidas, marcarHecha } from '../../src/features/menu/api';
+import { faltaFoto, fotoPequena, pedirFoto } from '../../src/features/menu/fotos';
+import { deISO, hoyISO, sumarDias } from '../../src/features/menu/fechas';
+import { TIPOS, type Comida } from '../../src/features/menu/tipos';
+import { guardarCache, leerCache } from '../../src/lib/cache';
+import { fueraDelPlan, usePlan } from '../../src/features/plan/plan';
+import { colors, radius, shadow, space, type } from '../../src/theme';
 
 const DIAS = 30;
 const NOMBRES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -78,7 +77,13 @@ function FilaComida({
   );
 }
 
+// Dentro de las pestañas se reutiliza la misma pantalla: se vuelve a montar al cambiar de dia.
 export default function Menu() {
+  const { dia } = useLocalSearchParams<{ dia?: string }>();
+  return <MenuContenido key={dia ?? ''} />;
+}
+
+function MenuContenido() {
   const hoy = hoyISO();
   const primerLunes = lunesDe(hoy);
   const ultimoLunes = lunesDe(sumarDias(hoy, DIAS - 1));
@@ -291,7 +296,6 @@ export default function Menu() {
           })
         )}
       </ScrollView>
-      <BarraPestanasSuelta />
     </SafeAreaView>
   );
 }

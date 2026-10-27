@@ -3,13 +3,18 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BarraPestanasSuelta } from '../src/components/BarraPestanas';
-import { Aparecer, Aviso } from '../src/components';
-import { ErrorMenu, cargarEspecial, type Especial, type RecetaEspecial } from '../src/features/menu/api';
-import { TIPOS, type TipoComida } from '../src/features/menu/tipos';
-import { colors, radius, space, type } from '../src/theme';
+import { Aparecer, Aviso } from '../../src/components';
+import { ErrorMenu, cargarEspecial, type Especial, type RecetaEspecial } from '../../src/features/menu/api';
+import { TIPOS, type TipoComida } from '../../src/features/menu/tipos';
+import { colors, radius, space, type } from '../../src/theme';
 
+// Dentro de las pestañas se reutiliza la misma pantalla: se vuelve a montar al cambiar de clave.
 export default function EspecialPantalla() {
+  const { clave } = useLocalSearchParams<{ clave?: string }>();
+  return <EspecialPantallaContenido key={clave ?? ''} />;
+}
+
+function EspecialPantallaContenido() {
   const { clave } = useLocalSearchParams<{ clave?: string }>();
   const [especial, setEspecial] = useState<Especial | null>(null);
   const [recetas, setRecetas] = useState<RecetaEspecial[] | null>(null);
@@ -71,7 +76,6 @@ export default function EspecialPantalla() {
           })}
         </View>
       </ScrollView>
-      <BarraPestanasSuelta />
     </SafeAreaView>
   );
 }

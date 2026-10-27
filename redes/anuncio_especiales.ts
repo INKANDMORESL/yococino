@@ -1,12 +1,11 @@
 // Anuncios de los especiales de temporada en Instagram: busca los especiales que empiezan en los próximos
-// días (o que ya han empezado y aún no se han anunciado) y elige recetas con foto para la publicación.
+// días y elige recetas con foto para la publicación.
 // Lo lanza GitHub (.github/workflows/anuncio-especiales.yml) y deja el resultado en redes/anuncios/pendientes.json.
 // En Instagram solo se publican comidas y cenas (nunca desayunos, medias mañanas ni meriendas).
 // Uso: deno run -A redes/anuncio_especiales.ts   (necesita SUPABASE_ACCESS_TOKEN y REF)
 import { ESPECIALES } from '../supabase/functions/_shared/especiales.ts';
 
 const DIAS_ANTES = 3; // se prepara el anuncio unos días antes de que empiece
-const MINIMO_RESTANTE = 2; // si quedan menos días de especial, ya no se anuncia
 
 const hoy = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid' }).format(new Date());
 const sumar = (iso: string, dias: number) => {
@@ -42,7 +41,8 @@ for (const e of ESPECIALES) {
     const [desde, hasta] = e.fechas(a);
     const id = `${e.clave}-${desde.slice(0, 4)}`;
     if (hechos[id]) continue;
-    if (desde > sumar(hoy, DIAS_ANTES) || hoy > sumar(hasta, -MINIMO_RESTANTE)) continue;
+    // Solo una vez por especial, el día que empieza: los que ya han empezado no se anuncian.
+    if (desde < hoy || desde > sumar(hoy, DIAS_ANTES)) continue;
     const clave = e.clave.replace(/[^a-z0-9_]/g, '');
     const recetas = await sql<{ id: number; nombre: string; descripcion: string | null; tipo_comida: string; imagen: string }>(`
       select r.id, r.nombre, r.descripcion, r.tipo_comida, r.imagen
