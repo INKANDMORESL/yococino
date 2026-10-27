@@ -62,8 +62,10 @@ async function buscar(req: Request): Promise<Response> {
     .slice(0, MAX_RESULTADOS);
   // Etiqueta del especial de temporada («Especial Navidad»).
   // Solo las recetas hechas para el especial llevan la etiqueta (no el cocido de siempre que sale en «Invierno»).
-  const ids = lista.filter((r) => r.solo_especial).map((r) => r.id);
-  const { data: esp } = ids.length ? await admin.from('especial_recetas').select('especial, receta_id').in('receta_id', ids) : { data: [] };
+  const idsEspeciales = lista.filter((r) => r.solo_especial).map((r) => r.id);
+  const { data: esp } = idsEspeciales.length
+    ? await admin.from('especial_recetas').select('especial, receta_id').in('receta_id', idsEspeciales)
+    : { data: [] };
   const etiqueta = new Map<number, string>();
   for (const e of (esp ?? []) as { especial: string; receta_id: number }[]) {
     const def = especialPorClave(e.especial);
