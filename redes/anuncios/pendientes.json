@@ -1,0 +1,46 @@
+{
+  "hoy": "2026-10-27",
+  "pendientes": [
+    {
+      "id": "halloween-2026",
+      "clave": "halloween",
+      "titulo": "Especial Halloween",
+      "emoji": "🎃",
+      "descripcion": "Calabaza, castañas y los dulces de Todos los Santos.",
+      "desde": "2026-10-24",
+      "hasta": "2026-11-02",
+      "publicar": "2026-10-27",
+      "recetas": [
+        {
+          "id": 514,
+          "nombre": "Crema de calabaza con pipas tostadas",
+          "descripcion": "Una crema sedosa de calabaza y castañas con pipas crujientes, perfecta para una noche de Halloween.",
+          "tipo_comida": "cena",
+          "imagen": "https://xgzcbtfmrcqcmubioeuz.supabase.co/storage/v1/object/public/fotos/recetas/514.jpg"
+        },
+        {
+          "id": 507,
+          "nombre": "Hamburguesas monstruo de lentejas",
+          "descripcion": "Una hamburguesa de lentejas con calabaza y castañas que te mira con ojos de monstruo.",
+          "tipo_comida": "cena",
+          "imagen": "https://xgzcbtfmrcqcmubioeuz.supabase.co/storage/v1/object/public/fotos/recetas/507.jpg"
+        },
+        {
+          "id": 511,
+          "nombre": "Calabaza asada con especias y garbanzos",
+          "descripcion": "Calabaza dulce y garbanzos crujientes, con un toque de comino y pimentón, para celebrar la noche de Halloween.",
+          "tipo_comida": "almuerzo",
+          "imagen": "https://xgzcbtfmrcqcmubioeuz.supabase.co/storage/v1/object/public/fotos/recetas/511.jpg"
+        },
+        {
+          "id": 502,
+          "nombre": "Pizza de calabaza con arañas de aceituna",
+          "descripcion": "Una pizza otoñal de calabaza y castañas con arañas de aceituna que dan miedo y ganas de comérsela.",
+          "tipo_comida": "cena",
+          "imagen": "https://xgzcbtfmrcqcmubioeuz.supabase.co/storage/v1/object/public/fotos/recetas/502.jpg"
+        }
+      ]
+    }
+  ],
+  "sin_receta": []
+}
