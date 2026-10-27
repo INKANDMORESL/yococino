@@ -1,0 +1,33 @@
+# Prepara los anuncios de Instagram de los especiales de temporada (Halloween, Navidad…): elige recetas con foto
+# del especial que empieza y lo deja en redes/anuncios/pendientes.json. La publicación la programa en Metricool
+# una tarea programada de Claude, que después lo apunta en redes/anuncios/hechos.json.
+name: Anuncio de especiales
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  anuncio:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Buscar especiales que empiezan
+        run: |
+          deno run -A redes/anuncio_especiales.ts > salida.txt 2>&1 || { cat salida.txt; echo "::error title=Anuncio::$(tail -n 3 salida.txt | tr '\n' ' ')"; exit 1; }
+          cat salida.txt
+          echo "::notice title=Anuncio::$(cat salida.txt | tr '\n' ' ')"
+      - name: Guardar
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add redes/anuncios/pendientes.json
+          git diff --cached --quiet || { git commit -m "Anuncios de especiales: pendientes" && git pull --rebase -q && git push; }
