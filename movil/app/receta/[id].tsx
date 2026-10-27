@@ -26,6 +26,7 @@ import { hoyISO, sumarDias } from '../../src/features/menu/fechas';
 import { NIVEL, NOMBRE_ALERGENO, TIPOS, type Comida, type Receta } from '../../src/features/menu/tipos';
 import { colors, radius, shadow, space, type } from '../../src/theme';
 import { conCambios } from '../../src/features/menu/cambios';
+import { avisarAlTerminar, quitar as quitarAviso } from '../../src/lib/avisosTemporizador';
 
 // Aviso al terminar un temporizador: vibración en el móvil y un pitido en la web.
 function avisarFin() {
@@ -113,15 +114,19 @@ function FichaReceta() {
         if (!avisados.current.has(paso)) {
           avisados.current.add(paso);
           avisarFin();
+          quitarAviso(`${id}-${paso}`);
           setAviso(`⏰ ¡Tiempo! Paso ${paso + 1} listo.`);
         }
       }
     }
     if (cambio) setTemporizadores(nuevo);
-  }, [ahora, temporizadores]);
+  }, [ahora, temporizadores, id]);
 
+  // Fuera de la app: notificación fija mientras corre y aviso con sonido al terminar.
+  const nombreReceta = receta?.nombre ?? 'Tu receta';
   const iniciar = (paso: number, segundos: number) => {
     avisados.current.delete(paso);
+    avisarAlTerminar(`${id}-${paso}`, segundos, nombreReceta, paso + 1);
     setAhora(Date.now());
     setTemporizadores(new Map(temporizadores).set(paso, { total: segundos, fin: Date.now() + segundos * 1000, restante: segundos, terminado: false }));
   };
@@ -129,12 +134,18 @@ function FichaReceta() {
     const t = temporizadores.get(paso);
     if (!t) return;
     const nuevo = new Map(temporizadores);
-    if (t.fin === null) nuevo.set(paso, { ...t, fin: Date.now() + t.restante * 1000 });
-    else nuevo.set(paso, { ...t, fin: null, restante: restante(t) });
+    if (t.fin === null) {
+      nuevo.set(paso, { ...t, fin: Date.now() + t.restante * 1000 });
+      avisarAlTerminar(`${id}-${paso}`, t.restante, nombreReceta, paso + 1);
+    } else {
+      nuevo.set(paso, { ...t, fin: null, restante: restante(t) });
+      quitarAviso(`${id}-${paso}`);
+    }
     setAhora(Date.now());
     setTemporizadores(nuevo);
   };
   const cancelar = (paso: number) => {
+    quitarAviso(`${id}-${paso}`);
     const nuevo = new Map(temporizadores);
     nuevo.delete(paso);
     setTemporizadores(nuevo);
