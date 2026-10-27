@@ -106,6 +106,8 @@ export interface RecetaResumen {
   kcal: number | null;
   imagen: string | null;
   imagen_mini?: string | null;
+  especial?: string | null; // «🎄 Especial Navidad»
+  aviso?: string | null; // «Tiene alto contenido en azúcar.»
 }
 
 // Recetario: solo devuelve recetas aptas para la persona.
@@ -233,3 +235,26 @@ export interface ResultadoPreferencias {
 }
 export const guardarComoComes = (texto: string) =>
   llamar<ResultadoPreferencias>('preferencias', { texto }, 'No hemos podido guardar tus preferencias.');
+
+// Especial de temporada (Halloween, Navidad, verano…): no entra en el menú; sale en Inicio y en el recetario.
+export interface Especial {
+  clave: string;
+  titulo: string;
+  emoji: string;
+  descripcion: string;
+  desde?: string;
+  hasta?: string;
+}
+export interface RecetaEspecial {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+  tipo_comida: string;
+  minutos: number | null;
+  kcal: number | null;
+  imagen: string | null;
+  imagen_mini: string | null;
+  aviso: string | null;
+}
+export const cargarEspecial = (clave?: string, limite?: number) =>
+  llamar<{ especial: Especial | null; recetas: RecetaEspecial[] }>('especiales', { clave, limite }, 'No hemos podido cargar las recetas especiales.');

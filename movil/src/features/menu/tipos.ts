@@ -6,7 +6,7 @@ export const TIPOS: Record<TipoComida, { texto: string; emoji: string; fondo: st
   almuerzo: { texto: 'Almuerzo', emoji: '🍲', fondo: '#E6EDDC' },
   merienda: { texto: 'Merienda', emoji: '🥜', fondo: '#F2EADF' },
   cena: { texto: 'Cena', emoji: '🥗', fondo: '#E3EFF1' },
-  otro: { texto: 'Otra toma', emoji: '🍽️', fondo: '#F0EEE7' },
+  otro: { texto: 'Dulce o extra', emoji: '🍰', fondo: '#F0EEE7' },
 };
 
 export interface Ingrediente {
@@ -45,6 +45,8 @@ export interface Receta {
   ingredientes: Ingrediente[];
   // Solo en las recetas guardadas de redes: vídeo original (reproductor oficial), enlace y autor.
   nota_airfryer?: string | null;
+  avisos?: string[] | null; // alto contenido en azúcar, grasas… (especiales de temporada)
+  solo_especial?: boolean;
   aparatos?: string[] | null;
   origen_url?: string | null;
   origen_autor?: string | null;

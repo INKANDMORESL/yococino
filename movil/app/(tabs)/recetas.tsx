@@ -223,12 +223,17 @@ export default function Recetas() {
                     <Text style={s.nombre} numberOfLines={2}>
                       {r.nombre}
                     </Text>
-                    {r.descripcion ? (
+                    {r.especial ? (
+                      <View style={s.etiquetaEspecial}>
+                        <Text style={s.etiquetaEspecialTexto}>{r.especial}</Text>
+                      </View>
+                    ) : r.descripcion ? (
                       <Text style={type.small} numberOfLines={1}>
                         {r.descripcion}
                       </Text>
                     ) : null}
                     <Text style={s.detalles}>{detalles}</Text>
+                    {r.aviso ? <Text style={s.avisoTexto}>⚠️ {r.aviso}</Text> : null}
                   </View>
                   {favoritas.has(r.id) ? <Text style={s.corazon}>♥</Text> : null}
                 </Pressable>
@@ -243,6 +248,9 @@ export default function Recetas() {
 
 const s = StyleSheet.create({
   pantalla: { flex: 1, backgroundColor: colors.bg },
+  etiquetaEspecial: { alignSelf: 'flex-start', backgroundColor: colors.lemonSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, marginVertical: 2 },
+  etiquetaEspecialTexto: { fontSize: 12, fontWeight: '700', color: colors.ink },
+  avisoTexto: { fontSize: 12, color: colors.rose, marginTop: 2 },
   contenido: { padding: space.xl, gap: space.lg, paddingBottom: space.xxl },
   cabecera: { backgroundColor: colors.bg, gap: space.md, paddingVertical: space.sm },
   buscador: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: space.lg, height: 52, ...shadow },

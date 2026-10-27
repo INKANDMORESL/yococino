@@ -20,6 +20,7 @@ import { AvisoPlan } from '../../src/features/plan/AvisoPlan';
 import { fueraDelPlan, usePlan } from '../../src/features/plan/plan';
 import { colors, radius, shadow, space, type } from '../../src/theme';
 import { useSubirAlTocarPestana } from '../../src/lib/subirArriba';
+import { EspecialInicio } from '../../src/features/especiales/EspecialInicio';
 
 const DIAS = 30;
 const fechaCorta = (iso: string) => {
@@ -389,6 +390,12 @@ export default function Inicio() {
               </View>
               <Text style={s.neveraFlecha}>›</Text>
             </Pressable>
+          ) : null}
+
+          {estado.tipo === 'listo' ? (
+            <View style={{ marginTop: space.lg }}>
+              <EspecialInicio />
+            </View>
           ) : null}
 
           {estado.tipo === 'listo' ? (

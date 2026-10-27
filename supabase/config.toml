@@ -52,3 +52,6 @@ verify_jwt = false
 
 [functions.preferencias]
 verify_jwt = true
+
+[functions.especiales]
+verify_jwt = true

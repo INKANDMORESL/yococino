@@ -98,6 +98,7 @@ async function publicar(admin: Cliente) {
     .from('recetas')
     .select(COLUMNAS)
     .eq('oculta', false)
+    .eq('solo_especial', false)
     .in('tipo_comida', PRINCIPALES)
     .order('created_at', { ascending: true })
     .limit(1500);
@@ -170,6 +171,7 @@ async function listar(admin: Cliente) {
     .from('recetas')
     .select(COLUMNAS)
     .eq('oculta', false)
+    .eq('solo_especial', false)
     .not('imagen', 'is', null)
     .in('tipo_comida', PRINCIPALES)
     .order('created_at', { ascending: false })

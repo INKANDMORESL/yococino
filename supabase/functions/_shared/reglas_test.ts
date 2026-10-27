@@ -6,6 +6,7 @@ import { contieneAlimento, contienePalabra, limpiarNombre } from './texto.ts';
 import { categoriasDe } from './categorias.ts';
 import { aparatosEnTexto, aparatosQueFaltan } from './aparatos.ts';
 import { encajaPreferencia, interpretarPreferencias } from './preferencias.ts';
+import { especialesDe, pascua } from './especiales.ts';
 import { avisosNutricion, embedDe, extraerUrl, normalizarUrl, plataformaDe, textoAvisos, urlPermitida } from './importar_reglas.ts';
 
 type Caso = [string, () => boolean];
@@ -143,6 +144,12 @@ export const CASOS: Caso[] = [
   ['preferencias: cerveza no se acepta', () => interpretarPreferencias('quiero más cerveza').ignorado[0] === 'cerveza'],
   ['preferencias: legumbres encaja con lentejas', () => encajaPreferencia({ nombre: 'Lentejas estofadas', ingredientes: [{ nombre: 'lentejas' }] }, ['legumbres'])],
   ['preferencias: pan no es panceta', () => !encajaPreferencia({ nombre: 'Panceta asada', ingredientes: [] }, ['pan'])],
+  // Especiales de temporada
+  ['especiales: Pascua 2027 es el 28 de marzo', () => pascua(2027) === '2027-03-28'],
+  ['especiales: 27 de octubre es Halloween', () => especialesDe('2026-10-27')[0]?.clave === 'halloween'],
+  ['especiales: 1 de enero sigue siendo Navidad', () => especialesDe('2027-01-01')[0]?.clave === 'navidad'],
+  ['especiales: el 4 de enero, Roscón', () => especialesDe('2027-01-04')[0]?.clave === 'roscon'],
+  ['especiales: siempre hay alguno', () => Array.from({ length: 365 }, (_, d) => new Date(Date.UTC(2027, 0, 1 + d)).toISOString().slice(0, 10)).every((x) => especialesDe(x).length > 0)],
 ];
 
 // Deno ejecuta cada caso como una prueba.

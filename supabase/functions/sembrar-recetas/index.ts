@@ -2,6 +2,7 @@
 // - enviar: pide ideas de platos (llamada barata) y manda las recetas a un lote de Claude.
 // - tipicas: como enviar, con la lista de platos típicos españoles.
 // - airfryer: como enviar, con la lista de platos hechos en airfryer (_shared/airfryer.ts).
+// - especiales: recetas de los especiales de temporada en marcha o próximos (también automático, una vez al día).
 // - notas_airfryer: a las recetas de horno ya guardadas les añade cómo hacerlas en airfryer (llamada barata, por tandas).
 // - fotos: pone en marcha la cola de fotos (aligerar-fotos), que hace las que faltan de una en una.
 // - estado: recoge los lotes de recetas terminados y enseña cómo van.
@@ -15,6 +16,7 @@ import type { TipoComida } from '../_shared/nutricion.ts';
 import {
   cupoRecetas,
   ESQUEMA_RECETA,
+  ESQUEMA_RECETA_COMPLETA,
   guardarReceta,
   mensajeReceta,
   modeloReceta,
@@ -29,6 +31,8 @@ import { frutasDelMes, mesDe } from '../_shared/temporada.ts';
 import { normalizar } from '../_shared/texto.ts';
 import { TIPICAS } from '../_shared/tipicas.ts';
 import { AIRFRYER } from '../_shared/airfryer.ts';
+import { especialPorClave, especialesProximos, type Especial } from '../_shared/especiales.ts';
+import { avisosNutricion } from '../_shared/importar_reglas.ts';
 
 const MODELO_IDEAS = Deno.env.get('MODELO_MENU') || 'claude-haiku-5-5';
 const MAX_POR_LOTE = 100;
@@ -44,6 +48,8 @@ interface Idea {
   nivel: Nivel;
   variante: 'normal' | 'sin_gluten' | 'sin_lactosa';
   airfryer?: boolean; // el plato se cocina en airfryer
+  especial?: string; // clave del especial de temporada (ver _shared/especiales.ts)
+  otro?: boolean; // postre o dulce: se guarda como «otro» (no es una comida del día)
 }
 
 const ESQUEMA = {
@@ -145,7 +151,49 @@ async function ideasTipicas(admin: Cliente): Promise<Idea[]> {
   }));
 }
 
-async function enviarRecetas(admin: Cliente, pedidas: number, lista: 'ideas' | 'tipicas' | 'airfryer' = 'ideas') {
+// Especiales de temporada: los platos que ya existen se enlazan (sin gastar nada); los que faltan, a un lote.
+// Se preparan los especiales en marcha o que empiezan en los próximos 21 días.
+async function ideasEspeciales(admin: Cliente, especiales: Especial[]): Promise<{ ideas: Idea[]; enlazadas: number }> {
+  const { data } = await admin.from('recetas').select('id, nombre_norm').is('privada_de', null).limit(10000);
+  const existentes = (data ?? []) as { id: number; nombre_norm: string }[];
+  // Lo que ya está pedido en un lote sin recoger no se vuelve a pedir.
+  const { data: abiertos } = await admin.from('lotes_ia').select('datos').eq('tipo', 'recetas').eq('estado', 'enviado');
+  const enCola = new Set(
+    (abiertos ?? []).flatMap((l) => Object.values((l.datos as { ideas?: Record<string, Idea> })?.ideas ?? {}).map((i) => normalizar(i.plato))),
+  );
+  const ideas: Idea[] = [];
+  const enlaces: { especial: string; receta_id: number }[] = [];
+  for (const e of especiales) {
+    for (const [plato, tipo, nivel] of e.platos) {
+      const n = normalizar(plato);
+      const ya = existentes.find((r) => r.nombre_norm === n || r.nombre_norm.startsWith(`${n} `));
+      if (ya) enlaces.push({ especial: e.clave, receta_id: ya.id });
+      else if (!enCola.has(n)) {
+        enCola.add(n);
+        ideas.push({
+          plato,
+          descripcion: `Receta del «${e.titulo}». ${e.descripcion}`,
+          tipo_comida: tipo === 'otro' ? 'merienda' : tipo,
+          nivel,
+          variante: 'normal',
+          especial: e.clave,
+          otro: tipo === 'otro',
+        });
+      }
+    }
+  }
+  if (enlaces.length) await admin.from('especial_recetas').upsert(enlaces, { onConflict: 'especial,receta_id', ignoreDuplicates: true });
+  return { ideas, enlazadas: enlaces.length };
+}
+
+const extraEspecial = (clave: string) => {
+  const e = especialPorClave(clave);
+  return e
+    ? `\n- RECETA ESPECIAL del «${e.titulo}»: plato de fiesta o de temporada. Respeta la receta tradicional y su nombre. Si es un dulce o algo contundente, puede serlo: hazlo casero y, si se puede, un poco más ligero sin que pierda su esencia, con una ración normal (no hace falta que ronde las kcal indicadas). Estima con cuidado azúcares, grasas saturadas y sal por ración.`
+    : '';
+};
+
+async function enviarRecetas(admin: Cliente, pedidas: number, lista: 'ideas' | 'tipicas' | 'airfryer' | 'especiales' = 'ideas', especiales: Especial[] = []) {
   const cupo = await cupoRecetas(admin);
   // Lo que ya está en lotes sin recoger también cuenta para el cupo del mes.
   const { data: abiertos } = await admin.from('lotes_ia').select('datos').eq('tipo', 'recetas').eq('estado', 'enviado');
@@ -158,9 +206,12 @@ async function enviarRecetas(admin: Cliente, pedidas: number, lista: 'ideas' | '
       ? (await ideasTipicas(admin)).slice(0, cantidad)
       : lista === 'airfryer'
         ? (await ideasAirfryer(admin)).slice(0, cantidad)
-        : await ideasNuevas(admin, cantidad, mes);
+        : lista === 'especiales'
+          ? (await ideasEspeciales(admin, especiales)).ideas.slice(0, cantidad)
+          : await ideasNuevas(admin, cantidad, mes);
   if (lista === 'tipicas' && !ideas.length) return { enviadas: 0, aviso: 'Ya están todas las recetas típicas en el recetario.' };
   if (lista === 'airfryer' && !ideas.length) return { enviadas: 0, aviso: 'Ya están todas las recetas de airfryer en el recetario.' };
+  if (lista === 'especiales' && !ideas.length) return { enviadas: 0, aviso: 'Los próximos especiales ya tienen todas sus recetas.' };
   if (!ideas.length) return { enviadas: 0, aviso: 'No se han podido preparar ideas de platos. Prueba otra vez.' };
   const porClave: Record<string, Idea> = {};
   const peticiones = ideas.map((i, n) => {
@@ -170,9 +221,9 @@ async function enviarRecetas(admin: Cliente, pedidas: number, lista: 'ideas' | '
       id,
       peticion: {
         modelo: modeloReceta(i.tipo_comida),
-        sistema: sistemaReceta(i.tipo_comida, i.nivel, restriccionDe(i), mes, i.airfryer === true),
+        sistema: sistemaReceta(i.tipo_comida, i.nivel, restriccionDe(i), mes, i.airfryer === true) + (i.especial ? extraEspecial(i.especial) : ''),
         mensaje: mensajeReceta(i.plato, i.descripcion, i.tipo_comida),
-        esquema: ESQUEMA_RECETA,
+        esquema: i.especial ? ESQUEMA_RECETA_COMPLETA : ESQUEMA_RECETA,
         maxTokens: 4000,
       },
     };
@@ -316,7 +367,14 @@ async function recogerRecetas(
       continue;
     }
     try {
-      await guardarReceta(admin, receta as RecetaIA, idea.tipo_comida, restr, String(mensaje.model ?? modeloReceta(idea.tipo_comida)), { esperaFoto: true });
+      const r = receta as RecetaIA;
+      const guardada = await guardarReceta(admin, r, idea.otro ? 'otro' : idea.tipo_comida, restr, String(mensaje.model ?? modeloReceta(idea.tipo_comida)), {
+        esperaFoto: true,
+        ...(idea.especial ? { soloEspecial: true, avisos: avisosNutricion(r.nutricion as never) } : {}),
+      });
+      if (idea.especial) {
+        await admin.from('especial_recetas').upsert({ especial: idea.especial, receta_id: guardada.id }, { onConflict: 'especial,receta_id', ignoreDuplicates: true });
+      }
       creadas++;
       quedan--;
     } catch (e) {
@@ -434,6 +492,17 @@ async function estado(admin: Cliente) {
       errores.push(mensajeTecnico(e));
     }
   }
+  // Especiales de temporada: una vez al día se preparan los que empiezan pronto (si les faltan recetas).
+  try {
+    const { data: ultimo } = await admin.from('ajustes_internos').select('especiales_at').eq('id', 1).maybeSingle();
+    const hace = Date.now() - new Date(String(ultimo?.especiales_at ?? 0)).getTime();
+    if (!ultimo?.especiales_at || hace > 20 * 3600 * 1000) {
+      await admin.from('ajustes_internos').update({ especiales_at: new Date().toISOString() }).eq('id', 1);
+      await enviarRecetas(admin, MAX_POR_LOTE, 'especiales', especialesProximos(hoyEspana(), 21));
+    }
+  } catch (e) {
+    errores.push(mensajeTecnico(e));
+  }
   // Las recetas nuevas del recetario van a un lote de fotos (mitad de precio).
   if (fotosNuevas) {
     try {
@@ -493,6 +562,9 @@ async function sembrar(req: Request): Promise<Response> {
   const cuerpo = (await req.json().catch(() => ({}))) as { accion?: string; cantidad?: number };
   if (cuerpo.accion === 'enviar') return responder({ ok: true, ...(await enviarRecetas(admin, Number(cuerpo.cantidad))), lotes: [], cupo: await cupoRecetas(admin) });
   if (cuerpo.accion === 'tipicas') return responder({ ok: true, ...(await enviarRecetas(admin, MAX_POR_LOTE, 'tipicas')), lotes: [], cupo: await cupoRecetas(admin) });
+  if (cuerpo.accion === 'especiales') {
+    return responder({ ok: true, ...(await enviarRecetas(admin, MAX_POR_LOTE, 'especiales', especialesProximos(hoyEspana(), 21))), lotes: [], cupo: await cupoRecetas(admin) });
+  }
   if (cuerpo.accion === 'airfryer') return responder({ ok: true, ...(await enviarRecetas(admin, MAX_POR_LOTE, 'airfryer')), lotes: [], cupo: await cupoRecetas(admin) });
   if (cuerpo.accion === 'notas_airfryer') return responder({ ok: true, ...(await notasAirfryer(admin)), lotes: [], cupo: await cupoRecetas(admin) });
   if (cuerpo.accion === 'fotos') return responder({ ok: true, ...(await enviarFotos(admin, Number(cuerpo.cantidad))), ...(await estado(admin)) });

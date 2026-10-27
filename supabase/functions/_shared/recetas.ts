@@ -121,6 +121,24 @@ export const ESQUEMA_RECETA = {
   },
 };
 
+// Igual, con azúcares, grasas saturadas y sal (recetas de redes y especiales, para poder avisar).
+export const ESQUEMA_RECETA_COMPLETA = {
+  ...ESQUEMA_RECETA,
+  properties: {
+    ...ESQUEMA_RECETA.properties,
+    nutricion: {
+      ...(ESQUEMA_RECETA.properties.nutricion as Record<string, unknown>),
+      required: ['kcal', 'proteinas', 'hidratos', 'grasas', 'fibra', 'azucares', 'grasas_saturadas', 'sal'],
+      properties: {
+        ...(ESQUEMA_RECETA.properties.nutricion as { properties: Record<string, unknown> }).properties,
+        azucares: { type: 'number', description: 'gramos de azúcares por ración (incluidos los añadidos)' },
+        grasas_saturadas: { type: 'number', description: 'gramos por ración' },
+        sal: { type: 'number', description: 'gramos de sal por ración' },
+      },
+    },
+  },
+};
+
 // ---------- Utilidades ----------
 
 export async function enParalelo<T, R>(elementos: T[], limite: number, tarea: (e: T) => Promise<R>): Promise<R[]> {
@@ -157,6 +175,7 @@ export async function cargarCatalogo(admin: Cliente, tipos: TipoComida[], nivel:
     .in('tipo_comida', tipos)
     .in('nivel', NIVELES_PERMITIDOS[nivel])
     .eq('oculta', false)
+    .eq('solo_especial', false)
     .order('created_at', { ascending: false })
     .limit(800);
   if (error) throw error;
@@ -202,7 +221,7 @@ export async function guardarReceta(
   tipo: TipoComida | 'otro',
   restr: Restricciones,
   modelo = MODELO_RECETA,
-  opciones: { privadaDe?: string | null; origenUrl?: string | null; videoEmbed?: string | null; autor?: string | null; esperaFoto?: boolean } = {},
+  opciones: { privadaDe?: string | null; origenUrl?: string | null; videoEmbed?: string | null; autor?: string | null; esperaFoto?: boolean; soloEspecial?: boolean; avisos?: string[] } = {},
 ): Promise<RecetaGuardada> {
   const base = limpiarNombre(texto(r.nombre, 80)) || texto(r.nombre, 80);
   const privada = opciones.privadaDe ?? null;
@@ -263,6 +282,9 @@ export async function guardarReceta(
         ...(privada ? { privada_de: privada, oculta: true } : {}),
         // Recetas de lotes: ocultas hasta que llegue su foto.
         ...(opciones.esperaFoto ? { oculta: true, espera_foto: true } : {}),
+        // Especiales de temporada: nunca en el menú.
+        ...(opciones.soloEspecial ? { solo_especial: true } : {}),
+        ...(opciones.avisos ? { avisos: opciones.avisos } : {}),
         ...(opciones.origenUrl ? { origen_url: opciones.origenUrl.slice(0, 500) } : {}),
         ...(opciones.videoEmbed ? { video_embed: opciones.videoEmbed.slice(0, 300) } : {}),
         ...(opciones.autor ? { origen_autor: opciones.autor.slice(0, 80) } : {}),

@@ -302,7 +302,7 @@ ${lineasCatalogo}`;
   const resueltas = new Map<string, RecetaGuardada | null>();
   const nombres = [...nuevas.values()].map((p) => normalizar(p.plato));
   if (nombres.length) {
-    const { data } = await admin.from('recetas').select(`${COLUMNAS_RECETA}, nombre_norm`).in('nombre_norm', nombres).eq('oculta', false);
+    const { data } = await admin.from('recetas').select(`${COLUMNAS_RECETA}, nombre_norm`).in('nombre_norm', nombres).eq('oculta', false).eq('solo_especial', false);
     for (const r of (data ?? []) as (RecetaGuardada & { nombre_norm: string })[]) {
       const clave = `${r.tipo_comida}|${r.nombre_norm}`;
       if (nuevas.has(clave) && esApta(r, restr)) resueltas.set(clave, r);

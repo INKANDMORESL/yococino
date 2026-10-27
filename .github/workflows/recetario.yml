@@ -10,7 +10,7 @@ on:
       accion:
         description: 'Qué hacer'
         type: choice
-        options: [estado, tipicas, airfryer, notas_airfryer, enviar, fotos]
+        options: [estado, especiales, tipicas, airfryer, notas_airfryer, enviar, fotos]
         default: estado
       cantidad:
         description: 'Cuántas recetas (solo para «enviar»)'

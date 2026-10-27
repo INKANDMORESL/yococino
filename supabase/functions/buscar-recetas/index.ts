@@ -5,10 +5,12 @@ import { crearClientes, fallo, responder, servir } from '../_shared/http.ts';
 import { esApta, type RecetaGuardada } from '../_shared/recetas.ts';
 import { normalizar } from '../_shared/texto.ts';
 import { CATEGORIAS, categoriasDe, SUBCATEGORIAS } from '../_shared/categorias.ts';
+import { especialPorClave } from '../_shared/especiales.ts';
+import { textoAvisos } from '../_shared/importar_reglas.ts';
 
 const TIPOS = ['desayuno', 'media_manana', 'almuerzo', 'merienda', 'cena'];
 const MAX_RESULTADOS = 60;
-const COLUMNAS = 'id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini, alergenos, aparatos, nota_airfryer, ingredientes(nombre, nota)';
+const COLUMNAS = 'id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini, alergenos, aparatos, nota_airfryer, solo_especial, avisos, ingredientes(nombre, nota)';
 
 async function buscar(req: Request): Promise<Response> {
   const { usuario, admin } = crearClientes(req);
@@ -42,22 +44,44 @@ async function buscar(req: Request): Promise<Response> {
     if (!ids.length) return responder({ ok: true, recetas: [] });
   }
 
-  let consulta = admin.from('recetas').select(COLUMNAS).neq('tipo_comida', 'otro').eq('oculta', false);
+  // Los postres de los especiales de temporada («otro») también salen en el recetario.
+  let consulta = admin.from('recetas').select(COLUMNAS).or('tipo_comida.neq.otro,solo_especial.eq.true').eq('oculta', false);
   if (ids) consulta = consulta.in('id', ids.slice(0, 300));
   if (tipo) consulta = consulta.eq('tipo_comida', tipo);
   // Con filtro de categoría se miran más recetas, porque la categoría se calcula aquí a partir de los ingredientes.
   const { data, error } = await consulta.order('created_at', { ascending: false }).limit(categoria ? 2000 : 300);
   if (error) throw error;
 
-  const recetas = ((data ?? []) as unknown as (RecetaGuardada & Record<string, unknown>)[])
+  const lista = ((data ?? []) as unknown as (RecetaGuardada & Record<string, unknown>)[])
     .filter((r) => esApta(r, restr))
     .filter((r) => {
       if (!categoria) return true;
       const c = categoriasDe(r);
       return (c.categorias as string[]).includes(categoria) && (!sub || c.sub.includes(sub));
     })
-    .slice(0, MAX_RESULTADOS)
-    .map(({ id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini }) => ({ id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini }));
+    .slice(0, MAX_RESULTADOS);
+  // Etiqueta del especial de temporada («Especial Navidad»).
+  // Solo las recetas hechas para el especial llevan la etiqueta (no el cocido de siempre que sale en «Invierno»).
+  const ids = lista.filter((r) => r.solo_especial).map((r) => r.id);
+  const { data: esp } = ids.length ? await admin.from('especial_recetas').select('especial, receta_id').in('receta_id', ids) : { data: [] };
+  const etiqueta = new Map<number, string>();
+  for (const e of (esp ?? []) as { especial: string; receta_id: number }[]) {
+    const def = especialPorClave(e.especial);
+    if (def && !etiqueta.has(e.receta_id)) etiqueta.set(e.receta_id, `${def.emoji} ${def.titulo}`);
+  }
+  const recetas = lista.map(({ id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini, avisos }) => ({
+    id,
+    nombre,
+    descripcion,
+    tipo_comida,
+    nivel,
+    minutos,
+    kcal,
+    imagen,
+    imagen_mini,
+    especial: etiqueta.get(id as number) ?? null,
+    aviso: textoAvisos((avisos as string[] | null) ?? []),
+  }));
   return responder({ ok: true, recetas });
 }
 

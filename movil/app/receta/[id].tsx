@@ -143,7 +143,9 @@ export default function RecetaPantalla() {
         setFoto(r.imagen);
         if (faltaFoto(r)) pedirFoto(r.id).then((f) => vivo && f?.imagen && setFoto(f.imagen)).catch(() => {});
         esFavorita(r.id).then((f) => vivo && setFavorita(f)).catch(() => {});
-        avisosDeMiReceta(r.id).then((m) => vivo && setAvisoSalud(m ? textoAvisos(m.avisos) : null)).catch(() => {});
+        // Aviso de alto contenido: recetas especiales de temporada (recetas.avisos) o guardadas de redes.
+        if (r.avisos?.length) setAvisoSalud(textoAvisos(r.avisos));
+        else avisosDeMiReceta(r.id).then((m) => vivo && setAvisoSalud(m ? textoAvisos(m.avisos) : null)).catch(() => {});
         pequesEnCasa().then((p) => vivo && setPeques(p)).catch(() => {});
         if (comidaParam) {
           const hoy = hoyISO();
