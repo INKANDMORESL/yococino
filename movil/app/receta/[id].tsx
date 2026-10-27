@@ -3,28 +3,29 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, Vibration, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Aparecer, Aviso, Boton, Contador, Saltar } from '../../../src/components';
-import { cargarComensales } from '../../../src/features/compra/api';
-import { RACION_PEQUE, type Comensales } from '../../../src/features/compra/lista';
-import { leerCache } from '../../../src/lib/cache';
-import { useLatido } from '../../../src/components/Animaciones';
-import { ErrorMenu, avisosDeMiReceta, cambiarPlato, cargarComidas, cargarReceta, marcarHecha, textoAvisos } from '../../../src/features/menu/api';
-import { faltaFoto, pedirFoto } from '../../../src/features/menu/fotos';
-import { AsignarDia } from '../../../src/features/menu/AsignarDia';
-import { CambiarIngrediente } from '../../../src/features/menu/CambiarIngrediente';
-import { compartirReceta } from '../../../src/features/menu/compartir';
+import { BarraPestanasSuelta } from '../../src/components/BarraPestanas';
+import { Aparecer, Aviso, Boton, Contador, Saltar } from '../../src/components';
+import { cargarComensales } from '../../src/features/compra/api';
+import { RACION_PEQUE, type Comensales } from '../../src/features/compra/lista';
+import { leerCache } from '../../src/lib/cache';
+import { useLatido } from '../../src/components/Animaciones';
+import { ErrorMenu, avisosDeMiReceta, cambiarPlato, cargarComidas, cargarReceta, marcarHecha, textoAvisos } from '../../src/features/menu/api';
+import { faltaFoto, pedirFoto } from '../../src/features/menu/fotos';
+import { AsignarDia } from '../../src/features/menu/AsignarDia';
+import { CambiarIngrediente } from '../../src/features/menu/CambiarIngrediente';
+import { compartirReceta } from '../../src/features/menu/compartir';
 import Svg, { Path } from 'react-native-svg';
-import { Peques } from '../../../src/features/menu/Peques';
-import { anadirNoMeGusta, cambiarFavorita, esFavorita, pequesEnCasa } from '../../../src/features/perfil/api';
-import { useAuth } from '../../../src/lib/auth';
-import { volver } from '../../../src/lib/volver';
-import { cantidadTexto } from '../../../src/features/menu/cantidades';
-import { useModoCocinar } from '../../../src/features/menu/modoCocinar';
-import { relojTexto, tiempoDelPaso } from '../../../src/features/menu/temporizador';
-import { hoyISO, sumarDias } from '../../../src/features/menu/fechas';
-import { NIVEL, NOMBRE_ALERGENO, TIPOS, type Comida, type Receta } from '../../../src/features/menu/tipos';
-import { colors, radius, shadow, space, type } from '../../../src/theme';
-import { conCambios } from '../../../src/features/menu/cambios';
+import { Peques } from '../../src/features/menu/Peques';
+import { anadirNoMeGusta, cambiarFavorita, esFavorita, pequesEnCasa } from '../../src/features/perfil/api';
+import { useAuth } from '../../src/lib/auth';
+import { volver } from '../../src/lib/volver';
+import { cantidadTexto } from '../../src/features/menu/cantidades';
+import { useModoCocinar } from '../../src/features/menu/modoCocinar';
+import { relojTexto, tiempoDelPaso } from '../../src/features/menu/temporizador';
+import { hoyISO, sumarDias } from '../../src/features/menu/fechas';
+import { NIVEL, NOMBRE_ALERGENO, TIPOS, type Comida, type Receta } from '../../src/features/menu/tipos';
+import { colors, radius, shadow, space, type } from '../../src/theme';
+import { conCambios } from '../../src/features/menu/cambios';
 
 // Aviso al terminar un temporizador: vibración en el móvil y un pitido en la web.
 function avisarFin() {
@@ -250,17 +251,23 @@ function FichaReceta() {
 
   if (error && !receta) {
     return (
-      <SafeAreaView style={s.centro}>
-        <Aviso tono="rosa" texto={error} />
-        <Boton texto="Volver" variante="linea" onPress={() => volver()} />
-      </SafeAreaView>
+      <View style={s.pantalla}>
+        <SafeAreaView style={s.centro} edges={['top']}>
+          <Aviso tono="rosa" texto={error} />
+          <Boton texto="Volver" variante="linea" onPress={() => volver()} />
+        </SafeAreaView>
+        <BarraPestanasSuelta />
+      </View>
     );
   }
   if (!receta) {
     return (
-      <SafeAreaView style={s.centro}>
-        <ActivityIndicator size="large" color={colors.olive} />
-      </SafeAreaView>
+      <View style={s.pantalla}>
+        <SafeAreaView style={s.centro} edges={['top']}>
+          <ActivityIndicator size="large" color={colors.olive} />
+        </SafeAreaView>
+        <BarraPestanasSuelta />
+      </View>
     );
   }
 
@@ -277,6 +284,7 @@ function FichaReceta() {
 
   return (
     <View style={s.pantalla}>
+      <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingBottom: comida ? 120 : space.xxl }}>
         <View style={[s.portada, { backgroundColor: t.fondo }]}>
           {foto ? (
@@ -592,6 +600,8 @@ function FichaReceta() {
           <Boton texto={comida.hecha ? '✓ Hecha' : 'Marcar como hecha'} variante={comida.hecha ? 'suave' : 'principal'} onPress={marcarComida} />
         </View>
       ) : null}
+      </View>
+      <BarraPestanasSuelta />
     </View>
   );
 }

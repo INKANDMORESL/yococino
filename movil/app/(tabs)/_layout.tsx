@@ -46,16 +46,12 @@ export default function Pestanas() {
   if (sesion && recuperando) return <Redirect href="/nueva-contrasena" />;
 
   return (
-    <Tabs backBehavior="history" tabBar={(props) => <Barra {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}>
+    <Tabs tabBar={(props) => <Barra {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}>
       <Tabs.Screen name="inicio" options={{ title: 'Inicio' }} />
       <Tabs.Screen name="recetas" options={{ title: 'Recetas' }} />
       <Tabs.Screen name="compra" options={{ title: 'Compra' }} />
       <Tabs.Screen name="progreso" options={{ title: 'Progreso' }} />
       <Tabs.Screen name="perfil" options={{ title: 'Perfil' }} />
-      {/* Pantallas que se abren desde las pestañas: la barra de abajo se queda quieta (no se recarga). */}
-      <Tabs.Screen name="receta/[id]" options={{ href: null }} />
-      <Tabs.Screen name="menu" options={{ href: null }} />
-      <Tabs.Screen name="especial" options={{ href: null }} />
     </Tabs>
   );
 }

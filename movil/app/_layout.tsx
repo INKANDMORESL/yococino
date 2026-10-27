@@ -21,6 +21,11 @@ export default function Layout() {
             <Stack.Screen name="index" options={{ animation: 'fade' }} />
             <Stack.Screen name="(tabs)" options={{ animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="auth" options={{ animation: 'fade' }} />
+            {/* Receta, menú completo y especial llevan la misma barra de abajo: se abren con un fundido rápido
+                para que la barra no se mueva ni parezca que se recarga. */}
+            <Stack.Screen name="receta/[id]" options={{ animation: 'fade', animationDuration: 150 }} />
+            <Stack.Screen name="menu" options={{ animation: 'fade', animationDuration: 150 }} />
+            <Stack.Screen name="especial" options={{ animation: 'fade', animationDuration: 150 }} />
             <Stack.Screen name="cocinar" options={{ animation: 'slide_from_bottom' }} />
             <Stack.Screen name="tutorial" options={{ animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="suscripcion" options={{ animation: 'slide_from_bottom' }} />
