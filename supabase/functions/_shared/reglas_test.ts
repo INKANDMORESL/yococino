@@ -8,6 +8,7 @@ import { aparatosEnTexto, aparatosQueFaltan } from './aparatos.ts';
 import { encajaPreferencia, interpretarPreferencias } from './preferencias.ts';
 import { especialesDe, pascua } from './especiales.ts';
 import { equivalentesDe } from './equivalentes.ts';
+import { estacionDe, pegaConEstacion, temperaturaPlato } from './estacion.ts';
 import { avisosNutricion, embedDe, extraerUrl, normalizarUrl, plataformaDe, textoAvisos, urlPermitida } from './importar_reglas.ts';
 
 type Caso = [string, () => boolean];
@@ -155,6 +156,11 @@ export const CASOS: Caso[] = [
   ['equivalentes: merluza → rosada', () => equivalentesDe('Merluza').includes('rosada')],
   ['equivalentes: pimiento rojo → pimiento verde', () => equivalentesDe('Pimiento rojo').includes('pimiento verde') && !equivalentesDe('Pimiento rojo').includes('pimiento rojo')],
   ['equivalentes: tomate triturado no da tomate cherry', () => !equivalentesDe('Tomate triturado').includes('tomate cherry')],
+  ['estacion: meses de calor, frío y entretiempo', () => estacionDe(7) === 'calor' && estacionDe(1) === 'frio' && estacionDe(10) === 'templado'],
+  ['estacion: gazpacho, salmorejo, crema fría y ensalada son platos fríos', () => ['Gazpacho andaluz', 'Salmorejo cordobés con huevo', 'Crema fría de calabacín', 'Ensalada de garbanzos'].every((n) => temperaturaPlato(n) === 'frio')],
+  ['estacion: gazpachuelo, lentejas y crema de calabaza son calientes', () => ['Gazpachuelo malagueño', 'Lentejas estofadas con verduras', 'Crema de calabaza'].every((n) => temperaturaPlato(n) === 'caliente')],
+  ['estacion: merluza a la plancha vale siempre', () => temperaturaPlato('Merluza a la plancha') === null],
+  ['estacion: nada de gazpacho en invierno ni cocido en verano', () => pegaConEstacion('Gazpacho andaluz', 'frio') === false && pegaConEstacion('Cocido madrileño', 'calor') === false && pegaConEstacion('Cocido madrileño', 'frio') === true && pegaConEstacion('Gazpacho andaluz', 'templado') === null],
 ];
 
 // Deno ejecuta cada caso como una prueba.
@@ -166,4 +172,5 @@ if (denoGlobal) {
     });
   }
 }
+
 

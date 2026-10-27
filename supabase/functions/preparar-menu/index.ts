@@ -28,6 +28,7 @@ import {
   type RecetaGuardada,
 } from '../_shared/recetas.ts';
 import { frutasDelMes, mesDe } from '../_shared/temporada.ts';
+import { estacionDe, pegaConEstacion, reglaEstacion, temperaturaPlato } from '../_shared/estacion.ts';
 import { normalizar } from '../_shared/texto.ts';
 import { seHaceEnAirfryer } from '../_shared/aparatos.ts';
 import { encajaPreferencia, NOMBRE_TOMA, type Preferencias } from '../_shared/preferencias.ts';
@@ -179,6 +180,17 @@ async function preparar(req: Request): Promise<Response> {
   const porId = new Map(catalogo.map((r) => [r.id, r]));
   const mes = MESES[numMes - 1];
   const conAirfryer = (restr.aparatos ?? []).includes('airfryer');
+  // Época del año: con calor más platos fríos, con frío más platos calientes de cuchara (solo almuerzos y cenas).
+  const estacion = estacionDe(numMes);
+  const regla = reglaEstacion(estacion);
+  const principal = (r: RecetaGuardada) => r.tipo_comida === 'almuerzo' || r.tipo_comida === 'cena';
+  const dePega = (r: RecetaGuardada) => principal(r) && pegaConEstacion(r.nombre, estacion) === true;
+  const fueraDeEpoca = (r: RecetaGuardada) => principal(r) && pegaConEstacion(r.nombre, estacion) === false;
+  const marcaEpoca = (r: RecetaGuardada) => {
+    if (!principal(r) || estacion === 'templado') return '';
+    const temp = temperaturaPlato(r.nombre);
+    return temp === 'frio' ? ' · fresco' : temp === 'caliente' ? ' · caliente' : '';
+  };
   // Lo que la persona ha escrito que le gusta (Perfil → Cómo te gusta comer). Se respeta reutilizando recetas.
   const prefs = ((perfil as { preferencias?: Preferencias | null }).preferencias ?? null) as Preferencias | null;
   const prefTipo = (t: TipoComida) => prefs?.mas?.[t] ?? [];
@@ -211,13 +223,16 @@ ${
     conAirfryer
       ? '- Tiene airfryer: incluye 2 o 3 almuerzos o cenas a la semana que se hagan en airfryer (marcados «airfryer» en el catálogo). No más, para que haya variedad.\n'
       : ''
-  }- Devuelve exactamente las comidas pedidas para cada día. Sin consejos médicos.`;
+  }${regla ? `- ${regla}\n` : ''}- Devuelve exactamente las comidas pedidas para cada día. Sin consejos médicos.`;
 
   // Recetas ya usadas cerca: no se repiten al elegir del catálogo sin IA, y van al final de lo que se enseña a la IA.
   const usadas = new Set(filasExistentes.map((e) => e.receta_id).filter((x): x is number => x !== null));
   const catalogoIA = tipos.flatMap((t) => {
     const delTipo = catalogo.filter((r) => r.tipo_comida === t);
-    const orden = [...delTipo.filter((r) => !usadas.has(r.id)), ...delTipo.filter((r) => usadas.has(r.id))];
+    const sinUsar = delTipo.filter((r) => !usadas.has(r.id));
+    // Primero los platos de la época, al final los de otra época (y siempre después los ya usados).
+    const porEpoca = (l: RecetaGuardada[]) => [...l.filter(dePega), ...l.filter((r) => !dePega(r) && !fueraDeEpoca(r)), ...l.filter(fueraDeEpoca)];
+    const orden = [...porEpoca(sinUsar), ...porEpoca(delTipo.filter((r) => usadas.has(r.id)))];
     // Con airfryer, que siempre se vean algunas de airfryer aunque el catálogo sea grande.
     const deAirfryer = conAirfryer ? orden.filter((r) => seHaceEnAirfryer(r.aparatos, r.nota_airfryer)).slice(0, 6) : [];
     // Primero lo que encaja con sus gustos de esa toma; luego algunos de sus gustos generales.
@@ -229,7 +244,7 @@ ${
     ? catalogoIA
         .map(
           (r) =>
-            `${r.id} · ${r.tipo_comida} · ${r.nombre}${encajaTipo(r) || encajaGeneral(r) ? ' · le gusta' : ''}${conAirfryer && seHaceEnAirfryer(r.aparatos, r.nota_airfryer) ? ' · airfryer' : ''}`,
+            `${r.id} · ${r.tipo_comida} · ${r.nombre}${encajaTipo(r) || encajaGeneral(r) ? ' · le gusta' : ''}${conAirfryer && seHaceEnAirfryer(r.aparatos, r.nota_airfryer) ? ' · airfryer' : ''}${marcaEpoca(r)}`,
         )
         .join('\n')
     : '(vacío: propón platos nuevos)';
@@ -257,7 +272,9 @@ ${lineasCatalogo}`;
     const libres = delTipo.filter((r) => !usadas.has(r.id));
     // Sin IA: si tiene gustos para esta toma, primero las recetas que encajan.
     const libresQueGustan = libres.filter(encajaTipo);
-    const lista = libresQueGustan.length ? libresQueGustan : libres.length ? libres : delTipo;
+    // Sin IA también se mira la época: nada de gazpacho en enero ni cocido en agosto si hay otra opción.
+    const deEpoca = libres.filter((r) => !fueraDeEpoca(r));
+    const lista = libresQueGustan.length ? libresQueGustan : deEpoca.length ? deEpoca : libres.length ? libres : delTipo;
     if (!lista.length) return null;
     const r = lista[Math.floor(Math.random() * lista.length)];
     usadas.add(r.id);
