@@ -8,6 +8,7 @@ import { Platform } from 'react-native';
 import { guardarEncuestaPendiente } from './perfil';
 import { supabase, supabaseConfigurado } from './supabase';
 import { cerrarPagos, iniciarPagos } from './pagos';
+import { guardarRegion } from './region';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -56,7 +57,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .getSession()
       .then(({ data }) => {
         setSesion(data.session);
-        if (data.session) iniciarPagos(data.session.user.id);
+        if (data.session) {
+          iniciarPagos(data.session.user.id);
+          guardarRegion(data.session.user.id);
+        }
       })
       .finally(() => setCargando(false));
     const { data } = supabase.auth.onAuthStateChange((evento, nueva) => {
@@ -64,7 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (evento === 'PASSWORD_RECOVERY') setRecuperando(true);
       // Al entrar por primera vez, guardar la encuesta que se rellenó antes de registrarse.
       if (nueva) guardarEncuestaPendiente(nueva.user.id).catch(() => {});
-      if (nueva) iniciarPagos(nueva.user.id);
+      if (nueva) {
+        iniciarPagos(nueva.user.id);
+        guardarRegion(nueva.user.id);
+      }
       if (evento === 'SIGNED_OUT') cerrarPagos();
     });
     return () => data.subscription.unsubscribe();
