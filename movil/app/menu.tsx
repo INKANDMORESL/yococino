@@ -5,6 +5,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BarraPestanasSuelta } from '../src/components/BarraPestanas';
 import { Aviso } from '../src/components';
 import { ErrorMenu, cambiarPlato, cargarComidas, marcarHecha } from '../src/features/menu/api';
 import { faltaFoto, fotoPequena, pedirFoto } from '../src/features/menu/fotos';
@@ -290,6 +291,7 @@ export default function Menu() {
           })
         )}
       </ScrollView>
+      <BarraPestanasSuelta />
     </SafeAreaView>
   );
 }

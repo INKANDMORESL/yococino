@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, Vibration, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BarraPestanasSuelta } from '../../src/components/BarraPestanas';
 import { Aparecer, Aviso, Boton, Contador, Saltar } from '../../src/components';
 import { cargarComensales } from '../../src/features/compra/api';
 import { RACION_PEQUE, type Comensales } from '../../src/features/compra/lista';
@@ -272,6 +273,7 @@ export default function RecetaPantalla() {
 
   return (
     <View style={s.pantalla}>
+      <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ paddingBottom: comida ? 120 : space.xxl }}>
         <View style={[s.portada, { backgroundColor: t.fondo }]}>
           {foto ? (
@@ -583,10 +585,12 @@ export default function RecetaPantalla() {
       </SafeAreaView>
 
       {comida ? (
-        <SafeAreaView edges={['bottom']} style={s.pie}>
+        <View style={s.pie}>
           <Boton texto={comida.hecha ? '✓ Hecha' : 'Marcar como hecha'} variante={comida.hecha ? 'suave' : 'principal'} onPress={marcarComida} />
-        </SafeAreaView>
+        </View>
       ) : null}
+      </View>
+      <BarraPestanasSuelta />
     </View>
   );
 }

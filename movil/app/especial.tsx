@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BarraPestanasSuelta } from '../src/components/BarraPestanas';
 import { Aparecer, Aviso } from '../src/components';
 import { ErrorMenu, cargarEspecial, type Especial, type RecetaEspecial } from '../src/features/menu/api';
 import { TIPOS, type TipoComida } from '../src/features/menu/tipos';
@@ -70,6 +71,7 @@ export default function EspecialPantalla() {
           })}
         </View>
       </ScrollView>
+      <BarraPestanasSuelta />
     </SafeAreaView>
   );
 }
