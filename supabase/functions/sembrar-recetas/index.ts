@@ -224,7 +224,7 @@ async function enviarRecetas(admin: Cliente, pedidas: number, lista: 'ideas' | '
         sistema: sistemaReceta(i.tipo_comida, i.nivel, restriccionDe(i), mes, i.airfryer === true) + (i.especial ? extraEspecial(i.especial) : ''),
         mensaje: mensajeReceta(i.plato, i.descripcion, i.tipo_comida),
         esquema: i.especial ? ESQUEMA_RECETA_COMPLETA : ESQUEMA_RECETA,
-        maxTokens: 4000,
+        maxTokens: 6000,
       },
     };
   });

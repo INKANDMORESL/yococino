@@ -76,7 +76,7 @@ No inventes nada que no diga. No aceptes como preferencia nada poco saludable (a
 Si habla de una enfermedad, embarazo, medicación o un trastorno de la conducta alimentaria, marca salud = true.`,
         mensaje: escrito,
         esquema: ESQUEMA,
-        maxTokens: 800,
+        maxTokens: 1500,
       });
       salud = r.salud === true;
       const limpia = (v: unknown) => (Array.isArray(v) ? v.map((x) => texto(x, 30).toLowerCase()).filter((x) => x.length >= 3).slice(0, 8) : []);
