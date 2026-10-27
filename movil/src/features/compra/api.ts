@@ -5,7 +5,7 @@ import type { ComidaConIngredientes, Comensales } from './lista';
 export async function cargarIngredientes(desde: string, hasta: string): Promise<ComidaConIngredientes[]> {
   const { data, error } = await supabase
     .from('comidas')
-    .select('id, fecha, tipo_comida, factor, receta:recetas(id, nombre, ingredientes(nombre, cantidad, unidad, seccion))')
+    .select('id, fecha, tipo_comida, factor, cambios, receta:recetas(id, nombre, ingredientes(nombre, cantidad, unidad, seccion))')
     .gte('fecha', desde)
     .lte('fecha', hasta)
     .order('fecha');

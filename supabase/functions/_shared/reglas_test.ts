@@ -7,6 +7,7 @@ import { categoriasDe } from './categorias.ts';
 import { aparatosEnTexto, aparatosQueFaltan } from './aparatos.ts';
 import { encajaPreferencia, interpretarPreferencias } from './preferencias.ts';
 import { especialesDe, pascua } from './especiales.ts';
+import { equivalentesDe } from './equivalentes.ts';
 import { avisosNutricion, embedDe, extraerUrl, normalizarUrl, plataformaDe, textoAvisos, urlPermitida } from './importar_reglas.ts';
 
 type Caso = [string, () => boolean];
@@ -150,6 +151,10 @@ export const CASOS: Caso[] = [
   ['especiales: 1 de enero sigue siendo Navidad', () => especialesDe('2027-01-01')[0]?.clave === 'navidad'],
   ['especiales: el 4 de enero, Roscón', () => especialesDe('2027-01-04')[0]?.clave === 'roscon'],
   ['especiales: siempre hay alguno', () => Array.from({ length: 365 }, (_, d) => new Date(Date.UTC(2027, 0, 1 + d)).toISOString().slice(0, 10)).every((x) => especialesDe(x).length > 0)],
+  // Equivalentes de la lista de la compra
+  ['equivalentes: merluza → rosada', () => equivalentesDe('Merluza').includes('rosada')],
+  ['equivalentes: pimiento rojo → pimiento verde', () => equivalentesDe('Pimiento rojo').includes('pimiento verde') && !equivalentesDe('Pimiento rojo').includes('pimiento rojo')],
+  ['equivalentes: tomate triturado no da tomate cherry', () => !equivalentesDe('Tomate triturado').includes('tomate cherry')],
 ];
 
 // Deno ejecuta cada caso como una prueba.

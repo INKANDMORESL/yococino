@@ -13,6 +13,7 @@ import { useAuth } from '../../src/lib/auth';
 import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../../src/theme';
 import { useSubirAlTocarPestana } from '../../src/lib/subirArriba';
+import { Equivalente } from '../../src/features/compra/Equivalente';
 
 const RANGOS = [
   { clave: 'hoy', texto: 'Hoy', dias: 1 },
@@ -55,6 +56,8 @@ export default function Compra() {
   const [marcas, setMarcas] = useState<Set<string>>(leerCache('compra:marcas') ?? new Set());
   const [cargando, setCargando] = useState(!leerCache('compra:3d'));
   const [error, setError] = useState<string | null>(null);
+  const [equivalenteDe, setEquivalenteDe] = useState<string | null>(null);
+  const [avisoCambio, setAvisoCambio] = useState<string | null>(null);
 
   const dias = RANGOS.find((r) => r.clave === rango)?.dias ?? 3;
 
@@ -225,6 +228,7 @@ export default function Compra() {
         ) : null}
 
         {error ? <Aviso tono="rosa" texto={error} /> : null}
+        {avisoCambio ? <Aviso tono="hoja" texto={avisoCambio} /> : null}
 
         {articulos.length > 0 ? (
           <Tarjeta style={{ gap: space.sm }}>
@@ -260,18 +264,49 @@ export default function Compra() {
               <View style={s.caja}>
                 {g.articulos.map((a, i) => {
                   const marcado = marcas.has(a.clave);
+                  const abierto = equivalenteDe === a.clave;
                   return (
-                    <Pressable
-                      key={a.clave}
-                      onPress={() => alternar(a)}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: marcado }}
-                      style={[s.articulo, i > 0 && s.separador]}
-                    >
-                      <View style={[s.marca, marcado && s.marcaHecha]}>{marcado ? <Text style={s.marcaTexto}>✓</Text> : null}</View>
-                      <Text style={[s.nombre, marcado && s.tachado]}>{a.nombre}</Text>
-                      <Text style={[s.cantidad, marcado && s.tachado]}>{cantidadCompra(a)}</Text>
-                    </Pressable>
+                    <View key={a.clave} style={i > 0 && s.separador}>
+                      <View style={s.filaArticulo}>
+                        <Pressable
+                          onPress={() => alternar(a)}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: marcado }}
+                          style={s.articulo}
+                        >
+                          <View style={[s.marca, marcado && s.marcaHecha]}>{marcado ? <Text style={s.marcaTexto}>✓</Text> : null}</View>
+                          <Text style={[s.nombre, marcado && s.tachado]}>{a.nombre}</Text>
+                          <Text style={[s.cantidad, marcado && s.tachado]}>{cantidadCompra(a)}</Text>
+                        </Pressable>
+                        {a.unidad !== 'al gusto' ? (
+                          <Pressable
+                            onPress={() => {
+                              setAvisoCambio(null);
+                              setEquivalenteDe(abierto ? null : a.clave);
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Equivalente de ${a.nombre}`}
+                            hitSlop={6}
+                            style={[s.cambiar, abierto && s.cambiarActivo]}
+                          >
+                            <Text style={s.cambiarTexto}>⇄</Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                      {abierto ? (
+                        <Equivalente
+                          ingrediente={a.nombre}
+                          desde={hoyISO()}
+                          hasta={sumarDias(hoyISO(), dias - 1)}
+                          cerrar={() => setEquivalenteDe(null)}
+                          listo={(n) => {
+                            setEquivalenteDe(null);
+                            setAvisoCambio(n ? `Cambiado en ${n === 1 ? '1 receta' : `${n} recetas`}. Ya lo verás así en la receta.` : 'No hemos encontrado recetas con ese ingrediente en estos días.');
+                            cargar();
+                          }}
+                        />
+                      ) : null}
+                    </View>
                   );
                 })}
               </View>
@@ -302,7 +337,11 @@ const s = StyleSheet.create({
   vacio: { alignItems: 'center', gap: space.sm, paddingVertical: space.xxl },
   seccion: { fontSize: 18, fontWeight: '700', color: colors.ink, marginBottom: space.sm },
   caja: { backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: space.lg, ...shadow },
-  articulo: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 14 },
+  articulo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 14 },
+  filaArticulo: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  cambiar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.leafSoft, alignItems: 'center', justifyContent: 'center' },
+  cambiarActivo: { backgroundColor: colors.leaf },
+  cambiarTexto: { fontSize: 16, color: colors.oliveInk, fontWeight: '700' },
   separador: { borderTopWidth: 1, borderTopColor: colors.line },
   marca: { width: 28, height: 28, borderRadius: 9, borderWidth: 2, borderColor: '#D5D2C6', alignItems: 'center', justifyContent: 'center' },
   marcaHecha: { backgroundColor: colors.olive, borderColor: colors.olive },

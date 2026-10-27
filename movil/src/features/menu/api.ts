@@ -17,7 +17,7 @@ export class ErrorMenu extends Error {
 export async function cargarComidas(desde: string, hasta: string): Promise<Comida[]> {
   const { data, error } = await supabase
     .from('comidas')
-    .select('id, fecha, orden, tipo_comida, receta_id, factor, kcal, hecha, receta:recetas(id, nombre, minutos, descripcion, imagen, imagen_mini)')
+    .select('id, fecha, orden, tipo_comida, receta_id, factor, kcal, hecha, cambios, receta:recetas(id, nombre, minutos, descripcion, imagen, imagen_mini)')
     .gte('fecha', desde)
     .lte('fecha', hasta)
     .order('fecha')
@@ -258,3 +258,9 @@ export interface RecetaEspecial {
 }
 export const cargarEspecial = (clave?: string, limite?: number) =>
   llamar<{ especial: Especial | null; recetas: RecetaEspecial[] }>('especiales', { clave, limite }, 'No hemos podido cargar las recetas especiales.');
+
+// «Equivalente» en la lista de la compra: propuestas y cambio del ingrediente en el menú de esos días.
+export const sugerirEquivalente = (ingrediente: string) =>
+  llamar<{ opciones: string[] }>('equivalente', { accion: 'sugerir', ingrediente }, 'No hemos podido buscar equivalentes.').then((r) => r.opciones);
+export const cambiarEquivalente = (ingrediente: string, nuevo: string, desde: string, hasta: string) =>
+  llamar<{ cambiadas: number }>('equivalente', { accion: 'cambiar', ingrediente, nuevo, desde, hasta }, 'No hemos podido cambiar el ingrediente.').then((r) => r.cambiadas);

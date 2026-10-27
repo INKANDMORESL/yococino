@@ -55,3 +55,6 @@ verify_jwt = true
 
 [functions.especiales]
 verify_jwt = true
+
+[functions.equivalente]
+verify_jwt = true

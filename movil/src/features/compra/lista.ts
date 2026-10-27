@@ -1,5 +1,6 @@
 // Junta los ingredientes de varias comidas en una lista de la compra.
 import { mayuscula, normalizar } from '../../lib/texto';
+import { enPiezas } from '../menu/piezas';
 
 export const SECCIONES: { clave: string; texto: string; emoji: string }[] = [
   { clave: 'fruta_verdura', texto: 'Frutas y verduras', emoji: '🥦' },
@@ -22,6 +23,7 @@ export interface ComidaConIngredientes {
   fecha?: string;
   tipo_comida?: string;
   factor: number;
+  cambios?: Record<string, string> | null; // ingredientes cambiados con «Equivalente»: { merluza: 'rosada' }
   receta: { id?: number; nombre?: string; ingredientes: IngredienteCompra[] } | null;
 }
 
@@ -48,7 +50,9 @@ export function agruparCompra(comidas: ComidaConIngredientes[], casa: Comensales
   const otros = Math.max(0, casa.adultos - 1) + Math.max(0, casa.peques) * RACION_PEQUE;
   const mapa = new Map<string, Articulo>();
   for (const c of comidas) {
-    for (const i of c.receta?.ingredientes ?? []) {
+    for (const original of c.receta?.ingredientes ?? []) {
+      const cambiado = c.cambios?.[normalizar(original.nombre)];
+      const i = cambiado ? { ...original, nombre: cambiado } : original;
       const nombre = normalizar(i.nombre);
       if (!nombre) continue;
       const unidad = i.unidad && UNIDADES_SUMABLES.has(i.unidad) ? i.unidad : 'al gusto';
@@ -77,6 +81,11 @@ export function agruparCompra(comidas: ComidaConIngredientes[], casa: Comensales
 export function cantidadCompra(a: Articulo): string {
   if (a.cantidad === null) return '';
   const v = a.cantidad;
+  // Lo que se compra por piezas: «2 (300 g)», redondeando hacia arriba a medias piezas.
+  if (a.unidad === 'g') {
+    const piezas = enPiezas(a.nombre, v, true);
+    if (piezas) return piezas;
+  }
   if (a.unidad === 'g' || a.unidad === 'ml') {
     if (v >= 1000) return `${(Math.ceil(v / 50) * 50 / 1000).toLocaleString('es-ES', { maximumFractionDigits: 2 })} ${a.unidad === 'g' ? 'kg' : 'l'}`;
     return `${v >= 50 ? Math.ceil(v / 10) * 10 : Math.ceil(v)} ${a.unidad}`;

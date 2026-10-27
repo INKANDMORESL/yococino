@@ -1,4 +1,5 @@
 // Cantidades de una receta ajustadas a la ración de cada persona, redondeadas para la cocina.
+import { enPiezas } from './piezas';
 
 const FRACCIONES: [number, string][] = [
   [0.25, '¼'],
@@ -17,10 +18,15 @@ function conFraccion(v: number): string {
   return entero ? `${entero} ${simbolo}` : simbolo;
 }
 
-export function cantidadTexto(cantidad: number | null, unidad: string | null, factor = 1): string {
+// Con el nombre del ingrediente, lo que se compra por piezas sale como «1 ½ (225 g)» (ver piezas.ts).
+export function cantidadTexto(cantidad: number | null, unidad: string | null, factor = 1, nombre?: string): string {
   const u = unidad ?? '';
   if (u === 'al gusto' || cantidad === null || cantidad === undefined) return 'al gusto';
   const v = cantidad * factor;
+  if (u === 'g' && nombre) {
+    const piezas = enPiezas(nombre, v);
+    if (piezas) return piezas;
+  }
   if (u === 'g' || u === 'ml') {
     if (v >= 1000) return `${(v / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} ${u === 'g' ? 'kg' : 'l'}`;
     const redondeado = v >= 20 ? Math.round(v / 5) * 5 : Math.max(1, Math.round(v));

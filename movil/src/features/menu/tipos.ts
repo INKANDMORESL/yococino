@@ -61,6 +61,7 @@ export interface Comida {
   factor: number;
   kcal: number | null;
   hecha: boolean;
+  cambios?: Record<string, string> | null; // ingredientes cambiados con «Equivalente» en la lista de la compra
   receta: { id: number; nombre: string; minutos: number | null; descripcion: string | null; imagen: string | null; imagen_mini?: string | null } | null;
 }
 

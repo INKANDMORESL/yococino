@@ -24,6 +24,7 @@ import { relojTexto, tiempoDelPaso } from '../../src/features/menu/temporizador'
 import { hoyISO, sumarDias } from '../../src/features/menu/fechas';
 import { NIVEL, NOMBRE_ALERGENO, TIPOS, type Comida, type Receta } from '../../src/features/menu/tipos';
 import { colors, radius, shadow, space, type } from '../../src/theme';
+import { conCambios } from '../../src/features/menu/cambios';
 
 // Aviso al terminar un temporizador: vibración en el móvil y un pitido en la web.
 function avisarFin() {
@@ -265,6 +266,10 @@ export default function RecetaPantalla() {
     Boolean,
   ) as string[];
 
+  // Ingredientes cambiados desde la lista de la compra («Equivalente»): se ven ya cambiados en esta comida.
+  const cambios = comida?.cambios ?? {};
+  const vista = Object.keys(cambios).length ? conCambios(receta, cambios) : receta;
+
   return (
     <View style={s.pantalla}>
       <ScrollView contentContainerStyle={{ paddingBottom: comida ? 120 : space.xxl }}>
@@ -338,7 +343,7 @@ export default function RecetaPantalla() {
               ) : null}
             </View>
             <View style={s.caja}>
-              {receta.ingredientes.map((ing, i) => {
+              {vista.ingredientes.map((ing, i) => {
                 const hecho = ingHechos.has(i);
                 return (
                   <Pressable
@@ -353,7 +358,7 @@ export default function RecetaPantalla() {
                       {ing.nombre.charAt(0).toUpperCase() + ing.nombre.slice(1)}
                       {ing.nota ? <Text style={s.ingNota}> ({ing.nota})</Text> : null}
                     </Text>
-                    <Text style={[s.ingCantidad, hecho && s.tachado]}>{cantidadTexto(ing.cantidad, ing.unidad, factorTotal)}</Text>
+                    <Text style={[s.ingCantidad, hecho && s.tachado]}>{cantidadTexto(ing.cantidad, ing.unidad, factorTotal, ing.nombre)}</Text>
                   </Pressable>
                 );
               })}
@@ -371,7 +376,7 @@ export default function RecetaPantalla() {
           <Aparecer retraso={140}>
             <Text style={s.seccion}>Preparación</Text>
             <View style={{ gap: space.md }}>
-              {receta.pasos.map((paso, i) => {
+              {vista.pasos.map((paso, i) => {
                 const hecho = pasosHechos.has(i);
                 const tiempo = tiempoDelPaso(paso);
                 const reloj = temporizadores.get(i);
@@ -552,7 +557,7 @@ export default function RecetaPantalla() {
           <Pressable
             onPress={() =>
               receta &&
-              compartirReceta(receta)
+              compartirReceta(vista)
                 .then((r) => r === 'copiada' && setAvisoCompartir('Receta copiada. Pégala donde quieras para enviarla.'))
                 .catch(() => {})
             }
