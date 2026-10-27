@@ -1,11 +1,11 @@
 // buscar-recetas: recetario con buscador. Devuelve solo recetas aptas para la persona
 // (sin sus alergias ni lo que no le gusta). Busca por nombre del plato y por ingrediente.
 import { restriccionesDe } from '../_shared/alergenos.ts';
-import { crearClientes, fallo, responder, servir } from '../_shared/http.ts';
+import { crearClientes, fallo, hoyEspana, responder, servir } from '../_shared/http.ts';
 import { esApta, type RecetaGuardada } from '../_shared/recetas.ts';
 import { normalizar } from '../_shared/texto.ts';
 import { CATEGORIAS, categoriasDe, SUBCATEGORIAS } from '../_shared/categorias.ts';
-import { especialPorClave } from '../_shared/especiales.ts';
+import { especialesDe, especialPorClave } from '../_shared/especiales.ts';
 import { textoAvisos } from '../_shared/importar_reglas.ts';
 
 const TIPOS = ['desayuno', 'media_manana', 'almuerzo', 'merienda', 'cena'];
@@ -52,7 +52,24 @@ async function buscar(req: Request): Promise<Response> {
   const { data, error } = await consulta.order('created_at', { ascending: false }).limit(categoria ? 2000 : 300);
   if (error) throw error;
 
-  const lista = ((data ?? []) as unknown as (RecetaGuardada & Record<string, unknown>)[])
+  const todas = (data ?? []) as unknown as (RecetaGuardada & Record<string, unknown>)[];
+
+  // Recetas hechas para un especial de temporada: solo salen mientras dura su especial
+  // (pasada la temporada ya no aparecen en el recetario; quien la guardó la sigue teniendo en Favoritas).
+  const enMarcha = new Set(especialesDe(hoyEspana()).map((e) => e.clave));
+  const idsEspeciales = todas.filter((r) => r.solo_especial).map((r) => r.id as number);
+  const { data: esp } = idsEspeciales.length
+    ? await admin.from('especial_recetas').select('especial, receta_id').in('receta_id', idsEspeciales.slice(0, 1000))
+    : { data: [] };
+  // Etiqueta del especial («Especial Navidad»). Solo la llevan las recetas hechas para el especial.
+  const etiqueta = new Map<number, string>();
+  for (const e of (esp ?? []) as { especial: string; receta_id: number }[]) {
+    const def = especialPorClave(e.especial);
+    if (def && enMarcha.has(def.clave) && !etiqueta.has(e.receta_id)) etiqueta.set(e.receta_id, `${def.emoji} ${def.titulo}`);
+  }
+
+  const lista = todas
+    .filter((r) => !r.solo_especial || etiqueta.has(r.id as number))
     .filter((r) => esApta(r, restr))
     .filter((r) => {
       if (!categoria) return true;
@@ -60,17 +77,6 @@ async function buscar(req: Request): Promise<Response> {
       return (c.categorias as string[]).includes(categoria) && (!sub || c.sub.includes(sub));
     })
     .slice(0, MAX_RESULTADOS);
-  // Etiqueta del especial de temporada («Especial Navidad»).
-  // Solo las recetas hechas para el especial llevan la etiqueta (no el cocido de siempre que sale en «Invierno»).
-  const idsEspeciales = lista.filter((r) => r.solo_especial).map((r) => r.id);
-  const { data: esp } = idsEspeciales.length
-    ? await admin.from('especial_recetas').select('especial, receta_id').in('receta_id', idsEspeciales)
-    : { data: [] };
-  const etiqueta = new Map<number, string>();
-  for (const e of (esp ?? []) as { especial: string; receta_id: number }[]) {
-    const def = especialPorClave(e.especial);
-    if (def && !etiqueta.has(e.receta_id)) etiqueta.set(e.receta_id, `${def.emoji} ${def.titulo}`);
-  }
   const recetas = lista.map(({ id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini, avisos }) => ({
     id,
     nombre,

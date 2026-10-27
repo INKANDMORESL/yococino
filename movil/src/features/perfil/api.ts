@@ -175,11 +175,25 @@ export async function cambiarFavorita(userId: string, recetaId: number, favorita
   if (error) throw new Error('No se ha podido guardar.');
 }
 
-export async function cargarFavoritas(): Promise<{ id: number; nombre: string; tipo_comida: string }[]> {
-  const { data } = await supabase.from('favoritas').select('receta:recetas(id, nombre, tipo_comida)').order('created_at', { ascending: false });
-  return ((data ?? []) as unknown as { receta: { id: number; nombre: string; tipo_comida: string } | null }[])
-    .map((f) => f.receta)
-    .filter((r): r is { id: number; nombre: string; tipo_comida: string } => !!r);
+// Las favoritas se ven siempre, también las de un especial de temporada que ya ha pasado.
+export interface Favorita {
+  id: number;
+  nombre: string;
+  tipo_comida: string;
+  descripcion: string | null;
+  nivel: string;
+  minutos: number | null;
+  kcal: number | null;
+  imagen: string | null;
+  imagen_mini: string | null;
+}
+
+export async function cargarFavoritas(): Promise<Favorita[]> {
+  const { data } = await supabase
+    .from('favoritas')
+    .select('receta:recetas(id, nombre, tipo_comida, descripcion, nivel, minutos, kcal, imagen, imagen_mini)')
+    .order('created_at', { ascending: false });
+  return ((data ?? []) as unknown as { receta: Favorita | null }[]).map((f) => f.receta).filter((r): r is Favorita => !!r);
 }
 
 export async function borrarCuenta() {

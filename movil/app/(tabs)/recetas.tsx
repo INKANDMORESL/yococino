@@ -8,7 +8,7 @@ import { ErrorMenu, buscarRecetas, type RecetaResumen } from '../../src/features
 import { kcalTexto } from '../../src/features/menu/cantidades';
 import { fotoPequena } from '../../src/features/menu/fotos';
 import { NIVEL, TIPOS, type TipoComida } from '../../src/features/menu/tipos';
-import { cargarFavoritas } from '../../src/features/perfil/api';
+import { cargarFavoritas, type Favorita } from '../../src/features/perfil/api';
 import { MisRecetas } from '../../src/features/recetas/MisRecetas';
 import { guardarCache, leerCache } from '../../src/lib/cache';
 import { colors, radius, shadow, space, type } from '../../src/theme';
@@ -67,7 +67,7 @@ export default function Recetas() {
   const [sub, setSub] = useState<string | null>(null);
   const subs = CATEGORIAS.find((c) => c.clave === categoria)?.subs ?? [];
   const [recetas, setRecetas] = useState<RecetaResumen[] | null>(leerCache<RecetaResumen[]>('recetas:|') ?? null);
-  const [favs, setFavs] = useState<{ id: number; nombre: string; tipo_comida: string }[]>(leerCache('favoritas') ?? []);
+  const [favs, setFavs] = useState<Favorita[]>(leerCache<Favorita[]>('favoritas') ?? []);
   const favoritas = new Set(favs.map((f) => f.id));
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +114,7 @@ export default function Recetas() {
           .filter((f) => !texto.trim() || f.nombre.toLowerCase().includes(texto.trim().toLowerCase()))
           .map((f) => {
             const encontrada = (recetas ?? []).find((r) => r.id === f.id);
-            return encontrada ?? { id: f.id, nombre: f.nombre, descripcion: null, tipo_comida: f.tipo_comida, nivel: 'facil', minutos: null, kcal: null, imagen: null };
+            return encontrada ?? { ...f, nivel: (['facil', 'medio', 'elaborado'].includes(f.nivel) ? f.nivel : 'facil') as RecetaResumen['nivel'] };
           })
       : (recetas ?? []);
 
