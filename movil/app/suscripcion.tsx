@@ -3,7 +3,8 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Aparecer, Aviso, Boton } from '../src/components';
+import { Aparecer, Aviso, Boton, Casilla } from '../src/components';
+import { PLANES_TIENDA, euros } from '../src/features/plan/productos';
 import { diasRestantes, usePlan } from '../src/features/plan/plan';
 import { volver } from '../src/lib/volver';
 import { colors, radius, shadow, space, type } from '../src/theme';
@@ -26,6 +27,9 @@ export default function Suscripcion() {
   const plan = usePlan();
   const [aviso, setAviso] = useState<string | null>(null);
   const [elegido, setElegido] = useState<'anual' | 'mensual'>('anual');
+  const [conPeques, setConPeques] = useState(false);
+  const tienda = PLANES_TIENDA[elegido];
+  const total = conPeques ? tienda.precioConPeques : tienda.precio;
   const quedan = diasRestantes(plan);
 
   return (
@@ -85,15 +89,18 @@ export default function Suscripcion() {
               </Pressable>
             );
           })}
-          <Text style={[type.small, { textAlign: 'center' }]}>
-            Complemento Peques (versión para niños de cada receta): +0,99 € al mes o +9,99 € al año. Cancela cuando quieras.
-          </Text>
+          <View style={s.caja}>
+            <Casilla marcada={conPeques} onPress={() => setConPeques(!conPeques)}>
+              Añadir Peques: versión para niños de cada receta ({elegido === 'anual' ? '+9,99 € al año' : '+0,99 € al mes'})
+            </Casilla>
+          </View>
+          <Text style={[type.small, { textAlign: 'center' }]}>Se renueva sola. Cancela cuando quieras desde la tienda.</Text>
         </View>
 
         {aviso ? <Aviso tono="hoja" texto={aviso} /> : null}
         {plan?.estado !== 'premium' ? (
           <Boton
-            texto={elegido === 'anual' ? 'Suscribirme por 39,99 € al año' : 'Suscribirme por 5,99 € al mes'}
+            texto={`Suscribirme por ${euros(total)} ${elegido === 'anual' ? 'al año' : 'al mes'}`}
             onPress={() => setAviso('Muy pronto podrás suscribirte desde la app. Te avisaremos en cuanto esté disponible.')}
           />
         ) : null}
