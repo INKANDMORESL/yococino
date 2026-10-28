@@ -450,8 +450,8 @@ Si no queda bien (masas que suben mucho, bandejas grandes, líquidos, gratinados
 }
 
 // Recetas ya guardadas con patata, calabaza, boniato…: se revisan los pasos para que los tiempos de cocción
-// sean reales (quedaban duras). De 12 en 12 con el modelo barato; se sigue sola hasta acabar.
-const TIEMPOS_POR_TANDA = 12;
+// sean reales (quedaban duras). De 6 en 6 con el modelo barato; se sigue sola hasta acabar.
+const TIEMPOS_POR_TANDA = 6;
 async function revisarTiempos(admin: Cliente) {
   let revisadas = 0;
   let corregidas = 0;
@@ -493,7 +493,7 @@ No cambies ingredientes, cantidades ni el plato. Español de España.`,
           },
         },
       },
-      maxTokens: 8000,
+      maxTokens: 12000,
     });
     const porId = new Map((r.recetas ?? []).map((x) => [Number(x.id), x]));
     for (const x of tanda) {
