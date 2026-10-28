@@ -1,5 +1,6 @@
 // Pestañas principales: Inicio, Recetas, Compra, Progreso y Perfil. Solo con sesión iniciada.
-import { Redirect, Tabs, router, type Href } from 'expo-router';
+import { Redirect, Tabs, router, usePathname, type Href } from 'expo-router';
+import { Platform } from 'react-native';
 import { useEffect, useRef, type ComponentProps } from 'react';
 import { BarraPestanas, PESTANAS } from '../../src/components/BarraPestanas';
 import { useAuth } from '../../src/lib/auth';
@@ -27,8 +28,15 @@ function Barra({ state }: PropsBarra) {
   );
 }
 
+// En la web, el navegador (o el acceso directo de la pantalla de inicio del móvil) recuerda la última dirección,
+// por ejemplo /perfil. Al abrir la app de cero se empieza siempre en Inicio.
+let recienAbierta = Platform.OS === 'web';
+
 export default function Pestanas() {
   const { sesion, cargando, recuperando } = useAuth();
+  const ruta = usePathname();
+  const empezarEnInicio = recienAbierta && ruta !== '/inicio';
+  recienAbierta = false;
 
   // Paso a paso de la primera vez: en cuanto hay sesión, si en este dispositivo aún no se ha visto.
   const comprobado = useRef(false);
@@ -44,6 +52,7 @@ export default function Pestanas() {
 
   if (!cargando && !sesion) return <Redirect href="/" />;
   if (sesion && recuperando) return <Redirect href="/nueva-contrasena" />;
+  if (empezarEnInicio) return <Redirect href="/inicio" />;
 
   return (
     <Tabs tabBar={(props) => <Barra {...props} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}>
