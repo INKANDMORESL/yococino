@@ -1,11 +1,13 @@
 // Suscripción: qué incluye y cuánto cuesta. Los pagos (App Store / Google Play) se conectarán más adelante.
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Casilla } from '../src/components';
 import { PLANES_TIENDA, euros } from '../src/features/plan/productos';
-import { diasRestantes, usePlan } from '../src/features/plan/plan';
+import { cargarPlan, diasRestantes, usePlan, type Plan } from '../src/features/plan/plan';
+import { comprar, gestionarSuscripcion, pagosDisponibles, restaurarCompras } from '../src/lib/pagos';
+import { supabase } from '../src/lib/supabase';
 import { volver } from '../src/lib/volver';
 import { colors, radius, shadow, space, type } from '../src/theme';
 
@@ -23,8 +25,80 @@ const INCLUYE = [
   ['📖', 'Todo el recetario, siempre adaptado a tus alergias'],
 ];
 
+interface MiSuscripcion {
+  peques: boolean;
+  producto: string | null;
+  plan_anual: boolean;
+}
+
+// Tras pagar, RevenueCat avisa al servidor en unos segundos: se espera a que el plan salga como premium.
+async function esperarPremium(): Promise<Plan | null> {
+  for (let i = 0; i < 12; i++) {
+    const p = await cargarPlan().catch(() => null);
+    if (p?.estado === 'premium') return p;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  return null;
+}
+
 export default function Suscripcion() {
-  const plan = usePlan();
+  const planInicial = usePlan();
+  const [planNuevo, setPlanNuevo] = useState<Plan | null>(null);
+  const plan = planNuevo ?? planInicial;
+  const [mia, setMia] = useState<MiSuscripcion | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  useEffect(() => {
+    supabase
+      .from('suscripciones')
+      .select('peques, producto, plan_anual')
+      .maybeSingle()
+      .then(({ data }) => setMia((data as MiSuscripcion | null) ?? null));
+  }, [planNuevo]);
+
+  const tras = async (r: Awaited<ReturnType<typeof comprar>>) => {
+    if (r === 'cancelada') return;
+    if (r === 'no_disponible') return setAviso('La tienda aún no está lista. Vuelve a intentarlo en un rato.');
+    if (r === 'error') return setAviso('No se ha podido completar el pago. Si te ha llegado el cobro, se activará solo en unos minutos; si no, vuelve a intentarlo.');
+    setAviso('¡Gracias! Activando tu suscripción…');
+    const p = await esperarPremium();
+    if (p) {
+      setPlanNuevo(p);
+      setAviso('¡Listo! Ya tienes Yococino completo.');
+    } else setAviso('Pago recibido. Tu suscripción se activará en unos minutos.');
+  };
+  const suscribirme = async () => {
+    if (!pagosDisponibles) return setAviso('Muy pronto podrás suscribirte desde la app. Te avisaremos en cuanto esté disponible.');
+    setOcupado(true);
+    setAviso(null);
+    try {
+      await tras(await comprar(elegido, conPeques, mia?.producto));
+    } finally {
+      setOcupado(false);
+    }
+  };
+  const anadirPeques = async () => {
+    setOcupado(true);
+    setAviso(null);
+    try {
+      await tras(await comprar(mia?.plan_anual ? 'anual' : 'mensual', true, mia?.producto));
+    } finally {
+      setOcupado(false);
+    }
+  };
+  const restaurar = async () => {
+    setOcupado(true);
+    setAviso(null);
+    try {
+      if (await restaurarCompras()) {
+        setAviso('Hemos encontrado tu suscripción. Activándola…');
+        const p = await esperarPremium();
+        if (p) setPlanNuevo(p);
+        setAviso(p ? '¡Listo! Ya tienes Yococino completo.' : 'Tu suscripción se activará en unos minutos.');
+      } else setAviso('No hemos encontrado ninguna suscripción con esta cuenta de la tienda.');
+    } finally {
+      setOcupado(false);
+    }
+  };
   const [aviso, setAviso] = useState<string | null>(null);
   const [elegido, setElegido] = useState<'anual' | 'mensual'>('anual');
   const [conPeques, setConPeques] = useState(false);
@@ -100,9 +174,29 @@ export default function Suscripcion() {
         {aviso ? <Aviso tono="hoja" texto={aviso} /> : null}
         {plan?.estado !== 'premium' ? (
           <Boton
-            texto={`Suscribirme por ${euros(total)} ${elegido === 'anual' ? 'al año' : 'al mes'}`}
-            onPress={() => setAviso('Muy pronto podrás suscribirte desde la app. Te avisaremos en cuanto esté disponible.')}
+            texto={ocupado ? 'Un momento…' : `Suscribirme por ${euros(total)} ${elegido === 'anual' ? 'al año' : 'al mes'}`}
+            onPress={suscribirme}
+            desactivado={ocupado}
           />
+        ) : pagosDisponibles && mia ? (
+          <View style={{ gap: space.md }}>
+            {!mia.peques ? (
+              <Boton
+                texto={ocupado ? 'Un momento…' : `Añadir Peques (${mia.plan_anual ? '+9,99 € al año' : '+0,99 € al mes'})`}
+                variante="suave"
+                onPress={anadirPeques}
+                desactivado={ocupado}
+              />
+            ) : (
+              <Text style={[type.small, { textAlign: 'center' }]}>Tienes Premium con Peques.</Text>
+            )}
+            <Boton texto="Cambiar o cancelar mi suscripción" variante="linea" onPress={gestionarSuscripcion} />
+          </View>
+        ) : null}
+        {pagosDisponibles && plan?.estado !== 'premium' ? (
+          <Pressable onPress={restaurar} accessibilityRole="button" style={s.enlace} disabled={ocupado}>
+            <Text style={s.enlaceTexto}>Ya pagué antes: recuperar mi suscripción</Text>
+          </Pressable>
         ) : null}
         <Pressable onPress={() => router.navigate('/inicio')} accessibilityRole="button" style={s.enlace}>
           <Text style={s.enlaceTexto}>Ahora no</Text>
