@@ -34,20 +34,29 @@ export function tiempoDelPaso(paso: string): TiempoPaso | null {
   else if (/(un )?cuarto de hora/.test(t)) segundos = 15 * 60;
   else {
     // "20 minutos", "8-10 min", "8 a 10 minutos", "1 hora", "2 h", "30 segundos". En un rango se toma el mayor.
+    // El número tiene que ser una palabra entera («unos minutos» no es «uno» + «s»). Si un paso tiene varios
+    // tiempos («Deja templar unos minutos… cocínalo 5 minutos»), se usa el primero que tenga un número de verdad.
     const num = '(\\d+(?:[.,]\\d+)?|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|quince|veinte|treinta)';
-    const re = new RegExp(`${num}(?:\\s*(?:-|–|a|o)\\s*${num})?\\s*(horas?|h|minutos?|min|segundos?|seg|s)(?![a-z])`);
-    const m = t.match(re);
-    if (!m) return null;
-    const cantidad = Math.max(valor(m[1]), m[2] ? valor(m[2]) : 0);
-    if (!Number.isFinite(cantidad) || cantidad <= 0) return null;
-    const unidad = m[3];
-    const por = unidad.startsWith('h') ? 3600 : unidad.startsWith('m') ? 60 : 1;
-    segundos = Math.round(cantidad * por);
-    // "1 hora y 15 minutos"
-    if (por === 3600) {
-      const extra = t.slice((m.index ?? 0) + m[0].length).match(/^\s*y\s*(\d+)\s*(minutos?|min)/);
-      if (extra) segundos += Number(extra[1]) * 60;
+    const re = new RegExp(`(?:^|[^a-z0-9])${num}(?:\\s*(?:-|–|a|o)\\s*${num})?\\s*(horas?|h|minutos?|min|segundos?|seg|s)(?![a-z])`, 'g');
+    for (const m of t.matchAll(re)) {
+      const cantidad = Math.max(valor(m[1]), m[2] ? valor(m[2]) : 0);
+      if (!Number.isFinite(cantidad) || cantidad <= 0) continue;
+      const unidad = m[3];
+      // Una «s» suelta solo cuenta como segundos detrás de una cifra («30 s»), no de una palabra.
+      if (unidad === 's' && !/^\d/.test(m[1])) continue;
+      const por = unidad.startsWith('h') ? 3600 : unidad.startsWith('m') ? 60 : 1;
+      let s = Math.round(cantidad * por);
+      // "1 hora y 15 minutos"
+      if (por === 3600) {
+        const extra = t.slice((m.index ?? 0) + m[0].length).match(/^\s*y\s*(\d+)\s*(minutos?|min)/);
+        if (extra) s += Number(extra[1]) * 60;
+      }
+      if (s >= 10 && s <= 12 * 3600) {
+        segundos = s;
+        break;
+      }
     }
+    if (!segundos) return null;
   }
   if (segundos < 10 || segundos > 12 * 3600) return null;
   return { segundos, texto: textoTiempo(segundos) };
