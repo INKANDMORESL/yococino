@@ -2,8 +2,15 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { EncuestaProvider } from '../src/features/encuesta/store';
-import { AuthProvider } from '../src/lib/auth';
+import { Arranque } from '../src/components/Arranque';
+import { AuthProvider, useAuth } from '../src/lib/auth';
 import { colors } from '../src/theme';
+
+// Animación del logo al abrir la app, hasta saber si hay sesión (Inicio se va cargando por detrás).
+function AnimacionArranque() {
+  const { cargando } = useAuth();
+  return <Arranque listo={!cargando} />;
+}
 
 export default function Layout() {
   return (
@@ -30,6 +37,7 @@ export default function Layout() {
             <Stack.Screen name="tutorial" options={{ animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="suscripcion" options={{ animation: 'slide_from_bottom' }} />
           </Stack>
+          <AnimacionArranque />
         </EncuestaProvider>
       </AuthProvider>
     </SafeAreaProvider>
