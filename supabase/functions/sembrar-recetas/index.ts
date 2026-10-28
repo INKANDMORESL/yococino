@@ -3,6 +3,7 @@
 // - tipicas: como enviar, con la lista de platos típicos españoles.
 // - airfryer: como enviar, con la lista de platos hechos en airfryer (_shared/airfryer.ts).
 // - especiales: recetas de los especiales de temporada en marcha o próximos (también automático, una vez al día).
+// - revisar_tiempos: corrige los tiempos de cocción de patatas, calabaza… en las recetas ya guardadas (por tandas).
 // - notas_airfryer: a las recetas de horno ya guardadas les añade cómo hacerlas en airfryer (llamada barata, por tandas).
 // - fotos: pone en marcha la cola de fotos (aligerar-fotos), que hace las que faltan de una en una.
 // - estado: recoge los lotes de recetas terminados y enseña cómo van.
@@ -33,6 +34,7 @@ import { TIPICAS } from '../_shared/tipicas.ts';
 import { AIRFRYER } from '../_shared/airfryer.ts';
 import { especialPorClave, especialesProximos, type Especial } from '../_shared/especiales.ts';
 import { avisosNutricion } from '../_shared/importar_reglas.ts';
+import { llevaIngredienteDuro, REGLA_COCCION } from '../_shared/coccion.ts';
 
 const MODELO_IDEAS = Deno.env.get('MODELO_MENU') || 'claude-haiku-5-5';
 const MAX_POR_LOTE = 100;
@@ -447,6 +449,76 @@ Si no queda bien (masas que suben mucho, bandejas grandes, líquidos, gratinados
   return { revisadas: recetas.length, adaptadas, aviso: `${recetas.length} recetas de horno revisadas para airfryer (${adaptadas} se pueden hacer en airfryer).` };
 }
 
+// Recetas ya guardadas con patata, calabaza, boniato…: se revisan los pasos para que los tiempos de cocción
+// sean reales (quedaban duras). De 12 en 12 con el modelo barato; se sigue sola hasta acabar.
+const TIEMPOS_POR_TANDA = 12;
+async function revisarTiempos(admin: Cliente) {
+  let revisadas = 0;
+  let corregidas = 0;
+  // Se buscan candidatas; las que no llevan nada duro se marcan como revisadas sin gastar IA.
+  for (let vuelta = 0; vuelta < 4; vuelta++) {
+    const { data } = await admin
+      .from('recetas')
+      .select('id, nombre, minutos, pasos, ingredientes(nombre)')
+      .eq('tiempos_revisados', false)
+      .order('id')
+      .limit(120);
+    const filas = (data ?? []) as { id: number; nombre: string; minutos: number | null; pasos: string[] | null; ingredientes: { nombre: string }[] }[];
+    if (!filas.length) return { revisadas, corregidas, aviso: `Tiempos de cocción revisados. ${corregidas} recetas corregidas en esta tanda; no quedan más.` };
+    const sinNada = filas.filter((r) => !llevaIngredienteDuro(r.ingredientes ?? []));
+    if (sinNada.length) await admin.from('recetas').update({ tiempos_revisados: true }).in('id', sinNada.map((r) => r.id));
+    const tanda = filas.filter((r) => llevaIngredienteDuro(r.ingredientes ?? [])).slice(0, TIEMPOS_POR_TANDA);
+    if (!tanda.length) continue;
+    const r = await pedirJSON<{ recetas: { id: number; corregir: boolean; pasos: string[]; minutos: number }[] }>({
+      modelo: MODELO_IDEAS,
+      sistema: `Eres cocinero. Revisas recetas caseras ya escritas porque a la gente le quedan duras las patatas, la calabaza y similares.
+Para cada receta, comprueba los tiempos de cocción de sus pasos con estas referencias:
+${REGLA_COCCION}
+Si algún tiempo es corto o falta el tamaño del corte o cómo comprobar que está hecho, "corregir": true y devuelve TODOS los pasos (mismo número y orden, mismo estilo, cambiando solo lo necesario) y los "minutos" totales reales. Si está bien, "corregir": false, "pasos": [] y los minutos que tenía.
+No cambies ingredientes, cantidades ni el plato. Español de España.`,
+      mensaje: tanda.map((x) => `${x.id} · ${x.nombre} · ${x.minutos ?? '?'} min\n${(x.pasos ?? []).map((p, i) => `${i + 1}. ${p}`).join('\n')}`).join('\n\n'),
+      esquema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['recetas'],
+        properties: {
+          recetas: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['id', 'corregir', 'pasos', 'minutos'],
+              properties: { id: { type: 'integer' }, corregir: { type: 'boolean' }, pasos: { type: 'array', items: { type: 'string' } }, minutos: { type: 'integer' } },
+            },
+          },
+        },
+      },
+      maxTokens: 8000,
+    });
+    const porId = new Map((r.recetas ?? []).map((x) => [Number(x.id), x]));
+    for (const x of tanda) {
+      const c = porId.get(x.id);
+      const pasos = (c?.pasos ?? []).map((p) => texto(p, 600)).filter(Boolean);
+      // Solo se cambia si la corrección es completa (mismos pasos) y razonable.
+      const valida = c?.corregir && pasos.length >= Math.max(1, (x.pasos ?? []).length - 1) && pasos.length <= (x.pasos ?? []).length + 1;
+      const cambios: Record<string, unknown> = { tiempos_revisados: true };
+      if (valida) {
+        cambios.pasos = pasos;
+        const min = Math.round(Number(c?.minutos));
+        if (min >= 5 && min <= 240) cambios.minutos = min;
+        corregidas++;
+      }
+      await admin.from('recetas').update(cambios).eq('id', x.id);
+    }
+    revisadas += tanda.length;
+    // Quedan más: se sigue sola.
+    seguirRecogiendo(admin, 'revisar_tiempos');
+    return { revisadas, corregidas, aviso: `${tanda.length} recetas revisadas (${corregidas} con tiempos corregidos). Sigue con las siguientes.` };
+  }
+  seguirRecogiendo(admin, 'revisar_tiempos');
+  return { revisadas, corregidas, aviso: 'Revisando recetas…' };
+}
+
 async function estado(admin: Cliente) {
   // Se mira un lote de recetas cada vez (el que lleva más tiempo sin mirarse). GitHub lo pregunta cada 30 minutos.
   const { data: abiertos } = await admin
@@ -566,6 +638,7 @@ async function sembrar(req: Request): Promise<Response> {
     return responder({ ok: true, ...(await enviarRecetas(admin, MAX_POR_LOTE, 'especiales', especialesProximos(hoyEspana(), 21))), lotes: [], cupo: await cupoRecetas(admin) });
   }
   if (cuerpo.accion === 'airfryer') return responder({ ok: true, ...(await enviarRecetas(admin, MAX_POR_LOTE, 'airfryer')), lotes: [], cupo: await cupoRecetas(admin) });
+  if (cuerpo.accion === 'revisar_tiempos') return responder({ ok: true, ...(await revisarTiempos(admin)), lotes: [], cupo: await cupoRecetas(admin) });
   if (cuerpo.accion === 'notas_airfryer') return responder({ ok: true, ...(await notasAirfryer(admin)), lotes: [], cupo: await cupoRecetas(admin) });
   if (cuerpo.accion === 'fotos') return responder({ ok: true, ...(await enviarFotos(admin, Number(cuerpo.cantidad))), ...(await estado(admin)) });
   return responder({ ok: true, ...(await estado(admin)) });

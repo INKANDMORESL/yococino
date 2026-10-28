@@ -9,6 +9,7 @@ import { encajaPreferencia, interpretarPreferencias } from './preferencias.ts';
 import { especialesDe, pascua } from './especiales.ts';
 import { equivalentesDe } from './equivalentes.ts';
 import { estacionDe, pegaConEstacion, temperaturaPlato } from './estacion.ts';
+import { llevaIngredienteDuro } from './coccion.ts';
 import { avisosNutricion, embedDe, extraerUrl, normalizarUrl, plataformaDe, textoAvisos, urlPermitida } from './importar_reglas.ts';
 
 type Caso = [string, () => boolean];
@@ -161,6 +162,7 @@ export const CASOS: Caso[] = [
   ['estacion: gazpachuelo, lentejas y crema de calabaza son calientes', () => ['Gazpachuelo malagueño', 'Lentejas estofadas con verduras', 'Crema de calabaza'].every((n) => temperaturaPlato(n) === 'caliente')],
   ['estacion: merluza a la plancha vale siempre', () => temperaturaPlato('Merluza a la plancha') === null],
   ['estacion: nada de gazpacho en invierno ni cocido en verano', () => pegaConEstacion('Gazpacho andaluz', 'frio') === false && pegaConEstacion('Cocido madrileño', 'calor') === false && pegaConEstacion('Cocido madrileño', 'frio') === true && pegaConEstacion('Gazpacho andaluz', 'templado') === null],
+  ['coccion: patatas y calabaza se revisan, la merluza no', () => llevaIngredienteDuro([{ nombre: 'Patatas nuevas' }]) && llevaIngredienteDuro([{ nombre: 'Calabaza asada' }]) && !llevaIngredienteDuro([{ nombre: 'Merluza' }, { nombre: 'Aceite de oliva' }])],
 ];
 
 // Deno ejecuta cada caso como una prueba.

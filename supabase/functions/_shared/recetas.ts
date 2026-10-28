@@ -1,5 +1,6 @@
 // Recetas compartidas: catálogo, creación con la IA (con revisión de alergias) y guardado.
 // Las recetas son para una ración estándar; cada persona tiene su factor en comidas.factor.
+import { REGLA_COCCION } from './coccion.ts';
 import { ALERGENOS_UE, describirRestricciones, motivosNoApta, type Restricciones } from './alergenos.ts';
 import { ErrorIA, pedirJSON } from './claude.ts';
 import type { Cliente } from './http.ts';
@@ -201,6 +202,7 @@ Reglas:
 - La ración debe rondar ${KCAL_RACION_ESTANDAR[tipo]} kcal, propia de un ${NOMBRE_TIPO[tipo]}.
 - Nivel ${nivel}: como máximo ${MINUTOS_NIVEL[nivel]} minutos en total.
 - Pasos: entre 2 y 7, cortos, en imperativo, uno por acción. En tomas sencillas bastan 2 o 3.
+${REGLA_COCCION}
 - 1 o 2 consejos prácticos y 1 o 2 sustituciones saludables con la misma función. Frases cortas.
 - Descripción: una sola frase corta.
 - Nutrición por ración, estimada con criterio.
