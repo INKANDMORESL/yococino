@@ -37,7 +37,7 @@ export function mensajeError(e: unknown): string {
   if (/already registered|already been registered/i.test(m)) return 'Ya hay una cuenta con este email. Prueba a entrar.';
   if (/email not confirmed/i.test(m)) return 'Antes de entrar, confirma tu email desde el correo que te hemos enviado.';
   if (/password/i.test(m) && /(6|8|short|weak)/i.test(m)) return 'La contraseña es demasiado corta o sencilla. Usa al menos 8 caracteres.';
-  if (/provider is not enabled|unsupported provider/i.test(m)) return 'El acceso con Google aún no está activado. De momento, usa tu email.';
+  if (/provider is not enabled|unsupported provider/i.test(m)) return 'Este acceso aún no está activado. De momento, usa tu email.';
   if (/network|fetch/i.test(m)) return 'No hay conexión. Revisa tu Internet e inténtalo de nuevo.';
   if (/rate limit/i.test(m)) return 'Demasiados intentos seguidos. Espera un minuto y vuelve a probar.';
   return 'Algo no ha ido bien. Inténtalo de nuevo en un momento.';

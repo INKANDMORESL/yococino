@@ -10,7 +10,8 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "app.yococino",
-      "icon": "./assets/icon.png"
+      "icon": "./assets/icon.png",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "app.yococino",
@@ -60,7 +61,8 @@
         {
           "color": "#4D6B3C"
         }
-      ]
+      ],
+      "expo-apple-authentication"
     ],
     "icon": "./assets/icon.png"
   }

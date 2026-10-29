@@ -9,13 +9,14 @@ import { emailValido } from '../src/features/cuenta/validar';
 import { mensajeError, useAuth } from '../src/lib/auth';
 import { colors, space } from '../src/theme';
 import { EnlacesLegales } from '../src/features/cuenta/Legal';
+import { BotonApple } from '../src/features/cuenta/BotonApple';
 
 export default function Entrar() {
   const { sesion, entrarConEmail, entrarConGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [ocupado, setOcupado] = useState<'email' | 'google' | null>(null);
+  const [ocupado, setOcupado] = useState<'email' | 'google' | 'apple' | null>(null);
   const { x, sacudir } = useSacudida();
 
   if (sesion) return <Redirect href="/inicio" />;
@@ -57,6 +58,7 @@ export default function Entrar() {
           <Cabecera titulo="Hola de nuevo" subtitulo="Entra para ver tu menú de hoy." />
           <Aparecer retraso={100}>
             <Boton texto="Continuar con Google" variante="google" icono="G" cargando={ocupado === 'google'} desactivado={ocupado === 'email'} onPress={conGoogle} />
+                        <BotonApple onError={(e) => fallo(mensajeError(e))} desactivado={ocupado !== null} alEmpezar={() => setOcupado('apple')} alTerminar={() => setOcupado(null)} />
           </Aparecer>
           <Aparecer retraso={160}>
             <Separador texto="o con tu email" />

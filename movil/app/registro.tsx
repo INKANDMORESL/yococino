@@ -10,6 +10,7 @@ import { emailValido, errorContrasena } from '../src/features/cuenta/validar';
 import { evaluar } from '../src/features/encuesta/modelo';
 import { useEncuesta } from '../src/features/encuesta/store';
 import { mensajeError, useAuth } from '../src/lib/auth';
+import { BotonApple } from '../src/features/cuenta/BotonApple';
 import { dejarEncuestaPendiente } from '../src/lib/perfil';
 import { colors, space, type } from '../src/theme';
 
@@ -23,7 +24,7 @@ export default function Registro() {
   const [condiciones, setCondiciones] = useState(false);
   const [promociones, setPromociones] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [ocupado, setOcupado] = useState<'email' | 'google' | null>(null);
+  const [ocupado, setOcupado] = useState<'email' | 'google' | 'apple' | null>(null);
   const [enviadoA, setEnviadoA] = useState<string | null>(null);
   const { x, sacudir } = useSacudida();
 
@@ -110,6 +111,18 @@ export default function Registro() {
 
           <Aparecer retraso={100}>
             <Boton texto="Continuar con Google" variante="google" icono="G" cargando={ocupado === 'google'} desactivado={ocupado === 'email'} onPress={conGoogle} />
+                        <BotonApple
+              onError={(e) => fallo(mensajeError(e))}
+              desactivado={ocupado !== null}
+              alEmpezar={() => setOcupado('apple')}
+              alTerminar={() => setOcupado(null)}
+              antes={async () => {
+                setError(null);
+                if (!comprobarPermisos()) return false;
+                await dejarEncuestaPendiente(encuesta, consentimiento, promociones);
+                return true;
+              }}
+            />
           </Aparecer>
 
           <Aparecer retraso={160}>
