@@ -42,8 +42,9 @@ const idPlan = (periodo: Periodo, conPeques: boolean) => {
 };
 
 // En Google Play cada plan básico es un producto «suscripcion:plan» (yococino_premium:yococinopremiummes).
+// En el App Store cada plan es su propio producto con el mismo nombre (yococinopremiummes), en un grupo.
 async function productoDe(plan: string): Promise<PurchasesStoreProduct | null> {
-  const productos = await Purchases.getProducts([SUSCRIPCION], PRODUCT_CATEGORY.SUBSCRIPTION);
+  const productos = await Purchases.getProducts(Platform.OS === 'ios' ? [plan] : [SUSCRIPCION], PRODUCT_CATEGORY.SUBSCRIPTION);
   return productos.find((p) => p.identifier === `${SUSCRIPCION}:${plan}` || p.identifier === plan) ?? null;
 }
 
