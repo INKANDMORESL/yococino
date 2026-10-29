@@ -11,7 +11,10 @@
       "supportsTablet": false,
       "bundleIdentifier": "app.yococino",
       "icon": "./assets/icon.png",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "app.yococino",
