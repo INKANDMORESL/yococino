@@ -1,0 +1,60 @@
+FICHA DE LA APP STORE (App Store Connect → Yococino → Distribución → versión 1.0)
+Idioma: Español (España)
+
+NOMBRE (máx. 30)
+Yococino: menú y recetas
+
+SUBTÍTULO (máx. 30)
+Menú del mes y lista compra
+
+TEXTO PROMOCIONAL (máx. 170; se puede cambiar sin nueva versión)
+Tu menú del mes ya hecho, con recetas caseras y de temporada, y la lista de la compra preparada. Pruébala gratis 7 días.
+
+DESCRIPCIÓN (máx. 4000)
+¿No sabes qué cocinar hoy? Con Yococino tienes el menú de todo el mes preparado para ti, con recetas caseras, sanas y de temporada, y la lista de la compra hecha.
+
+Respondes unas preguntas sencillas (tus gustos, lo que no puedes comer, cuánto tiempo quieres dedicar a cocinar y qué tienes en tu cocina) y Yococino te prepara el menú. Cada día se añade un día nuevo, así que siempre tienes 30 días por delante.
+
+QUÉ PUEDES HACER
+• Menú de 30 días, siempre al día: desayuno, comida, cena y tomas pequeñas.
+• Recetas caseras de cocina mediterránea, con fruta y verdura de temporada: más platos de cuchara en invierno y más platos frescos en verano.
+• Recetas para tu airfryer: si la tienes, también te ponemos platos para ella.
+• Lista de la compra automática para hoy, 3 días o 7 días, ordenada por secciones del súper y con las cantidades sumadas. Tú eliges qué recetas entran y puedes cambiar un producto por otro equivalente.
+• Cambia un plato o un ingrediente en un toque.
+• Cocina con lo que tienes: dinos qué hay en la nevera y te proponemos qué hacer.
+• Recetario para buscar y filtrar: carne, pescado, legumbres, sin carne ni pescado, pasta y arroz, airfryer… y platos típicos como paella, fideuá o lentejas.
+• Especiales de temporada: Navidad, Halloween, Semana Santa, verano…
+• Guarda recetas de TikTok: compártelas con Yococino y las tendrás escritas paso a paso.
+• Modo cocinar: paso a paso con temporizadores que te avisan aunque tengas el móvil bloqueado.
+• Para toda la familia: menús para los de casa y versión Peques para los niños.
+• Calendario y seguimiento de lo que comes cada día.
+
+TUS ALERGIAS, SIEMPRE EN CUENTA
+Las alergias e intolerancias que indiques se excluyen siempre de tu menú: gluten, lactosa, frutos secos, marisco, huevo y el resto de alérgenos principales.
+
+SUSCRIPCIÓN
+Pruébala gratis 7 días. Después, Yococino Premium por 5,99 € al mes o 39,99 € al año. Complemento Peques: 6,99 € al mes o 49,99 € al año en total. El pago se carga en tu cuenta de Apple al confirmar la compra. La suscripción se renueva sola salvo que la canceles al menos 24 horas antes de que termine el periodo; puedes gestionarla o cancelarla en los ajustes de tu cuenta de Apple.
+
+Yococino es para mayores de 18 años y no sustituye el consejo de un profesional sanitario. Si estás embarazada, tienes diabetes, una enfermedad renal o de tiroides, o un trastorno de la conducta alimentaria, consulta a un dietista-nutricionista o a tu médico.
+
+Privacidad: https://yococino.app/privacidad.html
+Condiciones de uso: https://yococino.app/condiciones.html
+
+PALABRAS CLAVE (máx. 100, separadas por comas, sin espacios)
+menú semanal,recetas,lista compra,comida sana,planificador,cocina casera,airfryer,táper,familia
+
+URL DE SOPORTE
+https://yococino.app/
+
+URL DE MARKETING (opcional)
+https://yococino.app/
+
+COPYRIGHT
+2026 INKANDMORE SL
+
+CATEGORÍAS
+Principal: Comida y bebida
+Secundaria: Estilo de vida
+
+INFORMACIÓN DE LA REVISIÓN
+Notas: La app necesita una cuenta. Las suscripciones están en Perfil → Suscripción; Peques es un complemento que se añade con la casilla «Añadir Peques». Para entrar también se puede usar «Continuar con Apple».
