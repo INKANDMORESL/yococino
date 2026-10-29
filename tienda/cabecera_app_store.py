@@ -42,18 +42,18 @@ def fondo(w: int, h: int) -> Image.Image:
     d.ellipse((-w * 0.12, h * 0.62, w * 0.25, h * 1.5), fill=CLARO)
     return img
 
-# Cabecera 21:9
+# Cabecera 21:9. En el iPhone se ve recortada por los lados y con botones arriba: todo va en el centro
+# (entre x≈700 y x≈3140) y nada importante en la franja de arriba.
 W, H = 3840, 1646
 img = fondo(W, H); d = ImageDraw.Draw(img)
-marca(d, img, 220, 230, 190)
-d.text((220, 560), 'Tu menú del mes,', font=TIT(190), fill=BLANCO)
-d.text((220, 780), 'hecho para ti', font=TIT(190), fill=LIMON)
-d.text((225, 1060), 'Recetas caseras y de temporada,', font=MED(84), fill='#E6EDDC')
-d.text((225, 1170), 'y tu lista de la compra preparada.', font=MED(84), fill='#E6EDDC')
-# Los de los lados primero y el del centro encima, sin salirse por la derecha.
-pegar(img, movil(3, 1180), 1990, 300)
-pegar(img, movil(5, 1180), 3060, 300)
-pegar(img, movil(1, 1320), 2520, 170)
+X = 820
+marca(d, img, X, 380, 140)
+d.text((X, 620), 'Tu menú del mes,', font=TIT(136), fill=BLANCO)
+d.text((X, 785), 'hecho para ti', font=TIT(136), fill=LIMON)
+d.text((X + 4, 1000), 'Recetas caseras y de temporada,', font=MED(60), fill='#E6EDDC')
+d.text((X + 4, 1085), 'y tu lista de la compra preparada.', font=MED(60), fill='#E6EDDC')
+pegar(img, movil(3, 1060), 2070, 420)
+pegar(img, movil(1, 1180), 2370, 330)
 img.convert('RGB').save(RAIZ / 'tienda' / 'app-store-cabecera' / 'cabecera-3840x1646.png')
 
 # Resultado de búsqueda 3:2
