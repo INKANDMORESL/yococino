@@ -23,6 +23,7 @@ jobs:
             'con_foto', (select count(*) from public.recetas where not oculta and imagen is not null),
             'en_lote', (select count(*) from public.recetas where foto_en_lote),
             'aparatos', (select json_build_object('horno', count(*) filter (where 'horno' = any(aparatos)), 'airfryer', count(*) filter (where 'airfryer' = any(aparatos)), 'microondas', count(*) filter (where 'microondas' = any(aparatos)), 'robot', count(*) filter (where 'robot' = any(aparatos)), 'nota_si', count(*) filter (where nota_airfryer <> ''), 'nota_no', count(*) filter (where nota_airfryer = ''), 'sin_revisar', count(*) filter (where 'horno' = any(aparatos) and nota_airfryer is null)) from public.recetas where privada_de is null),
+            'suscripciones', (select json_agg(s) from (select producto, peques, plan_anual, activa_hasta, cancelada, entorno, tienda, updated_at from public.suscripciones order by updated_at desc limit 5) s),
             'tiempos', (select json_build_object('revisadas', count(*) filter (where tiempos_revisados), 'pendientes', count(*) filter (where not tiempos_revisados)) from public.recetas),
             'ejemplo_tiempos', (select json_agg(n) from (select nombre, minutos, pasos from public.recetas where tiempos_revisados and nombre ilike '%patata%' order by id limit 2) n),
             'ejemplo_nota', (select json_agg(n) from (select nombre, nota_airfryer from public.recetas where nota_airfryer <> '' limit 3) n),
@@ -60,7 +61,7 @@ jobs:
 
       - name: Registros de sembrar-recetas
         run: |
-          SQL="select datetime(timestamp) as t, event_message from function_logs where regexp_contains(event_message, 'sembrar|lote|Gemini|foto|CPU|WORKER|memory') order by timestamp desc limit 30"
+          SQL="select datetime(timestamp) as t, event_message from function_logs where regexp_contains(event_message, 'sembrar|lote|Gemini|foto|CPU|WORKER|memory|pagos|revenuecat|autorizado') order by timestamp desc limit 30"
           curl -sS -G -w '\nHTTP %{http_code}\n' "https://api.supabase.com/v1/projects/$REF/analytics/endpoints/logs" \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" --data-urlencode "sql=$SQL" | tee l.txt
           echo "::notice title=Registros::$(head -c 3500 l.txt | tr '\n' ' ')"
