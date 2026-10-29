@@ -1,0 +1,26 @@
+# Estado de las últimas versiones creadas en Expo (Android e iPhone) y de los envíos a las tiendas. Solo lectura.
+name: Estado de Expo
+
+on:
+  workflow_dispatch:
+
+jobs:
+  estado:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: movil
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Últimas versiones y envíos
+        run: |
+          npx --yes eas-cli@latest init --non-interactive --force > /dev/null 2>&1 || true
+          npx --yes eas-cli@latest build:list --limit 4 --json --non-interactive > b.json 2> e.txt || cat e.txt
+          node -e "const b=require('./b.json'); for (const x of b) console.log('::notice title=Versión::'+[x.platform, x.status, 'nº '+(x.appBuildVersion||'?'), x.createdAt, x.error?('error: '+(x.error.message||x.error.errorCode)):''].join(' · '))" || true
+          npx --yes eas-cli@latest submission:list --limit 3 --json --non-interactive > s.json 2> e2.txt || cat e2.txt
+          node -e "const s=require('./s.json'); for (const x of s) console.log('::notice title=Envío::'+[x.platform, x.status, x.createdAt, x.error?('error: '+(x.error.message||x.error.errorCode)):''].join(' · '))" || true
