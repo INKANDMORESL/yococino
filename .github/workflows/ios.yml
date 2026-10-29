@@ -89,7 +89,8 @@ jobs:
           echo "Primera vez: creando certificados de Apple…"
           sudo apt-get install -y expect > /dev/null
           cat > responder.exp <<'EXP'
-          set timeout 1800
+          set timeout 240
+          set respuestas 0
           log_user 1
           spawn env -u CI -u GITHUB_ACTIONS -u CONTINUOUS_INTEGRATION npx --yes eas-cli@latest build --platform ios --profile production --auto-submit --no-wait
           expect {
@@ -97,15 +98,15 @@ jobs:
             -re {(?i)apple id:} { send "\003"; exit 3 }
             -re {\(Y/n\)} { send "y\r"; exp_continue }
             -re {\(y/N\)} { send "y\r"; exp_continue }
-            -re {(?i)select|choose|which} { send "\r"; exp_continue }
-            -re {›} { send "\r"; exp_continue }
+            -re {(?i)select|choose|which} { incr respuestas; if {$respuestas > 40} { exit 5 }; send "\r"; exp_continue }
+            timeout { puts "\n>>> Expo se ha quedado esperando sin preguntar nada reconocible."; exit 4 }
             eof
           }
           catch wait resultado
           exit [lindex $resultado 3]
           EXP
           sed -i 's/^          //' responder.exp
-          if expect responder.exp > salida2.txt 2>&1; then
+          if timeout 1500 expect responder.exp > salida2.txt 2>&1; then
             tail -n 30 salida2.txt
             echo "::notice title=App iPhone::Certificados creados y app enviada a Expo. Tarda unos 20-40 minutos en crearse y subirse a TestFlight."
           else
