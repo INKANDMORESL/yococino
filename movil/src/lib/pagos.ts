@@ -2,7 +2,7 @@
 // (variables de GitHub REVENUECAT_ANDROID_KEY / REVENUECAT_IOS_KEY). Sin clave, los pagos siguen «llegarán pronto».
 // La compra se une a la cuenta de Yococino (id de Supabase) y RevenueCat avisa al servidor (función
 // pagos-revenuecat), que es quien decide si la persona es premium.
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import Purchases, { PRODUCT_CATEGORY, type PurchasesStoreProduct } from 'react-native-purchases';
 import { PLANES_TIENDA, SUSCRIPCION, type Periodo } from '../features/plan/productos';
 
@@ -76,10 +76,15 @@ export async function restaurarCompras(): Promise<boolean> {
 }
 
 // Abre la pantalla de la tienda para cambiar o cancelar la suscripción.
+// En Android, RevenueCat no tiene esta pantalla: se abre directamente la página de suscripciones de Google Play.
 export async function gestionarSuscripcion() {
   try {
+    if (Platform.OS === 'android') {
+      await Linking.openURL(`https://play.google.com/store/account/subscriptions?sku=${SUSCRIPCION}&package=app.yococino`);
+      return;
+    }
     await Purchases.showManageSubscriptions();
   } catch {
-    // nada
+    await Linking.openURL(Platform.OS === 'ios' ? 'https://apps.apple.com/account/subscriptions' : 'https://play.google.com/store/account/subscriptions').catch(() => {});
   }
 }
