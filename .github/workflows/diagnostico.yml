@@ -53,7 +53,7 @@ jobs:
 
       - name: Registros de acceso (sin datos personales)
         run: |
-          SQL="select datetime(timestamp) as t, regexp_extract(event_message, '\"path\":\"([^\"?]*)') as ruta, regexp_extract(event_message, '\"status\":([0-9]+)') as codigo, regexp_extract(event_message, '\"error\":\"([^\"]*)') as fallo, regexp_extract(event_message, '\"msg\":\"([^\"]*)') as mensaje from auth_logs where regexp_contains(event_message, 'authorize|callback|token|redirect|oauth|pkce|provider') order by timestamp desc limit 25"
+          SQL="select datetime(t.timestamp) as t, r.path as ruta, rs.status_code as codigo, regexp_extract(r.search, 'error_description=([^&]*)') as fallo from edge_logs t cross join unnest(t.metadata) as m cross join unnest(m.request) as r cross join unnest(m.response) as rs where r.path like '/auth/v1/%' and (r.path like '%authorize%' or r.path like '%callback%' or r.path like '%token%') order by t.timestamp desc limit 25"
           curl -sS -G -w '\nHTTP %{http_code}\n' "https://api.supabase.com/v1/projects/$REF/analytics/endpoints/logs" \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" --data-urlencode "sql=$SQL" | tee a.txt
           echo "::notice title=Accesos registro::$(head -c 3500 a.txt | tr '\n' ' ')"
