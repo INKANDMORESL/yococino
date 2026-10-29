@@ -65,10 +65,42 @@ jobs:
 
       - name: Crear la app de iPhone y subirla a TestFlight
         run: |
-          if ! npx --yes eas-cli@latest build --platform ios --profile production --non-interactive --auto-submit --wait > salida.txt 2>&1; then
+          if npx --yes eas-cli@latest build --platform ios --profile production --non-interactive --auto-submit --wait > salida.txt 2>&1; then
+            tail -n 20 salida.txt
+            echo "::notice title=App iPhone::Creada y enviada a TestFlight. Apple tarda unos minutos en procesarla; luego aparece en App Store Connect → TestFlight."
+            exit 0
+          fi
+          if ! grep -q "Credentials are not set up\|not validated for non-interactive" salida.txt; then
             cat salida.txt
             echo "::error title=App iPhone::$(grep -v '^\s*$' salida.txt | tail -n 14 | tr '\n' ' ' | cut -c1-1800)"
             exit 1
           fi
-          tail -n 20 salida.txt
-          echo "::notice title=App iPhone::Creada y enviada a TestFlight. Apple tarda unos minutos en procesarla; luego aparece en App Store Connect → TestFlight."
+          # La primera vez Expo tiene que crear los certificados y perfiles de Apple y lo pregunta en pantalla:
+          # se responde «sí» a todo con la clave de App Store Connect (sin usuario ni contraseña de Apple).
+          echo "Primera vez: creando certificados de Apple…"
+          sudo apt-get install -y expect > /dev/null
+          cat > responder.exp <<'EXP'
+          set timeout 1800
+          log_user 1
+          spawn npx --yes eas-cli@latest build --platform ios --profile production --auto-submit --no-wait
+          expect {
+            -re {(?i)log in to your apple account\?} { send "n\r"; exp_continue }
+            -re {(?i)apple id:} { send "\003"; exit 3 }
+            -re {\(Y/n\)} { send "y\r"; exp_continue }
+            -re {\(y/N\)} { send "y\r"; exp_continue }
+            -re {(?i)select|choose|which} { send "\r"; exp_continue }
+            -re {›} { send "\r"; exp_continue }
+            eof
+          }
+          catch wait resultado
+          exit [lindex $resultado 3]
+          EXP
+          sed -i 's/^          //' responder.exp
+          if expect responder.exp > salida2.txt 2>&1; then
+            tail -n 30 salida2.txt
+            echo "::notice title=App iPhone::Certificados creados y app enviada a Expo. Tarda unos 20-40 minutos en crearse y subirse a TestFlight."
+          else
+            tail -n 60 salida2.txt
+            echo "::error title=App iPhone::$(sed 's/\x1b\[[0-9;]*[A-Za-z]//g' salida2.txt | grep -v '^\s*$' | tail -n 16 | tr '\n' ' ' | cut -c1-1800)"
+            exit 1
+          fi
