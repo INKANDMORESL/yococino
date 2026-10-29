@@ -21,6 +21,8 @@ jobs:
       EXPO_ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       EXPO_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       EXPO_APPLE_TEAM_TYPE: COMPANY_OR_ORGANIZATION
+      # La sincronización automática de capacidades falla con la clave de API: se configuran a mano en Apple.
+      EXPO_NO_CAPABILITY_SYNC: '1'
       ASC_APP_ID: ${{ vars.ASC_APP_ID }}
     steps:
       - uses: actions/checkout@v4
@@ -62,6 +64,13 @@ jobs:
              --arg p8 "$EXPO_ASC_API_KEY_PATH" --arg kid "$EXPO_ASC_KEY_ID" --arg iss "$EXPO_ASC_ISSUER_ID" --arg team "$EXPO_APPLE_TEAM_ID" --arg app "$ASC_APP_ID" \
             '.build.production.env = ({EXPO_PUBLIC_SUPABASE_URL: $url, EXPO_PUBLIC_SUPABASE_ANON_KEY: $clave} + (if $rc != "" then {EXPO_PUBLIC_REVENUECAT_IOS_KEY: $rc} else {} end))
              | .submit.production.ios = {ascApiKeyPath: $p8, ascApiKeyId: $kid, ascApiKeyIssuerId: $iss, appleTeamId: $team, ascAppId: $app}' eas.json > eas.tmp && mv eas.tmp eas.json
+
+      - name: Grupos de app que necesita (para configurarlos en Apple)
+        run: |
+          npx --yes expo prebuild --platform ios --no-install > prebuild.txt 2>&1 || true
+          G=$(grep -rh -A4 "application-groups" ios 2>/dev/null | grep -o "group\.[A-Za-z0-9.-]*" | sort -u | tr '\n' ' ')
+          echo "::notice title=Grupos de app::${G:-ninguno}"
+          rm -rf ios
 
       - name: Crear la app de iPhone y subirla a TestFlight
         run: |
