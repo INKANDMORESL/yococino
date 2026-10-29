@@ -27,13 +27,14 @@ async function planes(admin: Cliente, ids: string[]) {
   const [ajustes, pruebas, subs, admins] = await Promise.all([
     admin.from('ajustes_planes').select('*').eq('id', 1).maybeSingle(),
     admin.from('pruebas').select('user_id, inicio').in('user_id', ids),
-    admin.from('suscripciones').select('user_id, activa_hasta').in('user_id', ids),
+    admin.from('suscripciones').select('user_id, activa_hasta, peques').in('user_id', ids),
     admin.from('admins').select('user_id').in('user_id', ids),
   ]);
   const activos = ajustes.data?.planes_activos ?? true;
   const dias = Number(ajustes.data?.dias_prueba) || 7;
   const inicio = new Map((pruebas.data ?? []).map((p) => [p.user_id as string, p.inicio as string]));
   const hasta = new Map((subs.data ?? []).map((s) => [s.user_id as string, s.activa_hasta as string | null]));
+  const conPeques = new Set((subs.data ?? []).filter((s) => s.peques).map((s) => s.user_id as string));
   const esAdmin = new Set((admins.data ?? []).map((a) => a.user_id as string));
   const ahora = new Date().toISOString();
   return new Map(
@@ -42,7 +43,7 @@ async function planes(admin: Cliente, ids: string[]) {
       const i = inicio.get(id);
       const fin = i ? sumarDias(i, dias - 1) : null;
       const estado = !activos || esAdmin.has(id) || (h && h > ahora) ? 'premium' : !i ? 'sin empezar' : hoy <= (fin as string) ? 'prueba' : 'caducada';
-      return [id, { estado, fin_prueba: fin, suscripcion_hasta: h ?? null, admin: esAdmin.has(id) }];
+      return [id, { estado, fin_prueba: fin, suscripcion_hasta: h ?? null, peques: conPeques.has(id), admin: esAdmin.has(id) }];
     }),
   );
 }
@@ -236,7 +237,8 @@ const acciones: Record<string, (admin: Cliente, d: Datos, yo: string) => Promise
     if (hasta && !/^\d{4}-\d{2}-\d{2}$/.test(hasta)) throw new Error('Fecha no válida');
     const { error } = await admin
       .from('suscripciones')
-      .upsert({ user_id: id, plan_anual: !!hasta, peques: !!d.peques, activa_hasta: hasta ? `${hasta}T23:59:59+01:00` : null, updated_at: new Date().toISOString() });
+      // producto «regalo»: así la sincronización con RevenueCat no la borra (no hay compra en la tienda).
+      .upsert({ user_id: id, plan_anual: !!hasta, peques: !!d.peques, producto: hasta ? 'regalo' : null, activa_hasta: hasta ? `${hasta}T23:59:59+01:00` : null, updated_at: new Date().toISOString() });
     if (error) throw error;
     return { ok: true };
   },

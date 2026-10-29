@@ -214,7 +214,7 @@
         <button class="boton suave" data-regalo="siempre">Para siempre</button>
       </div>
       <div class="fila"><label class="peq">O hasta el día <input type="date" id="hasta" value="${esc((c.suscripcion_hasta || '').slice(0, 10) || enUnAno)}"></label>
-        <label class="fila peq"><input type="checkbox" id="peques"> Con Peques</label>
+        <label class="peq" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="peques" style="width:20px;height:20px;margin:0;flex:none"${c.peques ? ' checked' : ''}> Con Peques</label>
         <button class="boton" id="dar">Guardar</button>
         <button class="boton peligro" id="quitar">Quitar</button></div>
       <div id="resultado"></div>

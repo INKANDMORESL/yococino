@@ -49,6 +49,11 @@ async function accesosDe(userId: string): Promise<{ premium: Acceso | null; pequ
 async function sincronizar(admin: ReturnType<typeof crearClientes>['admin'], userId: string, evento: string | null): Promise<boolean> {
   const a = await accesosDe(userId);
   if (!a) return false;
+  // Una suscripción regalada desde el panel (sin compra en la tienda) no se toca si en RevenueCat no hay nada.
+  if (!a.premium?.expires_date) {
+    const { data: previa } = await admin.from('suscripciones').select('producto, activa_hasta').eq('user_id', userId).maybeSingle();
+    if (previa?.producto === 'regalo' && previa.activa_hasta && Date.parse(previa.activa_hasta as string) > Date.now()) return true;
+  }
   const fin = a.premium?.expires_date ?? null;
   const conPeques = !!a.peques?.expires_date && Date.parse(a.peques.expires_date) > Date.now();
   const fila: Record<string, unknown> = {
