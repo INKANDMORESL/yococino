@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Instalar dependencias
+        run: npm install --no-audit --no-fund > /dev/null 2>&1
       - name: Últimas versiones y envíos
         run: |
           npx --yes eas-cli@latest init --non-interactive --force > /dev/null 2>&1 || true
