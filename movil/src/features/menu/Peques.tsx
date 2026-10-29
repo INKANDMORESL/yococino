@@ -1,8 +1,9 @@
 // Versión Peques de una receta: cómo hacerla para los niños de casa con los mismos ingredientes.
 // Nunca es una dieta: no se muestran calorías ni cantidades para "comer menos".
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Aparecer, Aviso } from '../../components';
+import { Aparecer, Aviso, Boton } from '../../components';
 import { colors, radius, shadow, space, type } from '../../theme';
 import { ErrorMenu, versionPeques, type VersionPeques } from './api';
 
@@ -28,6 +29,7 @@ export function Peques({ recetaId, franjas }: { recetaId: number; franjas: strin
   const [datos, setDatos] = useState<VersionPeques | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sinPeques, setSinPeques] = useState(false);
 
   const abrir = async () => {
     const nueva = !abierta;
@@ -39,6 +41,7 @@ export function Peques({ recetaId, franjas }: { recetaId: number; franjas: strin
       setDatos(await versionPeques(recetaId));
     } catch (e) {
       setError(e instanceof ErrorMenu ? e.message : 'No hemos podido preparar la versión Peques.');
+      setSinPeques(e instanceof ErrorMenu && e.codigo === 'sin_peques');
     } finally {
       setCargando(false);
     }
@@ -64,7 +67,8 @@ export function Peques({ recetaId, franjas }: { recetaId: number; franjas: strin
               <Text style={type.small}>Preparando la versión Peques… (la primera vez tarda unos segundos)</Text>
             </View>
           ) : null}
-          {error ? <Aviso tono="rosa" texto={error} /> : null}
+          {error ? <Aviso tono={sinPeques ? 'hoja' : 'rosa'} texto={error} /> : null}
+          {sinPeques ? <Boton texto="Añadir Peques" variante="suave" onPress={() => router.push('/suscripcion')} /> : null}
           {datos ? (
             <Aparecer style={{ gap: space.lg }}>
               {datos.resumen ? <Text style={[type.body, { color: colors.ink }]}>{datos.resumen}</Text> : null}

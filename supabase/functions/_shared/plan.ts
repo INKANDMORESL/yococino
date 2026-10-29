@@ -38,3 +38,17 @@ export async function esAdministrador(admin: Cliente, userId: string): Promise<b
   const { data } = await admin.from('admins').select('user_id').eq('user_id', userId).maybeSingle();
   return !!data;
 }
+
+// Peques es un complemento de pago (plan «Premium + Peques»). Lo tienen: los administradores, todos si los planes
+// están desactivados, quien está en la prueba gratis (para probarlo) y quien paga un plan con Peques.
+export async function tienePeques(admin: Cliente, userId: string, estado: EstadoPlan): Promise<boolean> {
+  if (estado === 'prueba') return true;
+  if (await esAdministrador(admin, userId)) return true;
+  const { data: ajustes } = await admin.from('ajustes_planes').select('planes_activos').eq('id', 1).maybeSingle();
+  if (ajustes && ajustes.planes_activos === false) return true;
+  const { data } = await admin.from('suscripciones').select('peques, activa_hasta').eq('user_id', userId).maybeSingle();
+  return !!data?.peques && !!data.activa_hasta && Date.parse(data.activa_hasta as string) > Date.now();
+}
+
+export const respuestaSinPeques = () =>
+  fallo(402, 'sin_peques', 'La versión Peques es un complemento de tu suscripción (+0,99 € al mes o +9,99 € al año). Puedes añadirlo en Suscripción.');

@@ -6,6 +6,7 @@ import { motivosNoApta, restriccionesDe } from '../_shared/alergenos.ts';
 import { pedirJSON } from '../_shared/claude.ts';
 import { crearClientes, fallo, responder, servir } from '../_shared/http.ts';
 import { permitirExtra } from '../_shared/perfil.ts';
+import { planDe, respuestaSinPeques, tienePeques } from '../_shared/plan.ts';
 import { listaTextos, texto } from '../_shared/recetas.ts';
 
 const MODELO_PEQUES = Deno.env.get('MODELO_PEQUES') || Deno.env.get('MODELO_RECETA') || 'claude-sonnet-5-5';
@@ -84,6 +85,9 @@ async function version(req: Request): Promise<Response> {
     .maybeSingle();
   if (error) throw error;
   if (!receta) return fallo(404, 'no_encontrada', 'No encontramos esa receta.');
+  // Peques es un complemento de pago: con Premium sin Peques no se enseña (en la prueba gratis sí, para probarlo).
+  const plan = await planDe(admin, user.id);
+  if (plan.estado !== 'caducada' && !(await tienePeques(admin, user.id, plan.estado))) return respuestaSinPeques();
 
   let peques = receta.peques as Peques | null;
   if (!peques) {
