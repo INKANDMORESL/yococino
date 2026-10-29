@@ -20,7 +20,8 @@ jobs:
       - name: Últimas versiones y envíos
         run: |
           npx --yes eas-cli@latest init --non-interactive --force > /dev/null 2>&1 || true
-          npx --yes eas-cli@latest build:list --limit 4 --json --non-interactive > b.json 2> e.txt || cat e.txt
+          npx --yes eas-cli@latest build:list --limit 4 --json --non-interactive > b.json 2> e.txt || true
+          echo "::notice title=Detalle::$(head -c 600 b.json | tr '\n' ' ') $(tail -n 5 e.txt | tr '\n' ' ')"
           node -e "const b=require('./b.json'); for (const x of b) console.log('::notice title=Versión::'+[x.platform, x.status, 'nº '+(x.appBuildVersion||'?'), x.createdAt, x.error?('error: '+(x.error.message||x.error.errorCode)):''].join(' · '))" || true
           npx --yes eas-cli@latest submission:list --limit 3 --json --non-interactive > s.json 2> e2.txt || cat e2.txt
           node -e "const s=require('./s.json'); for (const x of s) console.log('::notice title=Envío::'+[x.platform, x.status, x.createdAt, x.error?('error: '+(x.error.message||x.error.errorCode)):''].join(' · '))" || true
