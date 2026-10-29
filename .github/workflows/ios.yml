@@ -101,6 +101,10 @@ jobs:
             echo "::notice title=App iPhone::Certificados creados y app enviada a Expo. Tarda unos 20-40 minutos en crearse y subirse a TestFlight."
           else
             tail -n 60 salida2.txt
-            echo "::error title=App iPhone::$(sed 's/\x1b\[[0-9;]*[A-Za-z]//g' salida2.txt | grep -v '^\s*$' | tail -n 16 | tr '\n' ' ' | cut -c1-1800)"
+            # Las últimas líneas, en trozos, para poder leerlas desde fuera (el registro completo no siempre se ve).
+            sed 's/\x1b\[[0-9;?]*[A-Za-z]//g; s/\r/\n/g' salida2.txt | grep -v '^\s*$' | tail -n 70 > limpio.txt
+            split -l 9 limpio.txt trozo_
+            for f in trozo_*; do echo "::warning title=iPhone ($f)::$(tr '\n' ' ' < $f | cut -c1-900)"; done
+            echo "::error title=App iPhone::No se ha podido crear la primera versión de iPhone."
             exit 1
           fi
