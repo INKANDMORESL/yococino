@@ -51,4 +51,4 @@ export async function tienePeques(admin: Cliente, userId: string, estado: Estado
 }
 
 export const respuestaSinPeques = () =>
-  fallo(402, 'sin_peques', 'La versión Peques es un complemento de tu suscripción (+0,99 € al mes o +9,99 € al año). Puedes añadirlo en Suscripción.');
+  fallo(402, 'sin_peques', 'La versión Peques es un complemento de tu suscripción (+1 € al mes o +10 € al año). Puedes añadirlo en Suscripción.');

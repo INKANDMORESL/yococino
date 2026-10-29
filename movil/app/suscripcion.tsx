@@ -167,7 +167,7 @@ export default function Suscripcion() {
           })}
           <View style={s.caja}>
             <Casilla marcada={conPeques} onPress={() => setConPeques(!conPeques)}>
-              Añadir Peques: versión para niños de cada receta ({elegido === 'anual' ? '+9,99 € al año' : '+0,99 € al mes'})
+              Añadir Peques: versión para niños de cada receta ({elegido === 'anual' ? '+10 € al año' : '+1 € al mes'})
             </Casilla>
           </View>
           <Text style={[type.small, { textAlign: 'center' }]}>Se renueva sola. Cancela cuando quieras desde la tienda.</Text>
@@ -184,7 +184,7 @@ export default function Suscripcion() {
           <View style={{ gap: space.md }}>
             {!mia.peques ? (
               <Boton
-                texto={ocupado ? 'Un momento…' : `Añadir Peques (${mia.plan_anual ? '+9,99 € al año' : '+0,99 € al mes'})`}
+                texto={ocupado ? 'Un momento…' : `Añadir Peques (${mia.plan_anual ? '+10 € al año' : '+1 € al mes'})`}
                 variante="suave"
                 onPress={anadirPeques}
                 desactivado={ocupado}
