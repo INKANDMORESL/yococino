@@ -19,6 +19,55 @@ interface Evento {
   environment?: string;
 }
 
+// Lo que de verdad tiene la persona, preguntado a RevenueCat (más fiable que las fechas del aviso).
+// Necesita el secreto REVENUECAT_SECRET_KEY (clave secreta «sk_…» de RevenueCat). Sin él, se usa el aviso.
+interface Acceso {
+  expires_date: string | null;
+  product_identifier?: string;
+}
+async function accesosDe(userId: string): Promise<{ premium: Acceso | null; peques: Acceso | null; producto: string | null; tienda: string | null; entorno: string | null } | null> {
+  const clave = Deno.env.get('REVENUECAT_SECRET_KEY');
+  if (!clave) return null;
+  const r = await fetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(userId)}`, {
+    headers: { Authorization: `Bearer ${clave}`, 'Content-Type': 'application/json' },
+  });
+  if (!r.ok) throw new Error(`RevenueCat ${r.status}`);
+  const j = (await r.json()) as {
+    subscriber?: {
+      entitlements?: Record<string, Acceso>;
+      subscriptions?: Record<string, { store?: string; is_sandbox?: boolean; expires_date?: string | null }>;
+    };
+  };
+  const ent = j.subscriber?.entitlements ?? {};
+  const premium = ent.premium ?? null;
+  const producto = premium?.product_identifier ?? null;
+  const sub = producto ? j.subscriber?.subscriptions?.[producto] ?? null : null;
+  return { premium, peques: ent.peques ?? null, producto, tienda: sub?.store ?? null, entorno: sub ? (sub.is_sandbox ? 'SANDBOX' : 'PRODUCTION') : null };
+}
+
+// Guarda en suscripciones lo que dice RevenueCat. true si se ha podido preguntar.
+async function sincronizar(admin: ReturnType<typeof crearClientes>['admin'], userId: string, evento: string | null): Promise<boolean> {
+  const a = await accesosDe(userId);
+  if (!a) return false;
+  const fin = a.premium?.expires_date ?? null;
+  const conPeques = !!a.peques?.expires_date && Date.parse(a.peques.expires_date) > Date.now();
+  const fila: Record<string, unknown> = {
+    user_id: userId,
+    activa_hasta: fin,
+    peques: conPeques || /peques/i.test(a.producto ?? ''),
+    plan_anual: /year|anual/i.test(a.producto ?? ''),
+    producto: a.producto,
+    tienda: a.tienda,
+    entorno: a.entorno,
+    evento_ms: Date.now(),
+    updated_at: new Date().toISOString(),
+  };
+  if (evento) fila.ultimo_evento = evento;
+  const { error } = await admin.from('suscripciones').upsert(fila, { onConflict: 'user_id' });
+  if (error) throw error;
+  return true;
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function iguales(a: string, b: string) {
@@ -29,6 +78,17 @@ function iguales(a: string, b: string) {
 }
 
 async function pagos(req: Request): Promise<Response> {
+  // Desde la app, justo después de pagar o al recuperar compras: «sincronizar» (con la sesión de la persona).
+  const { usuario, admin: adminApp } = crearClientes(req);
+  const copia = req.clone();
+  const peticion = (await copia.json().catch(() => ({}))) as { accion?: string };
+  if (peticion.accion === 'sincronizar') {
+    const { data: auth } = await usuario.auth.getUser();
+    if (!auth?.user) return fallo(401, 'no_autenticado', 'Vuelve a entrar en tu cuenta.');
+    const hecho = await sincronizar(adminApp, auth.user.id, null);
+    return responder({ ok: true, sincronizado: hecho });
+  }
+
   const secreto = Deno.env.get('REVENUECAT_WEBHOOK_SECRET') ?? '';
   const llega = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
   if (!secreto || !iguales(llega, secreto)) return fallo(401, 'no_autorizado', 'No autorizado.');
@@ -43,6 +103,12 @@ async function pagos(req: Request): Promise<Response> {
   if (!userId) return responder({ ok: true, ignorado: 'sin_usuario' });
 
   const { admin } = crearClientes(req);
+  // Lo más fiable: preguntar a RevenueCat qué tiene ahora mismo.
+  try {
+    if (await sincronizar(admin, userId, e.type ?? null)) return responder({ ok: true, sincronizado: true });
+  } catch (err) {
+    console.error('pagos-revenuecat: no se pudo preguntar a RevenueCat:', err instanceof Error ? err.message : String(err));
+  }
   const { data: previo } = await admin.from('suscripciones').select('evento_ms').eq('user_id', userId).maybeSingle();
   const momento = Number(e.event_timestamp_ms) || Date.now();
   // RevenueCat puede repetir o desordenar avisos: uno más antiguo que el último guardado no cambia nada.
@@ -58,6 +124,7 @@ async function pagos(req: Request): Promise<Response> {
     plan_anual: /year|anual/i.test(producto),
     peques: /peques/i.test(producto) || (e.entitlement_ids ?? []).includes('peques'),
     evento_ms: momento,
+    ultimo_evento: e.type ?? null,
     updated_at: new Date().toISOString(),
   };
   switch (e.type) {

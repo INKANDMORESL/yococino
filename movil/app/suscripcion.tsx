@@ -34,6 +34,8 @@ interface MiSuscripcion {
 // Tras pagar, RevenueCat avisa al servidor en unos segundos: se espera a que el plan salga como premium.
 async function esperarPremium(): Promise<Plan | null> {
   for (let i = 0; i < 12; i++) {
+    // Se pide al servidor que pregunte a RevenueCat (por si el aviso tarda o llega con datos incompletos).
+    if (i % 3 === 0) await supabase.functions.invoke('pagos-revenuecat', { body: { accion: 'sincronizar' } }).catch(() => null);
     const p = await cargarPlan().catch(() => null);
     if (p?.estado === 'premium') return p;
     await new Promise((r) => setTimeout(r, 1500));
