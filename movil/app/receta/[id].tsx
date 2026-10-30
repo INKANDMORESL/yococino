@@ -9,7 +9,7 @@ import { cargarComensales } from '../../src/features/compra/api';
 import { RACION_PEQUE, type Comensales } from '../../src/features/compra/lista';
 import { leerCache } from '../../src/lib/cache';
 import { useLatido } from '../../src/components/Animaciones';
-import { ErrorMenu, avisosDeMiReceta, cambiarPlato, cargarComidas, cargarReceta, marcarHecha, textoAvisos } from '../../src/features/menu/api';
+import { ErrorMenu, MOTIVOS_DENUNCIA, avisosDeMiReceta, cambiarPlato, cargarComidas, cargarReceta, denunciarReceta, marcarHecha, textoAvisos } from '../../src/features/menu/api';
 import { faltaFoto, pedirFoto } from '../../src/features/menu/fotos';
 import { AsignarDia } from '../../src/features/menu/AsignarDia';
 import { CambiarIngrediente } from '../../src/features/menu/CambiarIngrediente';
@@ -91,6 +91,7 @@ function FichaReceta() {
   const [foto, setFoto] = useState<string | null>(null);
   const [peques, setPeques] = useState<{ hay: boolean; franjas: string[] }>({ hay: false, franjas: [] });
   const [cambiando, setCambiando] = useState<'catalogo' | 'nueva' | null>(null);
+  const [denuncia, setDenuncia] = useState<'cerrada' | 'abierta' | 'enviando' | 'enviada'>('cerrada');
   const avisados = useRef<Set<number>>(new Set());
 
   // Mientras haya algún temporizador en marcha, se actualiza cada segundo.
@@ -232,6 +233,18 @@ function FichaReceta() {
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se ha podido guardar.');
+    }
+  };
+
+  const denunciar = async (motivo: string) => {
+    if (!sesion || !receta || denuncia === 'enviando') return;
+    setDenuncia('enviando');
+    try {
+      await denunciarReceta(sesion.user.id, receta, motivo);
+      setDenuncia('enviada');
+    } catch (e) {
+      setDenuncia('abierta');
+      setError(e instanceof Error ? e.message : 'No se ha podido enviar la denuncia.');
     }
   };
 
@@ -558,6 +571,30 @@ function FichaReceta() {
           </View>
           {aviso ? <Aviso tono="hoja" texto={aviso} /> : null}
           {error ? <Aviso tono="rosa" texto={error} /> : null}
+
+          {denuncia === 'enviada' ? (
+            <Aviso
+              tono="hoja"
+              texto={`Gracias. No volverás a ver esta receta${comida && comida.fecha >= hoyISO() ? ' (puedes cambiarla arriba con «Cambiar por otro plato»)' : ''} y la revisaremos en menos de 24 horas.`}
+            />
+          ) : denuncia === 'cerrada' ? (
+            <Pressable onPress={() => setDenuncia('abierta')} accessibilityRole="button" style={[s.enlace, { marginTop: space.lg }]}>
+              <Text style={[s.enlaceTexto, { color: colors.muted, fontSize: 14 }]}>🚩 Denunciar esta receta</Text>
+            </Pressable>
+          ) : (
+            <View style={{ marginTop: space.lg }}>
+              <Text style={s.seccion}>¿Qué le pasa a esta receta?</Text>
+              <Text style={[type.small, { marginBottom: space.md }]}>Dejará de aparecerte y el equipo la revisará.</Text>
+              <View style={{ gap: space.sm }}>
+                {MOTIVOS_DENUNCIA.map((m) => (
+                  <Boton key={m} texto={m} variante="linea" desactivado={denuncia === 'enviando'} onPress={() => denunciar(m)} />
+                ))}
+                <Pressable onPress={() => setDenuncia('cerrada')} accessibilityRole="button" style={s.enlace}>
+                  <Text style={s.enlaceTexto}>Cancelar</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
         </View>
       </ScrollView>
 

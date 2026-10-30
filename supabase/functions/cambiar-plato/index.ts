@@ -2,6 +2,7 @@
 // Primero busca en el catálogo compartido (sin gastar IA); si no hay nada nuevo o la persona
 // pide "algo distinto", crea una receta nueva con la IA, con límite diario.
 // Mismas reglas de seguridad que preparar-menu: perfil válido, alergias y gustos siempre excluidos.
+import { recetasDenunciadas } from '../_shared/denuncias.ts';
 import { restriccionesDe } from '../_shared/alergenos.ts';
 import { crearClientes, fallo, hoyEspana, responder, servir, sumarDias } from '../_shared/http.ts';
 import { comidasDelDia, factorRacion, KCAL_RACION_ESTANDAR, type TipoComida } from '../_shared/nutricion.ts';
@@ -57,7 +58,7 @@ async function cambiar(req: Request): Promise<Response> {
 
   let receta: RecetaGuardada | null = null;
   if (!cuerpo.nueva) {
-    const candidatas = (await cargarCatalogo(admin, [tipo], nivel, restr, mesDe(comida.fecha))).filter((r) => !usadas.has(r.id));
+    const candidatas = (await cargarCatalogo(admin, [tipo], nivel, restr, mesDe(comida.fecha), 30, await recetasDenunciadas(admin, user.id))).filter((r) => !usadas.has(r.id));
     if (candidatas.length) receta = candidatas[Math.floor(Math.random() * Math.min(candidatas.length, 15))];
   }
   if (!receta) {

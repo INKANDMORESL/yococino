@@ -264,3 +264,22 @@ export const sugerirEquivalente = (ingrediente: string) =>
   llamar<{ opciones: string[] }>('equivalente', { accion: 'sugerir', ingrediente }, 'No hemos podido buscar equivalentes.').then((r) => r.opciones);
 export const cambiarEquivalente = (ingrediente: string, nuevo: string, desde: string, hasta: string) =>
   llamar<{ cambiadas: number }>('equivalente', { accion: 'cambiar', ingrediente, nuevo, desde, hasta }, 'No hemos podido cambiar el ingrediente.').then((r) => r.cambiadas);
+
+export const MOTIVOS_DENUNCIA = [
+  'Contenido ofensivo o inapropiado',
+  'No es una receta o es publicidad',
+  'Puede ser peligrosa o tiene errores graves',
+  'Otro motivo',
+] as const;
+
+// Denuncia una receta: deja de aparecerle a esta persona (menús, recetario y especiales)
+// y avisa al equipo por Contacto para revisarla.
+export async function denunciarReceta(userId: string, receta: { id: number; nombre: string }, motivo: string): Promise<void> {
+  const { error } = await supabase
+    .from('recetas_denuncias')
+    .upsert({ user_id: userId, receta_id: receta.id, motivo }, { onConflict: 'user_id,receta_id', ignoreDuplicates: true });
+  if (error) throw new ErrorMenu('No se ha podido enviar la denuncia. Revisa tu conexión.', 'guardar');
+  await supabase
+    .from('mensajes')
+    .insert({ user_id: userId, de: 'cliente', texto: `🚩 Denuncia de la receta «${receta.nombre}» (n.º ${receta.id}): ${motivo}.` });
+}

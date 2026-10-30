@@ -1,5 +1,6 @@
 // especiales: el especial de temporada de hoy (Halloween, Navidad, verano…) y sus recetas, para Inicio y «Ver todas».
 // Solo recetas aptas para la persona (alergias, lo que no le gusta y sus aparatos). Sin IA: no cuesta nada.
+import { recetasDenunciadas } from '../_shared/denuncias.ts';
 import { restriccionesDe } from '../_shared/alergenos.ts';
 import { especialesDe, especialPorClave } from '../_shared/especiales.ts';
 import { crearClientes, fallo, hoyEspana, responder, servir } from '../_shared/http.ts';
@@ -29,10 +30,11 @@ async function especiales(req: Request): Promise<Response> {
     .eq('especial', elegido.clave)
     .limit(60);
   if (error) throw error;
+  const denunciadas = await recetasDenunciadas(admin, user.id);
   type Fila = RecetaGuardada & Record<string, unknown> & { oculta: boolean; privada_de: string | null; avisos: string[] | null };
   const recetas = ((data ?? []) as unknown as { receta: Fila | null }[])
     .map((f) => f.receta)
-    .filter((r): r is Fila => !!r && !r.oculta && !r.privada_de && !!r.imagen && esApta(r, restr))
+    .filter((r): r is Fila => !!r && !r.oculta && !r.privada_de && !denunciadas.has(r.id as number) && !!r.imagen && esApta(r, restr))
     // Primero las que tienen foto ligera y menos avisos.
     .sort((a, b) => (a.avisos?.length ?? 0) - (b.avisos?.length ?? 0))
     .slice(0, Math.max(1, Math.min(60, Number(cuerpo.limite) || 60)))

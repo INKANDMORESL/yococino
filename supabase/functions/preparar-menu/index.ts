@@ -8,6 +8,7 @@
 // - Alergias e intolerancias: etiqueta de la IA + revisión propia de ingredientes. Ante la duda, se descarta.
 // - A la IA no se le envían datos personales: solo energía por comida, objetivo y restricciones.
 // - Nunca se escriben datos de salud en los registros (logs).
+import { recetasDenunciadas } from '../_shared/denuncias.ts';
 import { describirRestricciones, restriccionesDe } from '../_shared/alergenos.ts';
 import { ErrorIA, pedirJSON } from '../_shared/claude.ts';
 import { diaSemana, fallo, hoyEspana, mensajeTecnico, responder, servir, sumarDias, crearClientes } from '../_shared/http.ts';
@@ -172,7 +173,7 @@ async function preparar(req: Request): Promise<Response> {
 
   // 4. Pedir a la IA los platos de esos días.
   const numMes = mesDe(aPreparar[0]);
-  const catalogo = await cargarCatalogo(admin, tipos, nivel, restr, numMes, (perfil as { preferencias?: unknown }).preferencias ? 200 : 60);
+  const catalogo = await cargarCatalogo(admin, tipos, nivel, restr, numMes, (perfil as { preferencias?: unknown }).preferencias ? 200 : 60, await recetasDenunciadas(admin, user.id));
   // Platos nuevos: solo si quedan en el cupo global del mes y pocos por llamada; lo normal es reutilizar.
   const quedanNuevas = modo === 'completo' ? (await cupoRecetas(admin)).quedan : 0;
   const pocasDeAlgunTipo = tipos.some((t) => catalogo.filter((r) => r.tipo_comida === t).length < 12);

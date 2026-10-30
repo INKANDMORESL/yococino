@@ -1,7 +1,8 @@
 // Suscripción: qué incluye y cuánto cuesta. Los pagos (App Store / Google Play) se conectarán más adelante.
+import { EnlaceLegal } from '../src/features/cuenta/Legal';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Aparecer, Aviso, Boton, Casilla } from '../src/components';
 import { PLANES_TIENDA, euros } from '../src/features/plan/productos';
@@ -12,8 +13,8 @@ import { volver } from '../src/lib/volver';
 import { colors, radius, shadow, space, type } from '../src/theme';
 
 const PLANES = [
-  { clave: 'anual', nombre: 'Anual', precio: '39,99 €', periodo: 'al año', detalle: 'Menos de 3,40 € al mes', etiqueta: 'Ahorra un 44 %' },
-  { clave: 'mensual', nombre: 'Mensual', precio: '5,99 €', periodo: 'al mes', detalle: 'Sin compromiso', etiqueta: null },
+  { clave: 'anual', nombre: 'Premium anual', precio: '39,99 €', periodo: 'al año', detalle: 'Menos de 3,40 € al mes', etiqueta: 'Ahorra un 44 %' },
+  { clave: 'mensual', nombre: 'Premium mensual', precio: '5,99 €', periodo: 'al mes', detalle: 'Sin compromiso', etiqueta: null },
 ] as const;
 
 const INCLUYE = [
@@ -170,7 +171,14 @@ export default function Suscripcion() {
               Añadir Peques: versión para niños de cada receta ({elegido === 'anual' ? '+10 € al año' : '+1 € al mes'})
             </Casilla>
           </View>
-          <Text style={[type.small, { textAlign: 'center' }]}>Se renueva sola. Cancela cuando quieras desde la tienda.</Text>
+          <Text style={[type.small, { textAlign: 'center' }]}>
+            Suscripción con renovación automática: «Yococino Premium» (o «Premium + Peques»), {elegido === 'anual' ? '1 año' : '1 mes'} por{' '}
+            {euros(total)}. Se cobra al confirmar la compra y se renueva cada {elegido === 'anual' ? 'año' : 'mes'} al mismo precio, salvo que la
+            canceles al menos 24 horas antes de que termine el periodo, desde los ajustes de tu cuenta de {Platform.OS === 'ios' ? 'App Store' : 'Google Play'}.
+          </Text>
+          <Text style={[type.small, { textAlign: 'center' }]}>
+            <EnlaceLegal pagina="condiciones" texto="Condiciones de uso (EULA)" /> · <EnlaceLegal pagina="privacidad" texto="Política de privacidad" />
+          </Text>
         </View>
 
         {aviso ? <Aviso tono="hoja" texto={aviso} /> : null}

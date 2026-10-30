@@ -169,7 +169,8 @@ const numeroPositivo = (v: unknown) => (typeof v === 'number' && Number.isFinite
 // ---------- Recetas ----------
 
 // Con `mes`, se dejan fuera las recetas con fruta fresca fuera de temporada.
-export async function cargarCatalogo(admin: Cliente, tipos: TipoComida[], nivel: Nivel, restr: Restricciones, mes: number | null = null, porTipoMax = 30) {
+// excluir = recetas que la persona ha denunciado (no se le vuelven a ofrecer).
+export async function cargarCatalogo(admin: Cliente, tipos: TipoComida[], nivel: Nivel, restr: Restricciones, mes: number | null = null, porTipoMax = 30, excluir?: Set<number>) {
   const { data, error } = await admin
     .from('recetas')
     .select(COLUMNAS_RECETA)
@@ -182,6 +183,7 @@ export async function cargarCatalogo(admin: Cliente, tipos: TipoComida[], nivel:
   if (error) throw error;
   const porTipo = new Map<TipoComida, RecetaGuardada[]>();
   for (const r of (data ?? []) as RecetaGuardada[]) {
+    if (excluir?.has(r.id)) continue;
     if (!esApta(r, restr)) continue;
     if (mes && frutasFueraDeTemporada([r.nombre, ...(r.ingredientes ?? []).map((i) => i.nombre)], mes).length) continue;
     const lista = porTipo.get(r.tipo_comida) ?? [];

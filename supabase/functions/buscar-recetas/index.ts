@@ -1,5 +1,6 @@
 // buscar-recetas: recetario con buscador. Devuelve solo recetas aptas para la persona
 // (sin sus alergias ni lo que no le gusta). Busca por nombre del plato y por ingrediente.
+import { recetasDenunciadas } from '../_shared/denuncias.ts';
 import { restriccionesDe } from '../_shared/alergenos.ts';
 import { crearClientes, fallo, hoyEspana, responder, servir } from '../_shared/http.ts';
 import { esApta, type RecetaGuardada } from '../_shared/recetas.ts';
@@ -68,7 +69,9 @@ async function buscar(req: Request): Promise<Response> {
     if (def && enMarcha.has(def.clave) && !etiqueta.has(e.receta_id)) etiqueta.set(e.receta_id, `${def.emoji} ${def.titulo}`);
   }
 
+  const denunciadas = await recetasDenunciadas(admin, user.id);
   const lista = todas
+    .filter((r) => !denunciadas.has(r.id as number))
     .filter((r) => !r.solo_especial || etiqueta.has(r.id as number))
     .filter((r) => esApta(r, restr))
     .filter((r) => {
