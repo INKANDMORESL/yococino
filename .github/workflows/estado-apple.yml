@@ -1,0 +1,43 @@
+# Estado de la app en App Store Connect (versión, revisión y suscripciones). Solo lectura, con la clave de la API.
+name: Estado en Apple
+
+on:
+  workflow_dispatch:
+
+jobs:
+  estado:
+    runs-on: ubuntu-latest
+    env:
+      P8: ${{ secrets.ASC_API_KEY_P8 }}
+      KID: ${{ secrets.ASC_KEY_ID }}
+      ISS: ${{ secrets.ASC_ISSUER_ID }}
+      APP: ${{ vars.ASC_APP_ID }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Consultar App Store Connect
+        run: |
+          cat > e.mjs <<'JS'
+          import crypto from 'node:crypto';
+          const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+          const ahora = Math.floor(Date.now() / 1000);
+          const cab = b64({ alg: 'ES256', kid: process.env.KID, typ: 'JWT' });
+          const cuerpo = b64({ iss: process.env.ISS, iat: ahora, exp: ahora + 600, aud: 'appstoreconnect-v1' });
+          const firma = crypto.sign('sha256', Buffer.from(`${cab}.${cuerpo}`), { key: process.env.P8, dsaEncoding: 'ieee-p1363' }).toString('base64url');
+          const token = `${cab}.${cuerpo}.${firma}`;
+          const get = async (ruta) => {
+            const r = await fetch(`https://api.appstoreconnect.apple.com${ruta}`, { headers: { Authorization: `Bearer ${token}` } });
+            const j = await r.json();
+            if (!r.ok) console.log(`::warning title=Error ${r.status}::${ruta} ${JSON.stringify(j.errors ?? j).slice(0, 400)}`);
+            return j;
+          };
+          const app = process.env.APP;
+          const v = await get(`/v1/apps/${app}/appStoreVersions?limit=3`);
+          for (const x of v.data ?? []) console.log(`::notice title=Versión iOS::${x.attributes.versionString} · ${x.attributes.appStoreState} · ${x.attributes.appVersionState ?? ''} · ${x.attributes.releaseType ?? ''}`);
+          const rs = await get(`/v1/reviewSubmissions?filter[app]=${app}&limit=5`);
+          for (const x of rs.data ?? []) console.log(`::notice title=Envío a revisión::${x.attributes.state} · enviado ${x.attributes.submittedDate ?? '-'}`);
+          const g = await get(`/v1/apps/${app}/subscriptionGroups?include=subscriptions&limit=5`);
+          for (const s of (g.included ?? []).filter((i) => i.type === 'subscriptions')) console.log(`::notice title=Suscripción::${s.attributes.productId} · ${s.attributes.state}`);
+          JS
+          node e.mjs
