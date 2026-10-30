@@ -57,4 +57,4 @@ Principal: Comida y bebida
 Secundaria: Estilo de vida
 
 INFORMACIÓN DE LA REVISIÓN
-Notas: La app necesita una cuenta. Las suscripciones están en Perfil → Suscripción; Peques es un complemento que se añade con la casilla «Añadir Peques». Para entrar también se puede usar «Continuar con Apple».
+Notas: ver tienda/respuesta-apple.txt (mismo texto que la respuesta a Apple).
