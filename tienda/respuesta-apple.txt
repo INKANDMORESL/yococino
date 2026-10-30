@@ -1,52 +1,37 @@
-RESPUESTA PARA APPLE (copiar en «Revisión de apps» → responder, y también en «Notas» de la Información para la revisión)
-Adjuntar el vídeo grabado con el iPhone.
-======================================================================
+Hello, thank you for your review. A screen recording made on a physical iPhone is attached.
 
-Hello, thank you for your review. Here is the information requested. A screen recording made on a physical iPhone (latest iOS) is attached.
+1. RECORDING
+It starts by launching the app and shows: sign-up, the questionnaire (explicit consent for health data), the monthly menu, a recipe, saving a recipe from a TikTok link (user content), "Denunciar esta receta" (report), the subscription screen (title, length, price, auto-renewal, Terms of Use (EULA) and Privacy links) with the purchase sheet, and account deletion (Perfil > "Borrar mi cuenta y mis datos").
 
-1. SCREEN RECORDING
-The attached video starts by launching the app and shows: account registration, the initial questionnaire (with explicit consent for health data), the monthly menu, a recipe with its cooking timers, saving a recipe from a TikTok link (user-generated content) and the "Report this recipe" option ("Denunciar esta receta"), the subscription screen (title, length and price of each subscription, auto-renewal terms and links to the Terms of Use (EULA) and Privacy Policy) with the In-App Purchase sheet, and account deletion (Perfil → "Borrar mi cuenta y mis datos").
+2. PURPOSE AND AUDIENCE
+Yococino is a meal-planning app for adults (18+) in Spain. From the user's goal, activity, kitchen appliances, allergies and dislikes it builds a personalised 30-day menu of home-made Mediterranean recipes and the shopping list. It saves time and money and helps people eat balanced meals while avoiding their allergens. It is not a medical service: with pregnancy, diabetes, kidney or thyroid disease or eating disorders no menu is generated and a professional is recommended. Weight goals require BMI >= 18.5 and a moderate deficit with a fixed minimum.
 
-2. PURPOSE AND TARGET AUDIENCE
-Yococino is a Spanish meal-planning app for adults (18+) in Spain. Based on the user's goal, activity level, cooking appliances, food allergies and dislikes, it prepares a personalised 30-day menu of home-made Mediterranean recipes, keeps it always 30 days ahead, and builds the shopping list automatically. It solves the daily "what do I cook today?" problem, helps people eat in a balanced way, avoid their allergens and save time and money on shopping. It is not a medical service: for pregnancy, diabetes, kidney or thyroid disease or eating disorders, the app does not generate a menu and recommends seeing a professional. Weight goals are limited to a healthy BMI (≥ 18.5) and a moderate calorie deficit with a fixed minimum.
-
-3. HOW TO ACCESS THE MAIN FEATURES
-Demo account (Premium + Peques already active, no purchase needed):
-  Email: adrianpedrazag+prueba@gmail.com
-  Password: provided in the "Sign-in information" section of App Review Information.
-On the start screen tap "Entrar", type the email and password under "o con tu email" and tap "Entrar". Main features:
-  - Inicio: today's meals, arrows to see other days, "Ver menú completo" for the monthly calendar.
-  - Tap any dish to open the recipe: ingredients, step-by-step instructions with timers, "Cambiar por otro plato", favourites, share, Peques (kids' version) and "Denunciar esta receta" at the bottom.
-  - Compra: shopping list for today / 3 days / 7 days.
-  - Recetas: recipe library with search and filters; "Mis recetas" to save a recipe from a TikTok link.
-  - Progreso: weight and nutrition tracking.
-  - Perfil: preferences, "Mi suscripción", legal links, "Borrar mi cuenta y mis datos".
-New users get a 7-day free trial (managed by the app, no store trial) and can create an account with email, Sign in with Apple or Google.
+3. ACCESS
+Demo account (Premium + Peques active): adrianpedrazag+prueba@gmail.com, password in Sign-in Information. Tap "Entrar", enter it under "o con tu email" and tap "Entrar".
+- Inicio: today's meals; "Ver menú completo" opens the calendar.
+- Tap a dish: recipe with timers, change dish, favourites, Peques (kids' version) and "Denunciar esta receta" at the bottom.
+- Compra: shopping list. Recetas: library and "Mis recetas" (save from TikTok). Progreso: weight and nutrition.
+- Perfil: "Mi suscripción", legal links, account deletion.
+New users get a 7-day free trial managed by the app. Sign-up with email, Apple or Google.
 
 4. EXTERNAL SERVICES
-  - Supabase (EU servers, Ireland): authentication, database and server functions.
-  - Sign in with Apple and Google Sign-In: login.
-  - Apple In-App Purchase through RevenueCat: subscriptions.
-  - Anthropic Claude (AI): writes and reviews recipes. No personal data is sent to the AI, only generic recipe requests.
-  - Google Gemini (AI): generates the photo of each dish.
-  - Expo (EAS): app builds and updates.
+Supabase (EU servers): login, database, server functions. Sign in with Apple and Google. Apple In-App Purchase via RevenueCat. Anthropic Claude (AI): writes and moderates recipes; no personal data is sent. Google Gemini (AI): dish photos. Expo: builds.
 
-5. REGIONAL DIFFERENCES
-The app is available only in Spain and only in Spanish. It works the same for all users; there are no regional differences.
+5. REGIONS
+Available only in Spain, in Spanish. Same features for all users.
 
-6. REGULATED INDUSTRY / THIRD-PARTY MATERIAL
-The app is not a medical or health service and does not provide diagnoses or treatment; recipes and menus are general nutritional guidance, as stated in the Terms of Use. It applies safety limits (adults only, healthy BMI, moderate deficit, allergens always excluded, no menu for medical conditions). Health data (allergies, conditions, weight) is only stored with explicit consent, is never used for advertising or analytics, and can be deleted at any time. Recipes saved from social networks are rewritten by the app (only the public text is read, never the video), and the original video is not shown. The app does not include protected third-party material.
-
-User-generated content: users can save recipes from TikTok links. Every saved recipe is automatically moderated before being stored (objectionable, non-food, dangerous or advertising content is rejected); recipes with nutrition warnings stay private to the user. Any recipe can be reported with "Denunciar esta receta" at the end of the recipe screen: it is hidden immediately for that user and our team is notified and reviews it within 24 hours. The Terms of Use (section 5) state zero tolerance for objectionable content. Users can also contact us from "Contacto" in the app or at info@yococino.app.
+6. REGULATION AND THIRD-PARTY MATERIAL
+Not a medical service; menus are general nutritional guidance (Terms of Use) with the safety limits above. Health data is stored only with explicit consent, never used for ads or analytics, and can be deleted at any time. Recipes saved from TikTok are rewritten by the app from the public text only; the video is never shown. No protected third-party material.
+User content: every saved recipe is moderated automatically (offensive, non-food, dangerous or advertising content is rejected; recipes with nutrition warnings stay private). Any recipe can be reported with "Denunciar esta receta": it is hidden at once for that user and our team reviews it within 24 hours. Terms of Use section 5: zero tolerance for objectionable content. Contact: "Contacto" in the app or info@yococino.app.
 
 7. IN-APP PURCHASES
-One auto-renewable subscription group "Yococino Premium" with 4 options:
-  - Premium mensual: €5.99 / month
-  - Premium anual: €39.99 / year (highlighted)
-  - Premium + Peques mensual: €6.99 / month
-  - Premium + Peques anual: €49.99 / year
-Premium unlocks the full 30-day menu, new recipes, AI features (change a dish or an ingredient, cook with what you have, save recipes from TikTok). Peques adds the kids' version of each recipe.
-How to get there: Perfil → "Mi suscripción" (also shown automatically when the free trial ends, and from the Peques button inside a recipe). Choose monthly or yearly, optionally tick "Añadir Peques", and tap "Suscribirme por …". "Ya pagué antes: recuperar mi suscripción" restores purchases, and "Cambiar o cancelar mi suscripción" opens Apple's subscription management.
+Auto-renewable group "Yococino Premium":
+- Premium mensual: 5,99 EUR/month
+- Premium anual: 39,99 EUR/year
+- Premium + Peques mensual: 6,99 EUR/month
+- Premium + Peques anual: 49,99 EUR/year
+Premium unlocks the full 30-day menu, new recipes and AI features (change a dish or ingredient, cook with what you have, save TikTok recipes). Peques adds kids' versions of recipes.
+Path: Perfil > "Mi suscripción" (also shown when the trial ends). Choose monthly or yearly, optionally tick "Añadir Peques", tap "Suscribirme por...". "Recuperar mi suscripción" restores purchases; "Cambiar o cancelar mi suscripción" opens Apple's subscription management.
 
 Thank you,
-Adrián Pedraza – INKANDMORE SL (Yococino)
+Adrián Pedraza - INKANDMORE SL (Yococino)
