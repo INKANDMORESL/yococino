@@ -1,5 +1,53 @@
 {
-  "hoy": "2026-10-30",
-  "pendientes": [],
+  "hoy": "2026-10-31",
+  "pendientes": [
+    {
+      "id": "otono_setas-2026",
+      "clave": "otono_setas",
+      "titulo": "Otoño: setas, castañas y cuchara",
+      "emoji": "🍂",
+      "descripcion": "Lo mejor del otoño, de la huerta y del monte.",
+      "desde": "2026-11-03",
+      "hasta": "2026-11-30",
+      "publicar": "2026-11-03",
+      "recetas": [
+        {
+          "id": 518,
+          "nombre": "Crema de castañas",
+          "descripcion": "Una crema sedosa y reconfortante que sabe a otoño en cada cucharada.",
+          "tipo_comida": "cena",
+          "imagen": "https://xgzcbtfmrcqcmubioeuz.supabase.co/storage/v1/object/public/fotos/recetas/518.jpg"
+        },
+        {
+          "id": 515,
+          "nombre": "Crema de calabaza y jengibre",
+          "descripcion": "Una crema sedosa y reconfortante con castañas y pipas crujientes para las noches de otoño.",
+          "tipo_comida": "cena",
+          "imagen": "https://xgzcbtfmrcqcmubioeuz.supabase.co/storage/v1/object/public/fotos/recetas/515.jpg"
+        },
+        {
+          "id": 509,
+          "nombre": "Guiso de setas con patatas",
+          "descripcion": "Un guiso de cuchara con el aroma del monte, patatas melosas y un toque de pimentón.",
+          "tipo_comida": "almuerzo",
+          "imagen": "https://xgzcbtfmrcqcmubioeuz.supabase.co/storage/v1/object/public/fotos/recetas/509.jpg"
+        },
+        {
+          "id": 506,
+          "nombre": "Boniato asado relleno de queso fresco",
+          "descripcion": "Un boniato tierno por dentro, con setas, castañas y queso fresco cremoso para una cena de otoño.",
+          "tipo_comida": "cena",
+          "imagen": "https://xgzcbtfmrcqcmubioeuz.supabase.co/storage/v1/object/public/fotos/recetas/506.jpg"
+        },
+        {
+          "id": 168,
+          "nombre": "Revuelto de setas y ajetes",
+          "descripcion": "Un revuelto jugoso con setas doradas y ajetes tiernos, listo en un momento.",
+          "tipo_comida": "cena",
+          "imagen": "https://xgzcbtfmrcqcmubioeuz.supabase.co/storage/v1/object/public/fotos/recetas/168.jpg"
+        }
+      ]
+    }
+  ],
   "sin_receta": []
 }
