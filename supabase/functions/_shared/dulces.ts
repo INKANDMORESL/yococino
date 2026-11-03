@@ -20,9 +20,12 @@ export interface RecetaParaDulce {
   ingredientes: { nombre: string; nota?: string | null }[];
 }
 
+// Solo desayunos, medias mañanas, meriendas y «otro»: en comidas y cenas, una pizca de azúcar en un sofrito
+// no hace el plato dulce (y las recetas nuevas del menú ya se piden sin azúcar añadido).
 export function esDulce(r: RecetaParaDulce): boolean {
+  if (!TIPOS_DULCES.has(r.tipo_comida)) return false;
   const nombre = normalizar(r.nombre);
-  if (TIPOS_DULCES.has(r.tipo_comida) && POSTRE.test(nombre) && !SALADO.test(nombre)) return true;
+  if (POSTRE.test(nombre) && !SALADO.test(nombre)) return true;
   return r.ingredientes.some((i) => {
     const t = normalizar(`${i.nombre} ${i.nota ?? ''}`);
     return AZUCAR.test(t) && !SIN_AZUCAR.test(t);

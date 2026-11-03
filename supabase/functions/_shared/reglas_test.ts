@@ -167,7 +167,7 @@ export const CASOS: Caso[] = [
   ['dulces: toda la lista de dulces se reconoce como dulce', () => LISTA_DULCES.every((plato) => esDulce({ nombre: plato, tipo_comida: 'merienda', ingredientes: [] }))],
   ['dulces: galletas de arroz y pastel de verduras no son dulces', () => !esDulce({ nombre: 'Galletas de arroz con aguacate y limón', tipo_comida: 'media_manana', ingredientes: [] }) && !esDulce({ nombre: 'Pastel de verduras', tipo_comida: 'merienda', ingredientes: [] })],
   ['dulces: el azúcar lo hace dulce, «sin azúcar» no', () => esDulce({ nombre: 'Yogur con fresas', tipo_comida: 'merienda', ingredientes: [{ nombre: 'Azúcar moreno' }] }) && !esDulce({ nombre: 'Yogur con fresas', tipo_comida: 'merienda', ingredientes: [{ nombre: 'Yogur natural sin azúcar' }] })],
-  ['dulces: un almuerzo con «tarta» en el nombre no cuenta, pero con azúcar sí', () => !esDulce({ nombre: 'Tarta de puerros', tipo_comida: 'almuerzo', ingredientes: [] }) && esDulce({ nombre: 'Pollo agridulce', tipo_comida: 'almuerzo', ingredientes: [{ nombre: 'Azúcar' }] })],
+  ['dulces: comidas y cenas nunca cuentan como dulces', () => !esDulce({ nombre: 'Tarta de puerros', tipo_comida: 'almuerzo', ingredientes: [] }) && !esDulce({ nombre: 'Bonito con tomate', tipo_comida: 'almuerzo', ingredientes: [{ nombre: 'Azúcar' }] })],
   ['coccion: patatas y calabaza se revisan, la merluza no', () => llevaIngredienteDuro([{ nombre: 'Patatas nuevas' }]) && llevaIngredienteDuro([{ nombre: 'Calabaza asada' }]) && !llevaIngredienteDuro([{ nombre: 'Merluza' }, { nombre: 'Aceite de oliva' }])],
 ];
 
