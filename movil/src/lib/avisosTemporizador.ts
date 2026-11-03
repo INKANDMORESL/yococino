@@ -7,9 +7,13 @@ import { Platform } from 'react-native';
 const CANAL_FIN = 'temporizador-fin';
 const CANAL_MARCHA = 'temporizador-marcha';
 
-// Con la app abierta ya se avisa en pantalla: la notificación solo suena si llega estando fuera.
+// El «¡Tiempo!» suena y se ve también con la app abierta (puede que se esté en otra pantalla o en otra
+// receta). La notificación fija de «en marcha» no molesta: solo queda en la lista.
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({ shouldShowBanner: false, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }),
+  handleNotification: async (n) => {
+    const fin = n.request.content.data?.tipo === 'fin';
+    return { shouldShowBanner: fin, shouldShowList: true, shouldPlaySound: fin, shouldSetBadge: false };
+  },
 });
 
 let preparado: Promise<boolean> | null = null;
@@ -67,7 +71,9 @@ export async function avisarAlTerminar(clave: string, segundos: number, receta: 
       content: {
         title: `⏰ ¡Tiempo! ${receta}`,
         body: `Paso ${paso} listo.`,
+        data: { tipo: 'fin' },
         sound: 'default',
+        interruptionLevel: 'timeSensitive',
         priority: Notifications.AndroidNotificationPriority.MAX,
       },
       trigger: {

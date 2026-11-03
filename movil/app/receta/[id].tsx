@@ -151,8 +151,8 @@ function FichaReceta() {
         cambio = true;
         if (!avisados.current.has(paso)) {
           avisados.current.add(paso);
+          // La notificación de «¡Tiempo!» se deja: es la que suena (también con la app abierta).
           avisarFin();
-          quitarAviso(`${id}-${paso}`);
           setAviso(`⏰ ¡Tiempo! Paso ${paso + 1} listo.`);
         }
       }
