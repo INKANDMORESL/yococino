@@ -44,6 +44,15 @@ jobs:
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @q.json | tee r.txt
           echo "::notice title=Lotes::$(head -c 3500 r.txt | tr '\n' ' ')"
 
+      - name: Recetas dulces
+        run: |
+          Q="select json_agg(x) from (select tipo_comida || ' | ' || nombre || case when oculta then ' (oculta)' else '' end || case when solo_especial then ' (especial)' else '' end as x from (select r.tipo_comida, r.nombre, r.oculta, r.solo_especial from public.recetas r where r.privada_de is null and (r.nombre_norm ~ '(bizcoch|tarta|magdalen|muffin|galleta|brownie|flan|natilla|crep|gofre|pastel|cookie|mousse|tiramis|cheesecake|bollo|rosquill|torrija|bombon|trufa|helado|sorbete|compota|mermelada|crumble|turron|polvoron|mantecado|roscon|donut|churro)' or exists (select 1 from public.ingredientes i where i.receta_id = r.id and i.nombre ~* 'az[uú]car|panela|sirope|chocolate|cacao|miel|dátil|datil|eritritol|stevia|edulcorante')) order by r.tipo_comida, r.nombre limit 400) d) d"
+          jq -n --arg q "$Q" '{query: $q, read_only: true}' > d.json
+          curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @d.json > dr.txt
+          wc -c dr.txt
+          for n in 0 1 2 3 4 5 6 7 8 9; do t=$(tail -c +$((n*3400+1)) dr.txt | head -c 3400 | tr '\n' ' '); [ -n "$t" ] && echo "::notice title=Dulces $n::$t"; done
+
       - name: Accesos activados (Google, email…)
         env:
           URL: ${{ vars.SUPABASE_URL }}
