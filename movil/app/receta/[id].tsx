@@ -27,6 +27,7 @@ import { NIVEL, NOMBRE_ALERGENO, TIPOS, type Comida, type Receta } from '../../s
 import { colors, radius, shadow, space, type } from '../../src/theme';
 import { conCambios } from '../../src/features/menu/cambios';
 import { avisarAlTerminar, quitar as quitarAviso } from '../../src/lib/avisosTemporizador';
+import { cocinandoAhora, cocinandoGuardado, guardarCocinando, type Cocinando } from '../../src/features/menu/cocinando';
 
 // Aviso al terminar un temporizador: vibración en el móvil y un pitido en la web.
 function avisarFin() {
@@ -51,11 +52,14 @@ function avisarFin() {
   }
 }
 
-interface Temporizador {
-  total: number; // segundos
-  fin: number | null; // marca de tiempo en ms; null si está en pausa
-  restante: number; // segundos que quedaban al pausar
-  terminado: boolean;
+type Temporizador = Cocinando['temporizadores'][number][1];
+
+// Los temporizadores que terminaron mientras la receta estaba cerrada ya sonaron fuera: se marcan como listos.
+function temporizadoresDe(c: Cocinando | null): Map<number, Temporizador> {
+  const ahora = Date.now();
+  return new Map(
+    (c?.temporizadores ?? []).map(([paso, t]) => [paso, !t.terminado && t.fin !== null && t.fin <= ahora ? { ...t, terminado: true, restante: 0 } : t]),
+  );
 }
 
 function Marca({ hecha }: { hecha: boolean }) {
@@ -77,22 +81,55 @@ function FichaReceta() {
   const [receta, setReceta] = useState<Receta | null>(null);
   const [comida, setComida] = useState<Comida | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [ingHechos, setIngHechos] = useState<Set<number>>(new Set());
-  const [pasosHechos, setPasosHechos] = useState<Set<number>>(new Set());
+  // Lo que se llevaba hecho en esta receta (se guarda al salir y al abrir otra).
+  const [guardado] = useState(() => cocinandoAhora(Number(id)));
+  const [ingHechos, setIngHechos] = useState<Set<number>>(() => new Set(guardado?.ingredientes ?? []));
+  const [pasosHechos, setPasosHechos] = useState<Set<number>>(() => new Set(guardado?.pasos ?? []));
   const [favorita, setFavorita] = useState(false);
   const [avisoSalud, setAvisoSalud] = useState<string | null>(null);
   const [avisoCompartir, setAvisoCompartir] = useState<string | null>(null);
   const [noGusta, setNoGusta] = useState<Set<string>>(new Set());
   const [aviso, setAviso] = useState<string | null>(null);
   const { sesion } = useAuth();
-  const [temporizadores, setTemporizadores] = useState<Map<number, Temporizador>>(new Map());
+  const [temporizadores, setTemporizadores] = useState<Map<number, Temporizador>>(() => temporizadoresDe(guardado));
   const [ahora, setAhora] = useState(Date.now());
   const cocinar = useModoCocinar();
   const [foto, setFoto] = useState<string | null>(null);
   const [peques, setPeques] = useState<{ hay: boolean; franjas: string[] }>({ hay: false, franjas: [] });
   const [cambiando, setCambiando] = useState<'catalogo' | 'nueva' | null>(null);
   const [denuncia, setDenuncia] = useState<'cerrada' | 'abierta' | 'enviando' | 'enviada'>('cerrada');
-  const avisados = useRef<Set<number>>(new Set());
+  const avisados = useRef<Set<number>>(new Set([...temporizadores].filter(([, t]) => t.terminado).map(([paso]) => paso)));
+  const restaurado = useRef(!!guardado);
+
+  // Al abrir la app de cero, lo guardado llega un momento después.
+  useEffect(() => {
+    if (restaurado.current) return;
+    let vivo = true;
+    cocinandoGuardado(Number(id)).then((c) => {
+      if (!vivo || !c || restaurado.current) return;
+      restaurado.current = true;
+      const tempos = temporizadoresDe(c);
+      [...tempos].filter(([, t]) => t.terminado).forEach(([paso]) => avisados.current.add(paso));
+      setIngHechos(new Set(c.ingredientes));
+      setPasosHechos(new Set(c.pasos));
+      setTemporizadores(tempos);
+      setAhora(Date.now());
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [id]);
+
+  // Guardar lo hecho cada vez que cambia.
+  const primeraVez = useRef(true);
+  useEffect(() => {
+    if (primeraVez.current) {
+      primeraVez.current = false;
+      return;
+    }
+    restaurado.current = true;
+    guardarCocinando(Number(id), { ingredientes: [...ingHechos], pasos: [...pasosHechos], temporizadores: [...temporizadores] });
+  }, [id, ingHechos, pasosHechos, temporizadores]);
 
   // Mientras haya algún temporizador en marcha, se actualiza cada segundo.
   const enMarcha = [...temporizadores.values()].some((t) => t.fin !== null && !t.terminado);
