@@ -1,5 +1,5 @@
-// Apartado de Inicio con el especial de temporada (Halloween, Navidad, verano…): 2 recetas y «Ver todas».
-// Estas recetas no entran en el menú; son para cuando apetezca algo de la época.
+// Apartado de Inicio con el especial de temporada (Halloween, Navidad, verano…) o, con clave 'dulce',
+// «Dale un toque dulce a tu vida»: 2 recetas y «Ver todas». Estas recetas no entran en el menú.
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -9,18 +9,19 @@ import { cargarEspecial, type Especial, type RecetaEspecial } from '../menu/api'
 
 type Datos = { especial: Especial | null; recetas: RecetaEspecial[] };
 
-export function EspecialInicio() {
-  const [datos, setDatos] = useState<Datos | null>(leerCache<Datos>('especial:inicio') ?? null);
+export function EspecialInicio({ clave, tono = 'limon' }: { clave?: string; tono?: 'limon' | 'rosa' } = {}) {
+  const cache = `especial:inicio:${clave ?? 'temporada'}`;
+  const [datos, setDatos] = useState<Datos | null>(leerCache<Datos>(cache) ?? null);
 
   useFocusEffect(
     useCallback(() => {
-      cargarEspecial(undefined, 2)
+      cargarEspecial(clave, 2)
         .then((d) => {
           setDatos(d);
-          guardarCache('especial:inicio', d);
+          guardarCache(cache, d);
         })
         .catch(() => {});
-    }, []),
+    }, [clave, cache]),
   );
 
   if (!datos?.especial || !datos.recetas.length) return null;
@@ -28,7 +29,7 @@ export function EspecialInicio() {
   const verTodas = () => router.push({ pathname: '/especial', params: { clave: especial.clave } });
 
   return (
-    <View style={s.caja}>
+    <View style={[s.caja, tono === 'rosa' && { backgroundColor: colors.roseSoft }]}>
       <View style={s.cabecera}>
         <Text style={s.emoji}>{especial.emoji}</Text>
         <View style={{ flex: 1 }}>

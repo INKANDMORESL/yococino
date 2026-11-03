@@ -11,7 +11,7 @@ import { textoAvisos } from '../_shared/importar_reglas.ts';
 
 const TIPOS = ['desayuno', 'media_manana', 'almuerzo', 'merienda', 'cena'];
 const MAX_RESULTADOS = 60;
-const COLUMNAS = 'id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini, alergenos, aparatos, nota_airfryer, solo_especial, avisos, ingredientes(nombre, nota)';
+const COLUMNAS = 'id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini, alergenos, aparatos, nota_airfryer, solo_especial, dulce, avisos, ingredientes(nombre, nota)';
 
 async function buscar(req: Request): Promise<Response> {
   const { usuario, admin } = crearClientes(req);
@@ -80,7 +80,7 @@ async function buscar(req: Request): Promise<Response> {
       return (c.categorias as string[]).includes(categoria) && (!sub || c.sub.includes(sub));
     })
     .slice(0, MAX_RESULTADOS);
-  const recetas = lista.map(({ id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini, avisos }) => ({
+  const recetas = lista.map(({ id, nombre, descripcion, tipo_comida, nivel, minutos, kcal, imagen, imagen_mini, avisos, dulce }) => ({
     id,
     nombre,
     descripcion,
@@ -90,7 +90,8 @@ async function buscar(req: Request): Promise<Response> {
     kcal,
     imagen,
     imagen_mini,
-    especial: etiqueta.get(id as number) ?? null,
+    // Dulces: se ven en el recetario con su etiqueta, pero nunca entran en el menú.
+    especial: etiqueta.get(id as number) ?? (dulce ? '🍰 Toque dulce' : null),
     aviso: textoAvisos((avisos as string[] | null) ?? []),
   }));
   return responder({ ok: true, recetas });

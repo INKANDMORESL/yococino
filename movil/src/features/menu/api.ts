@@ -242,6 +242,7 @@ export interface Especial {
   titulo: string;
   emoji: string;
   descripcion: string;
+  nota?: string; // texto bajo la descripción en «Ver todas» (por ejemplo, en los dulces)
   desde?: string;
   hasta?: string;
 }

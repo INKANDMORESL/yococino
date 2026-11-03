@@ -1,8 +1,11 @@
 // especiales: el especial de temporada de hoy (Halloween, Navidad, verano…) y sus recetas, para Inicio y «Ver todas».
 // Solo recetas aptas para la persona (alergias, lo que no le gusta y sus aparatos). Sin IA: no cuesta nada.
+// clave 'dulce' = «Dale un toque dulce a tu vida»: bizcochos, tartas y postres bajos en azúcar (recetas.dulce),
+// todo el año y nunca en el menú.
 import { recetasDenunciadas } from '../_shared/denuncias.ts';
 import { restriccionesDe } from '../_shared/alergenos.ts';
 import { especialesDe, especialPorClave } from '../_shared/especiales.ts';
+import { DULCE } from '../_shared/dulces.ts';
 import { crearClientes, fallo, hoyEspana, responder, servir } from '../_shared/http.ts';
 import { textoAvisos } from '../_shared/importar_reglas.ts';
 import { esApta, type RecetaGuardada } from '../_shared/recetas.ts';
@@ -17,12 +20,46 @@ async function especiales(req: Request): Promise<Response> {
   const cuerpo = (await req.json().catch(() => ({}))) as { clave?: string; limite?: number };
 
   const hoy = hoyEspana();
+  const { data: perfil } = await admin.from('profiles').select('alergias, no_me_gusta, aparatos').eq('id', user.id).maybeSingle();
+  const restr = restriccionesDe((perfil?.alergias as string[] | null) ?? [], (perfil?.no_me_gusta as string[] | null) ?? [], perfil?.aparatos);
+  const limite = Math.max(1, Math.min(60, Number(cuerpo.limite) || 60));
+
+  if (cuerpo.clave === DULCE.clave) {
+    const { data, error } = await admin
+      .from('recetas')
+      .select(COLUMNAS)
+      .eq('dulce', true)
+      .eq('oculta', false)
+      .is('privada_de', null)
+      .eq('solo_especial', false)
+      .not('imagen', 'is', null)
+      .limit(300);
+    if (error) throw error;
+    const denunciadas = await recetasDenunciadas(admin, user.id);
+    // Cada día en otro orden, para que en Inicio salgan dulces distintos.
+    const semilla = Number(hoy.replace(/-/g, ''));
+    const orden = (id: number) => ((id * 2654435761 + semilla) >>> 0) % 100000;
+    const recetas = ((data ?? []) as unknown as (RecetaGuardada & Record<string, unknown>)[])
+      .filter((r) => !denunciadas.has(r.id as number) && esApta(r, restr))
+      .sort((a, b) => ((a.avisos as string[] | null)?.length ?? 0) - ((b.avisos as string[] | null)?.length ?? 0) || orden(a.id as number) - orden(b.id as number))
+      .slice(0, limite)
+      .map((r) => ({
+        id: r.id,
+        nombre: r.nombre,
+        descripcion: r.descripcion,
+        tipo_comida: r.tipo_comida,
+        minutos: r.minutos,
+        kcal: r.kcal,
+        imagen: r.imagen,
+        imagen_mini: r.imagen_mini,
+        aviso: textoAvisos((r.avisos as string[] | null) ?? []),
+      }));
+    return responder({ ok: true, especial: DULCE, recetas });
+  }
+
   const deHoy = especialesDe(hoy);
   const elegido = cuerpo.clave ? (deHoy.find((e) => e.clave === cuerpo.clave) ?? especialPorClave(cuerpo.clave)) : deHoy[0];
   if (!elegido) return responder({ ok: true, especial: null, recetas: [] });
-
-  const { data: perfil } = await admin.from('profiles').select('alergias, no_me_gusta, aparatos').eq('id', user.id).maybeSingle();
-  const restr = restriccionesDe((perfil?.alergias as string[] | null) ?? [], (perfil?.no_me_gusta as string[] | null) ?? [], perfil?.aparatos);
 
   const { data, error } = await admin
     .from('especial_recetas')
@@ -37,7 +74,7 @@ async function especiales(req: Request): Promise<Response> {
     .filter((r): r is Fila => !!r && !r.oculta && !r.privada_de && !denunciadas.has(r.id as number) && !!r.imagen && esApta(r, restr))
     // Primero las que tienen foto ligera y menos avisos.
     .sort((a, b) => (a.avisos?.length ?? 0) - (b.avisos?.length ?? 0))
-    .slice(0, Math.max(1, Math.min(60, Number(cuerpo.limite) || 60)))
+    .slice(0, limite)
     .map(({ id, nombre, descripcion, tipo_comida, minutos, kcal, imagen, imagen_mini, avisos }) => ({
       id,
       nombre,

@@ -370,6 +370,10 @@ function FichaReceta() {
               <View style={{ marginTop: space.md }}>
                 <Aviso tono="rosa" texto={`⚠️ ${avisoSalud} Mejor tomarla de vez en cuando.`} />
               </View>
+            ) : receta.dulce ? (
+              <View style={{ marginTop: space.md }}>
+                <Aviso tono="hoja" texto="🍰 Es un dulce con poco azúcar: para darte un capricho de vez en cuando, no a diario." />
+              </View>
             ) : null}
             <View style={s.chips}>
               {meta.map((m) => (

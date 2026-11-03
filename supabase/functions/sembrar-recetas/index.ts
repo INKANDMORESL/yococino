@@ -8,6 +8,7 @@
 // - fotos: pone en marcha la cola de fotos (aligerar-fotos), que hace las que faltan de una en una.
 // - estado: recoge los lotes de recetas terminados y enseña cómo van.
 // Respeta el cupo global de recetas del mes, revisa alergias igual que siempre y no cobra nada a ningún cliente.
+import { LISTA_DULCES } from '../_shared/dulces.ts';
 import { restriccionesDe } from '../_shared/alergenos.ts';
 import { crearLote, estadoLote, leerJSON, pedirJSON, resultadosLote } from '../_shared/claude.ts';
 import { costeTokens, FOTO_USD } from '../_shared/costes.ts';
@@ -52,6 +53,7 @@ interface Idea {
   airfryer?: boolean; // el plato se cocina en airfryer
   especial?: string; // clave del especial de temporada (ver _shared/especiales.ts)
   otro?: boolean; // postre o dulce: se guarda como «otro» (no es una comida del día)
+  dulce?: boolean; // dulce bajo en azúcar de «Dale un toque dulce» (nunca en el menú, ver _shared/dulces.ts)
 }
 
 const ESQUEMA = {
@@ -136,6 +138,23 @@ async function ideasAirfryer(admin: Cliente): Promise<Idea[]> {
   }));
 }
 
+// Dulces bajos en azúcar que aún no están en el recetario (por su nombre).
+async function ideasDulces(admin: Cliente): Promise<Idea[]> {
+  const { data } = await admin.from('recetas').select('nombre_norm').is('privada_de', null).limit(10000);
+  const existentes = (data ?? []).map((r) => String(r.nombre_norm));
+  return LISTA_DULCES.filter((plato) => {
+    const n = normalizar(plato);
+    return !existentes.some((e) => e === n || e.startsWith(`${n} `));
+  }).map((plato) => ({
+    plato,
+    descripcion: 'Dulce casero bajo en azúcar, para darse un capricho de vez en cuando.',
+    tipo_comida: 'merienda' as TipoComida,
+    nivel: 'medio' as Nivel,
+    variante: 'normal' as const,
+    dulce: true,
+  }));
+}
+
 // Platos típicos españoles que aún no están en el recetario (por su nombre).
 async function ideasTipicas(admin: Cliente): Promise<Idea[]> {
   const { data } = await admin.from('recetas').select('nombre_norm').is('privada_de', null).limit(10000);
@@ -195,7 +214,7 @@ const extraEspecial = (clave: string) => {
     : '';
 };
 
-async function enviarRecetas(admin: Cliente, pedidas: number, lista: 'ideas' | 'tipicas' | 'airfryer' | 'especiales' = 'ideas', especiales: Especial[] = []) {
+async function enviarRecetas(admin: Cliente, pedidas: number, lista: 'ideas' | 'tipicas' | 'airfryer' | 'especiales' | 'dulces' = 'ideas', especiales: Especial[] = []) {
   const cupo = await cupoRecetas(admin);
   // Lo que ya está en lotes sin recoger también cuenta para el cupo del mes.
   const { data: abiertos } = await admin.from('lotes_ia').select('datos').eq('tipo', 'recetas').eq('estado', 'enviado');
@@ -208,11 +227,14 @@ async function enviarRecetas(admin: Cliente, pedidas: number, lista: 'ideas' | '
       ? (await ideasTipicas(admin)).slice(0, cantidad)
       : lista === 'airfryer'
         ? (await ideasAirfryer(admin)).slice(0, cantidad)
+        : lista === 'dulces'
+          ? (await ideasDulces(admin)).slice(0, cantidad)
         : lista === 'especiales'
           ? (await ideasEspeciales(admin, especiales)).ideas.slice(0, cantidad)
           : await ideasNuevas(admin, cantidad, mes);
   if (lista === 'tipicas' && !ideas.length) return { enviadas: 0, aviso: 'Ya están todas las recetas típicas en el recetario.' };
   if (lista === 'airfryer' && !ideas.length) return { enviadas: 0, aviso: 'Ya están todas las recetas de airfryer en el recetario.' };
+  if (lista === 'dulces' && !ideas.length) return { enviadas: 0, aviso: 'Ya están todos los dulces en el recetario.' };
   if (lista === 'especiales' && !ideas.length) return { enviadas: 0, aviso: 'Los próximos especiales ya tienen todas sus recetas.' };
   if (!ideas.length) return { enviadas: 0, aviso: 'No se han podido preparar ideas de platos. Prueba otra vez.' };
   const porClave: Record<string, Idea> = {};
@@ -223,9 +245,9 @@ async function enviarRecetas(admin: Cliente, pedidas: number, lista: 'ideas' | '
       id,
       peticion: {
         modelo: modeloReceta(i.tipo_comida),
-        sistema: sistemaReceta(i.tipo_comida, i.nivel, restriccionDe(i), mes, i.airfryer === true) + (i.especial ? extraEspecial(i.especial) : ''),
+        sistema: sistemaReceta(i.tipo_comida, i.nivel, restriccionDe(i), mes, i.airfryer === true, i.especial ? 'especial' : i.dulce ? 'dulce' : null) + (i.especial ? extraEspecial(i.especial) : ''),
         mensaje: mensajeReceta(i.plato, i.descripcion, i.tipo_comida),
-        esquema: i.especial ? ESQUEMA_RECETA_COMPLETA : ESQUEMA_RECETA,
+        esquema: i.especial || i.dulce ? ESQUEMA_RECETA_COMPLETA : ESQUEMA_RECETA,
         maxTokens: 6000,
       },
     };
@@ -373,6 +395,7 @@ async function recogerRecetas(
       const guardada = await guardarReceta(admin, r, idea.otro ? 'otro' : idea.tipo_comida, restr, String(mensaje.model ?? modeloReceta(idea.tipo_comida)), {
         esperaFoto: true,
         ...(idea.especial ? { soloEspecial: true, avisos: avisosNutricion(r.nutricion as never) } : {}),
+        ...(idea.dulce ? { avisos: avisosNutricion(r.nutricion as never) } : {}),
       });
       if (idea.especial) {
         await admin.from('especial_recetas').upsert({ especial: idea.especial, receta_id: guardada.id }, { onConflict: 'especial,receta_id', ignoreDuplicates: true });
@@ -637,6 +660,7 @@ async function sembrar(req: Request): Promise<Response> {
   if (cuerpo.accion === 'especiales') {
     return responder({ ok: true, ...(await enviarRecetas(admin, MAX_POR_LOTE, 'especiales', especialesProximos(hoyEspana(), 21))), lotes: [], cupo: await cupoRecetas(admin) });
   }
+  if (cuerpo.accion === 'dulces') return responder({ ok: true, ...(await enviarRecetas(admin, MAX_POR_LOTE, 'dulces')), lotes: [], cupo: await cupoRecetas(admin) });
   if (cuerpo.accion === 'airfryer') return responder({ ok: true, ...(await enviarRecetas(admin, MAX_POR_LOTE, 'airfryer')), lotes: [], cupo: await cupoRecetas(admin) });
   if (cuerpo.accion === 'revisar_tiempos') return responder({ ok: true, ...(await revisarTiempos(admin)), lotes: [], cupo: await cupoRecetas(admin) });
   if (cuerpo.accion === 'notas_airfryer') return responder({ ok: true, ...(await notasAirfryer(admin)), lotes: [], cupo: await cupoRecetas(admin) });

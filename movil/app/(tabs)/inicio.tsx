@@ -399,6 +399,12 @@ export default function Inicio() {
           ) : null}
 
           {estado.tipo === 'listo' ? (
+            <View style={{ marginTop: space.lg }}>
+              <EspecialInicio clave="dulce" tono="rosa" />
+            </View>
+          ) : null}
+
+          {estado.tipo === 'listo' ? (
             <View style={{ marginTop: space.lg, gap: space.sm }}>
               <Text style={type.title}>Mi progreso</Text>
               <ResumenPeso />

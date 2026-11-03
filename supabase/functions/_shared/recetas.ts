@@ -1,6 +1,7 @@
 // Recetas compartidas: catálogo, creación con la IA (con revisión de alergias) y guardado.
 // Las recetas son para una ración estándar; cada persona tiene su factor en comidas.factor.
 import { REGLA_COCCION } from './coccion.ts';
+import { esDulce, REGLA_DULCE, REGLA_SIN_AZUCAR } from './dulces.ts';
 import { ALERGENOS_UE, describirRestricciones, motivosNoApta, type Restricciones } from './alergenos.ts';
 import { ErrorIA, pedirJSON } from './claude.ts';
 import type { Cliente } from './http.ts';
@@ -178,6 +179,7 @@ export async function cargarCatalogo(admin: Cliente, tipos: TipoComida[], nivel:
     .in('nivel', NIVELES_PERMITIDOS[nivel])
     .eq('oculta', false)
     .eq('solo_especial', false)
+    .eq('dulce', false)
     .order('created_at', { ascending: false })
     .limit(800);
   if (error) throw error;
@@ -194,7 +196,8 @@ export async function cargarCatalogo(admin: Cliente, tipos: TipoComida[], nivel:
 }
 
 // airfryer = el plato se cocina en airfryer (recetas de airfryer del recetario).
-export function sistemaReceta(tipo: TipoComida, nivel: Nivel, restr: Restricciones, mes: number | null = null, airfryer = false) {
+// libre = especiales y dulces (fuera del menú): sin la regla de «nada de azúcar ni repostería».
+export function sistemaReceta(tipo: TipoComida, nivel: Nivel, restr: Restricciones, mes: number | null = null, airfryer = false, libre: 'especial' | 'dulce' | null = null) {
   const cocina = airfryer ? [...new Set([...(restr.aparatos ?? APARATOS_POR_DEFECTO), 'airfryer' as const])] : (restr.aparatos ?? APARATOS_POR_DEFECTO);
   return `Eres cocinero y dietista-nutricionista. Escribes recetas caseras de cocina mediterránea española, fáciles de seguir mientras se cocina, para UNA ración de una persona adulta.
 
@@ -205,6 +208,7 @@ Reglas:
 - Nivel ${nivel}: como máximo ${MINUTOS_NIVEL[nivel]} minutos en total.
 - Pasos: entre 2 y 7, cortos, en imperativo, uno por acción. En tomas sencillas bastan 2 o 3.
 ${REGLA_COCCION}
+${libre === 'dulce' ? REGLA_DULCE : libre ? '' : REGLA_SIN_AZUCAR}
 - 1 o 2 consejos prácticos y 1 o 2 sustituciones saludables con la misma función. Frases cortas.
 - Descripción: una sola frase corta.
 - Nutrición por ración, estimada con criterio.
@@ -288,6 +292,8 @@ export async function guardarReceta(
         ...(opciones.esperaFoto ? { oculta: true, espera_foto: true } : {}),
         // Especiales de temporada: nunca en el menú.
         ...(opciones.soloEspecial ? { solo_especial: true } : {}),
+        // Dulces y repostería: nunca en el menú diario (ver dulces.ts).
+        dulce: esDulce({ nombre, tipo_comida: tipo, ingredientes }),
         ...(opciones.avisos ? { avisos: opciones.avisos } : {}),
         ...(opciones.origenUrl ? { origen_url: opciones.origenUrl.slice(0, 500) } : {}),
         ...(opciones.videoEmbed ? { video_embed: opciones.videoEmbed.slice(0, 300) } : {}),

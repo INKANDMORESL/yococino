@@ -41,12 +41,12 @@ function EspecialPantallaContenido() {
             <Text style={{ fontSize: 44 }}>{especial.emoji}</Text>
             <Text style={type.display}>{especial.titulo}</Text>
             <Text style={type.body}>{especial.descripcion}</Text>
-            <Text style={type.small}>Estas recetas no entran en tu menú: son para cuando te apetezca algo especial de la época.</Text>
+            <Text style={type.small}>{especial.nota ?? 'Estas recetas no entran en tu menú: son para cuando te apetezca algo especial de la época.'}</Text>
           </Aparecer>
         ) : null}
         {error ? <Aviso tono="rosa" texto={error} /> : null}
         {!recetas && !error ? <ActivityIndicator color={colors.olive} style={{ marginTop: space.xl }} /> : null}
-        {recetas && !recetas.length ? <Text style={type.body}>Estamos preparando las recetas de este especial. Vuelve en unas horas.</Text> : null}
+        {recetas && !recetas.length ? <Text style={type.body}>Estamos preparando estas recetas. Vuelve en unas horas.</Text> : null}
         <View style={{ gap: space.md }}>
           {(recetas ?? []).map((r) => {
             const t = TIPOS[r.tipo_comida as TipoComida] ?? TIPOS.otro;

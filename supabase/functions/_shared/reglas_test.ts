@@ -10,6 +10,7 @@ import { especialesDe, pascua } from './especiales.ts';
 import { equivalentesDe } from './equivalentes.ts';
 import { estacionDe, pegaConEstacion, temperaturaPlato } from './estacion.ts';
 import { llevaIngredienteDuro } from './coccion.ts';
+import { esDulce, LISTA_DULCES } from './dulces.ts';
 import { avisosNutricion, embedDe, extraerUrl, normalizarUrl, plataformaDe, textoAvisos, urlPermitida } from './importar_reglas.ts';
 
 type Caso = [string, () => boolean];
@@ -162,6 +163,11 @@ export const CASOS: Caso[] = [
   ['estacion: gazpachuelo, lentejas y crema de calabaza son calientes', () => ['Gazpachuelo malagueño', 'Lentejas estofadas con verduras', 'Crema de calabaza'].every((n) => temperaturaPlato(n) === 'caliente')],
   ['estacion: merluza a la plancha vale siempre', () => temperaturaPlato('Merluza a la plancha') === null],
   ['estacion: nada de gazpacho en invierno ni cocido en verano', () => pegaConEstacion('Gazpacho andaluz', 'frio') === false && pegaConEstacion('Cocido madrileño', 'calor') === false && pegaConEstacion('Cocido madrileño', 'frio') === true && pegaConEstacion('Gazpacho andaluz', 'templado') === null],
+  ['dulces: bizcocho, tarta y flan son dulces; las gachas con fruta no', () => esDulce({ nombre: 'Bizcocho de yogur', tipo_comida: 'merienda', ingredientes: [] }) && esDulce({ nombre: 'Tarta de manzana con avena', tipo_comida: 'merienda', ingredientes: [] }) && esDulce({ nombre: 'Flan de naranja', tipo_comida: 'merienda', ingredientes: [] }) && !esDulce({ nombre: 'Gachas de avena con manzana y canela', tipo_comida: 'desayuno', ingredientes: [{ nombre: 'Copos de avena' }, { nombre: 'Manzana' }] })],
+  ['dulces: toda la lista de dulces se reconoce como dulce', () => LISTA_DULCES.every((plato) => esDulce({ nombre: plato, tipo_comida: 'merienda', ingredientes: [] }))],
+  ['dulces: galletas de arroz y pastel de verduras no son dulces', () => !esDulce({ nombre: 'Galletas de arroz con aguacate y limón', tipo_comida: 'media_manana', ingredientes: [] }) && !esDulce({ nombre: 'Pastel de verduras', tipo_comida: 'merienda', ingredientes: [] })],
+  ['dulces: el azúcar lo hace dulce, «sin azúcar» no', () => esDulce({ nombre: 'Yogur con fresas', tipo_comida: 'merienda', ingredientes: [{ nombre: 'Azúcar moreno' }] }) && !esDulce({ nombre: 'Yogur con fresas', tipo_comida: 'merienda', ingredientes: [{ nombre: 'Yogur natural sin azúcar' }] })],
+  ['dulces: un almuerzo con «tarta» en el nombre no cuenta, pero con azúcar sí', () => !esDulce({ nombre: 'Tarta de puerros', tipo_comida: 'almuerzo', ingredientes: [] }) && esDulce({ nombre: 'Pollo agridulce', tipo_comida: 'almuerzo', ingredientes: [{ nombre: 'Azúcar' }] })],
   ['coccion: patatas y calabaza se revisan, la merluza no', () => llevaIngredienteDuro([{ nombre: 'Patatas nuevas' }]) && llevaIngredienteDuro([{ nombre: 'Calabaza asada' }]) && !llevaIngredienteDuro([{ nombre: 'Merluza' }, { nombre: 'Aceite de oliva' }])],
 ];
 

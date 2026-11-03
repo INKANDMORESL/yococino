@@ -47,6 +47,7 @@ export interface Receta {
   nota_airfryer?: string | null;
   avisos?: string[] | null; // alto contenido en azúcar, grasas… (especiales de temporada)
   solo_especial?: boolean;
+  dulce?: boolean; // bizcochos, tartas, postres…: nunca en el menú diario
   aparatos?: string[] | null;
   origen_url?: string | null;
   origen_autor?: string | null;
