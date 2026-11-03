@@ -46,7 +46,7 @@ jobs:
 
       - name: Recetas dulces
         run: |
-          Q="select json_agg(x) from (select tipo_comida || ' | ' || nombre || case when oculta then ' (oculta)' else '' end || case when solo_especial then ' (especial)' else '' end as x from (select r.tipo_comida, r.nombre, r.oculta, r.solo_especial from public.recetas r where r.privada_de is null and (r.nombre_norm ~ '(bizcoch|tarta|magdalen|muffin|galleta|brownie|flan|natilla|crep|gofre|pastel|cookie|mousse|tiramis|cheesecake|bollo|rosquill|torrija|bombon|trufa|helado|sorbete|compota|mermelada|crumble|turron|polvoron|mantecado|roscon|donut|churro)' or exists (select 1 from public.ingredientes i where i.receta_id = r.id and i.nombre ~* 'az[uú]car|panela|sirope|chocolate|cacao|miel|dátil|datil|eritritol|stevia|edulcorante')) order by r.tipo_comida, r.nombre limit 400) d) d"
+          Q="select json_build_object('dulces', (select count(*) from public.recetas where dulce), 'visibles', (select count(*) from public.recetas where dulce and not oculta and privada_de is null and not solo_especial and imagen is not null), 'en_menu_futuro', (select count(*) from public.comidas c join public.recetas r on r.id = c.receta_id where r.dulce and c.fecha >= current_date), 'lista', (select json_agg(tipo_comida || ' | ' || nombre order by tipo_comida, nombre) from public.recetas where dulce and privada_de is null))"
           jq -n --arg q "$Q" '{query: $q, read_only: true}' > d.json
           curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @d.json > dr.txt
