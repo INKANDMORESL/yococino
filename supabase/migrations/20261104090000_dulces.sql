@@ -4,10 +4,9 @@ alter table public.recetas add column if not exists dulce boolean not null defau
 create index if not exists recetas_dulce on public.recetas (dulce) where dulce;
 
 update public.recetas r set dulce = true
-where not r.dulce and (
+where not r.dulce and r.tipo_comida in ('desayuno', 'media_manana', 'merienda', 'otro') and (
   (
-    r.tipo_comida in ('desayuno', 'media_manana', 'merienda', 'otro')
-    and r.nombre_norm ~ '\m(bizcoch\w*|tartas?|tartaleta\w*|pastel(es)?|magdalen\w*|muffins?|brownies?|flan(es)?|natillas?|crema catalana|mousse|helados?|sorbete\w*|granizados?|gofres?|torrijas?|cookies?|galletas?|galletitas?|turron\w*|polvoron\w*|mantecados?|roscon\w*|bunuelos?|huesos de santo|membrillo|arroz con leche|crumble|coulant|bollos?|bolleria|donuts?|churros?|rosquill\w*|bombon\w*|trufas?|tiramisu|cheesecake|profiteroles?|panna cotta|leche frita|mazapan\w*|carrot cake|plum cake|pudin de pan)\M'
+    r.nombre_norm ~ '\m(bizcoch\w*|tartas?|tartaleta\w*|pastel(es)?|magdalen\w*|muffins?|brownies?|flan(es)?|natillas?|crema catalana|mousse|helados?|sorbete\w*|granizados?|gofres?|torrijas?|cookies?|galletas?|galletitas?|turron\w*|polvoron\w*|mantecados?|roscon\w*|bunuelos?|huesos de santo|membrillo|arroz con leche|crumble|coulant|bollos?|bolleria|donuts?|churros?|rosquill\w*|bombon\w*|trufas?|tiramisu|cheesecake|profiteroles?|panna cotta|leche frita|mazapan\w*|carrot cake|plum cake|pudin de pan)\M'
     and r.nombre_norm !~ '\m(galletas? de arroz|tortitas? de arroz|pastel de (carne|verdura|verduras|puerro|puerros|pescado|patata|berenjena|calabacin|atun|espinacas|cabracho)|tarta (salada|de (puerro|puerros|verduras|queso y espinacas|atun)))\M'
   )
   or exists (
