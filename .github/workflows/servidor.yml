@@ -97,10 +97,20 @@ jobs:
       - name: Publicar funciones
         if: env.LISTO == 'si'
         run: |
-          supabase functions deploy --project-ref "$REF" 2>&1 | tee salida.txt || {
+          # Se nombran todas las funciones: sin nombres, algunas versiones del CLI no publican nada y dan «éxito».
+          FUNCIONES=$(cd supabase/functions && ls -d */ | tr -d '/' | grep -v '^_' | grep -v '^pruebas$' | tr '\n' ' ')
+          supabase functions deploy $FUNCIONES --project-ref "$REF" --use-api 2>&1 | tee salida.txt || {
             echo "::error title=Funciones::$(grep -v '^\s*$' salida.txt | tail -n 6 | tr '\n' ' ' | cut -c1-800)"
             exit 1
           }
+          echo "::notice title=Funciones salida::$(grep -v '^\s*$' salida.txt | tail -n 8 | tr '\n' ' ' | cut -c1-900)"
+          # Comprobación: la función «admin» tiene que haberse actualizado ahora mismo.
+          AHORA=$(date +%s)
+          ACT=$(curl -sS "https://api.supabase.com/v1/projects/$REF/functions/admin" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" | jq -r '.updated_at')
+          if [ $(( AHORA - ACT / 1000 )) -gt 900 ]; then
+            echo "::error title=Funciones::Supabase no ha actualizado las funciones (admin sigue con la versión del $(date -u -d @$((ACT / 1000))))."
+            exit 1
+          fi
           echo "::notice title=Funciones::Funciones publicadas en Supabase."
 
       - name: Resultado
