@@ -1,0 +1,18 @@
+Hello, thank you for the detailed feedback. We have fixed both issues in a new build.
+
+1. Sign in with Google / Apple did not respond
+On the sign-up screen, the Google and Apple buttons first check that the two required consent boxes (health data and Terms of Use) are ticked. When they were not ticked, the warning was shown at the bottom of the screen, out of view on the device, so it looked as if the buttons did nothing. In the new build the warning appears right below the Google and Apple buttons, telling the user to tick the boxes. Once the boxes are ticked, both buttons open the Google and Apple sign-in. On the "Entrar" (sign in) screen the buttons work directly, without boxes.
+
+2. The link in the confirmation email did not work
+The link used to open the app directly, so it failed when the email was opened on a different device (for example a computer). It now opens a web page (yococino.app/confirmar.html) that works on any device, confirms that the account is activated and offers a button to open the app. After that, sign in with the email and password in the app ("Entrar").
+
+3. Demo accounts
+Both are in the App Review Information (passwords in the Sign-in Information and in the Notes):
+- Account with an EXPIRED subscription (free trial ended, no active subscription): adrianpedrazag+caducada@gmail.com. When you sign in, the subscription screen appears with the full purchase flow (title, length and price of each plan, auto-renewal terms, Terms of Use (EULA) and Privacy Policy links, and "Suscribirme por…" opening the Apple purchase sheet).
+- Account with an ACTIVE subscription (Premium + Peques), to review all features: adrianpedrazag+prueba@gmail.com.
+To sign in: tap "Ya tengo cuenta" on the welcome screen, enter the email and password under "o con tu email" and tap "Entrar".
+
+The app is designed for iPhone; on iPad it runs in iPhone compatibility mode. We tested the new build on iPhone with a fresh install.
+
+Thank you,
+Adrián Pedraza - INKANDMORE SL (Yococino)
