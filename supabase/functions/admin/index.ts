@@ -275,6 +275,70 @@ const acciones: Record<string, (admin: Cliente, d: Datos, yo: string) => Promise
     };
   },
 
+  // Facturación: suscripciones de pago activas, ingreso mensual estimado y avisos de RevenueCat (compras,
+  // renovaciones, cancelaciones, reembolsos) por mes. Las de prueba (sandbox) y las regaladas no cuentan.
+  async facturacion(admin) {
+    const PRECIOS: [RegExp, number, boolean][] = [
+      [/pequesyear/, 49.99, true],
+      [/pequesmes/, 6.99, false],
+      [/premiumyear/, 39.99, true],
+      [/premiummes/, 5.99, false],
+    ];
+    const catalogo = (producto: string | null) => {
+      const p = PRECIOS.find(([re]) => re.test(producto ?? ''));
+      return p ? { precio: p[1], anual: p[2] } : null;
+    };
+    const ahora = new Date().toISOString();
+    const [{ data: subs }, { data: eventos }] = await Promise.all([
+      admin.from('suscripciones').select('user_id, producto, tienda, entorno, peques, plan_anual, activa_hasta, cancelada').gt('activa_hasta', ahora).limit(20000),
+      admin.from('pagos_eventos').select('id, user_id, tipo, producto, tienda, entorno, precio, moneda, neto_pct, motivo, momento').gte('momento', new Date(Date.now() - 400 * 86400000).toISOString()).order('momento', { ascending: false }).limit(20000),
+    ]);
+    const activas = { mensual: 0, anual: 0, peques: 0, regaladas: 0, prueba: 0, cancelan: 0, apple: 0, google: 0 };
+    let mrr = 0;
+    for (const s of subs ?? []) {
+      if (s.producto === 'regalo' || !s.producto) { activas.regaladas++; continue; }
+      if (s.entorno === 'SANDBOX') { activas.prueba++; continue; }
+      const c = catalogo(s.producto as string);
+      if (c?.anual || s.plan_anual) activas.anual++;
+      else activas.mensual++;
+      if (s.peques) activas.peques++;
+      if (s.cancelada) activas.cancelan++;
+      if (s.tienda === 'app_store') activas.apple++;
+      else activas.google++;
+      if (c && !s.cancelada) mrr += c.anual ? c.precio / 12 : c.precio;
+    }
+    const COBROS = new Set(['INITIAL_PURCHASE', 'RENEWAL', 'PRODUCT_CHANGE', 'NON_RENEWING_PURCHASE']);
+    const meses = new Map<string, { mes: string; bruto: number; neto: number; nuevas: number; renovaciones: number; cancelaciones: number; caducadas: number; reembolsos: number }>();
+    const delMes = (iso: string) => {
+      const mes = iso.slice(0, 7);
+      if (!meses.has(mes)) meses.set(mes, { mes, bruto: 0, neto: 0, nuevas: 0, renovaciones: 0, cancelaciones: 0, caducadas: 0, reembolsos: 0 });
+      return meses.get(mes)!;
+    };
+    const reales = (eventos ?? []).filter((e) => e.entorno !== 'SANDBOX');
+    for (const e of reales) {
+      const m = delMes(String(e.momento));
+      const precio = Number(e.precio ?? 0);
+      if (COBROS.has(String(e.tipo)) || precio < 0) {
+        m.bruto += precio;
+        // Si RevenueCat no da la parte neta: 15 % de la tienda y el IVA (21 %) incluido en el precio.
+        m.neto += precio * (e.neto_pct != null ? Number(e.neto_pct) : 0.85 / 1.21);
+      }
+      if (e.tipo === 'INITIAL_PURCHASE') m.nuevas++;
+      if (e.tipo === 'RENEWAL') m.renovaciones++;
+      if (e.tipo === 'CANCELLATION') m.cancelaciones++;
+      if (e.tipo === 'EXPIRATION') m.caducadas++;
+      if (precio < 0 || e.motivo === 'CUSTOMER_SUPPORT') m.reembolsos++;
+    }
+    const emails = new Map((await usuarios(admin)).map((u) => [u.id, u.email]));
+    return {
+      activas,
+      ingreso_mensual: Math.round(mrr * 100) / 100,
+      meses: [...meses.values()].sort((a, b) => b.mes.localeCompare(a.mes)).slice(0, 12).map((m) => ({ ...m, bruto: Math.round(m.bruto * 100) / 100, neto: Math.round(m.neto * 100) / 100 })),
+      ultimos: (eventos ?? []).slice(0, 40).map((e) => ({ ...e, email: emails.get(e.user_id as string) ?? '' })),
+      desde: (eventos ?? []).length ? (eventos ?? [])[(eventos ?? []).length - 1].momento : null,
+    };
+  },
+
   async suscripciones(admin) {
     const { data } = await admin.from('suscripciones').select('user_id, plan_anual, peques, activa_hasta, updated_at').order('updated_at', { ascending: false }).limit(500);
     const emails = new Map((await usuarios(admin)).map((u) => [u.id, u.email]));

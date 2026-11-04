@@ -309,15 +309,41 @@
       </tbody></table>`);
   };
 
+  const TIPO_PAGO = {
+    INITIAL_PURCHASE: 'Nueva suscripción', RENEWAL: 'Renovación', PRODUCT_CHANGE: 'Cambio de plan', CANCELLATION: 'Cancela la renovación',
+    UNCANCELLATION: 'Vuelve a renovar', EXPIRATION: 'Caducada', BILLING_ISSUE: 'Problema con el cobro', SUBSCRIPTION_PAUSED: 'En pausa',
+    NON_RENEWING_PURCHASE: 'Compra', TRANSFER: 'Transferida', SUBSCRIPTION_EXTENDED: 'Ampliada',
+  };
+  const planDe = (p) => !p ? '—' : /peques/i.test(p) ? (/year/i.test(p) ? 'Premium + Peques anual' : 'Premium + Peques mensual') : /year/i.test(p) ? 'Premium anual' : /mes/i.test(p) ? 'Premium mensual' : esc(p);
   V.facturacion = async () => {
+    const f = await pedir('facturacion');
+    const a = f.activas;
+    const nombreMes = (m) => new Date(`${m}-01T12:00:00`).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
     marco('facturacion', `
-      <h1>Facturación</h1><p class="sub">Ingresos y facturas de las suscripciones.</p>
-      <div class="aviso">Los pagos aún no están conectados. Cuando se conecten las suscripciones de App Store y Google Play, aquí verás los ingresos de cada mes, las renovaciones y las cancelaciones.</div>
-      <div class="tarjeta" style="margin-top:14px"><p style="margin:0 0 8px"><b>Cómo funcionará</b></p>
+      <h1>Facturación</h1><p class="sub">Suscripciones de pago e ingresos. Las compras de prueba y las suscripciones regaladas no cuentan.</p>
+      <div class="tarjetas">
+        <div class="tarjeta verde"><div class="num">${a.mensual + a.anual}</div><div class="eti">Suscripciones de pago activas</div></div>
+        <div class="tarjeta"><div class="num">${a.mensual} <span class="muted" style="font-size:18px">/ ${a.anual}</span></div><div class="eti">Mensuales / anuales</div></div>
+        <div class="tarjeta"><div class="num">${a.peques}</div><div class="eti">Con Peques</div></div>
+        <div class="tarjeta limon"><div class="num">${euros(f.ingreso_mensual)}</div><div class="eti">Ingreso al mes estimado (con IVA, sin las que cancelan)</div></div>
+        <div class="tarjeta"><div class="num">${a.cancelan}</div><div class="eti">Han cancelado la renovación (aún activas)</div></div>
+        <div class="tarjeta"><div class="num">${a.google} <span class="muted" style="font-size:18px">/ ${a.apple}</span></div><div class="eti">Google Play / App Store</div></div>
+        <div class="tarjeta"><div class="num">${a.regaladas}</div><div class="eti">Regaladas desde el panel</div></div>
+      </div>
+      <h2>Por meses</h2>
+      <p class="muted peq">«Cobrado» es lo que pagan los clientes, con IVA. «Te llega aprox.» descuenta la comisión de la tienda y los impuestos (dato de RevenueCat o, si no lo da, 15 % de comisión y 21 % de IVA). El importe exacto está en los informes de pagos de Google Play Console y App Store Connect.</p>
+      <table><thead><tr><th>Mes</th><th>Cobrado</th><th>Te llega aprox.</th><th>Nuevas</th><th>Renovaciones</th><th>Cancelaciones</th><th>Caducadas</th><th>Reembolsos</th></tr></thead><tbody>
+      ${f.meses.map((m) => `<tr><td>${nombreMes(m.mes)}</td><td>${euros(m.bruto)}</td><td>${euros(m.neto)}</td><td>${m.nuevas}</td><td>${m.renovaciones}</td><td>${m.cancelaciones}</td><td>${m.caducadas}</td><td>${m.reembolsos}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Aún no hay movimientos. Se apuntan desde el 4 de noviembre de 2026.</td></tr>'}
+      </tbody></table>
+      <h2>Últimos movimientos</h2>
+      <table><thead><tr><th>Fecha</th><th>Cliente</th><th>Qué</th><th>Plan</th><th>Tienda</th><th>Importe</th></tr></thead><tbody>
+      ${f.ultimos.map((e) => `<tr><td>${fechaHora(e.momento)}</td><td>${esc(e.email || '—')}</td><td>${esc(TIPO_PAGO[e.tipo] || e.tipo)}${e.entorno === 'SANDBOX' ? ' <span class="etiqueta e-gris">Prueba</span>' : ''}</td><td>${planDe(e.producto)}</td><td>${e.tienda === 'app_store' ? 'App Store' : e.tienda === 'play_store' ? 'Google Play' : esc(e.tienda || '—')}</td><td>${e.precio != null ? euros(e.precio) : '—'}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">Aún no hay movimientos.</td></tr>'}
+      </tbody></table>
+      <div class="tarjeta" style="margin-top:20px"><p style="margin:0 0 8px"><b>Facturas y contabilidad</b></p>
       <ul style="margin:0;padding-left:18px;line-height:1.7">
-        <li>Apple y Google cobran al cliente y le envían su factura o recibo; ellos actúan como vendedor ante el cliente.</li>
-        <li>Te pagan a ti cada mes lo vendido, menos su comisión (normalmente un 15 % para negocios pequeños).</li>
-        <li>Tu gestor puede usar esos informes mensuales de las tiendas para tu contabilidad.</li>
+        <li>Apple y Google cobran al cliente y le dan su recibo: ante el cliente, el vendedor son ellos.</li>
+        <li>Te pagan cada mes lo vendido menos su comisión (normalmente un 15 %).</li>
+        <li>Para tu gestor: informes de pagos en Google Play Console (Informes de pagos) y en App Store Connect (Pagos e informes financieros).</li>
       </ul></div>`);
   };
 

@@ -17,6 +17,39 @@ interface Evento {
   event_timestamp_ms?: number;
   store?: string;
   environment?: string;
+  id?: string;
+  period_type?: string;
+  price?: number | null;
+  price_in_purchased_currency?: number | null;
+  currency?: string | null;
+  takehome_percentage?: number | null;
+  cancel_reason?: string | null;
+  expiration_reason?: string | null;
+}
+
+// Apunta el aviso en pagos_eventos (para Facturación del panel). Si falla, no impide guardar la suscripción.
+async function apuntarEvento(admin: ReturnType<typeof crearClientes>['admin'], e: Evento, userId: string | null) {
+  if (!e.id || !e.type) return;
+  const momento = Number(e.event_timestamp_ms) || Date.now();
+  const { error } = await admin.from('pagos_eventos').upsert(
+    {
+      id: e.id,
+      user_id: userId,
+      tipo: e.type,
+      producto: (e.type === 'PRODUCT_CHANGE' && e.new_product_id) || e.product_id || null,
+      tienda: e.store ?? null,
+      entorno: e.environment ?? null,
+      periodo: e.period_type ?? null,
+      precio: e.price_in_purchased_currency ?? null,
+      moneda: e.currency ?? null,
+      precio_usd: e.price ?? null,
+      neto_pct: e.takehome_percentage ?? null,
+      motivo: e.cancel_reason ?? e.expiration_reason ?? null,
+      momento: new Date(momento).toISOString(),
+    },
+    { onConflict: 'id', ignoreDuplicates: true },
+  );
+  if (error) console.error('pagos-revenuecat: no se apuntó el aviso:', error.message);
 }
 
 // Lo que de verdad tiene la persona, preguntado a RevenueCat (más fiable que las fechas del aviso).
@@ -105,9 +138,10 @@ async function pagos(req: Request): Promise<Response> {
   // Quién: su id de Yococino (también puede venir entre los alias si la compra se hizo antes de entrar).
   const candidatos = [e.app_user_id, e.original_app_user_id, ...(e.aliases ?? [])].filter((x): x is string => !!x && UUID.test(x));
   const userId = candidatos[0];
+  const { admin } = crearClientes(req);
+  await apuntarEvento(admin, e, userId ?? null);
   if (!userId) return responder({ ok: true, ignorado: 'sin_usuario' });
 
-  const { admin } = crearClientes(req);
   // Lo más fiable: preguntar a RevenueCat qué tiene ahora mismo.
   try {
     if (await sincronizar(admin, userId, e.type ?? null)) return responder({ ok: true, sincronizado: true });
