@@ -52,10 +52,12 @@ jobs:
 
       - name: Reglas de los hooks de React
         run: |
-          npm install --no-save --no-audit --no-fund eslint@9.39.1 eslint-plugin-react-hooks@5.2.0 typescript-eslint@8.46.2 > /dev/null 2>&1
-          npx eslint -c eslint.hooks.config.mjs app src > salida.txt 2>&1 && { cat salida.txt; exit 0; }
+          mkdir -p /tmp/lint && cd /tmp/lint && npm init -y > /dev/null && npm install --no-audit --no-fund eslint@9 eslint-plugin-react-hooks@5 typescript-eslint@8 typescript@5 > i.txt 2>&1 || { tail -n 15 i.txt; echo "::error title=Hooks::No se pudo instalar ESLint"; exit 1; }
+          cd "$GITHUB_WORKSPACE/movil"
+          export LINT_DIR=/tmp/lint
+          /tmp/lint/node_modules/.bin/eslint -c eslint.hooks.config.mjs app src > salida.txt 2>&1 && { cat salida.txt; exit 0; }
           cat salida.txt
-          echo "::error title=Hooks::$(grep -E 'error' salida.txt | head -n 5 | tr '\n' ' ' | cut -c1-900)"
+          echo "::error title=Hooks::$(grep -v '^\s*$' salida.txt | head -n 8 | tr '\n' ' ' | cut -c1-900)"
           exit 1
 
       - name: Generar la versión web de prueba
