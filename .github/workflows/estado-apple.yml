@@ -39,5 +39,12 @@ jobs:
           for (const x of rs.data ?? []) console.log(`::notice title=Envío a revisión::${x.attributes.state} · enviado ${x.attributes.submittedDate ?? '-'}`);
           const g = await get(`/v1/apps/${app}/subscriptionGroups?include=subscriptions&limit=5`);
           for (const s of (g.included ?? []).filter((i) => i.type === 'subscriptions')) console.log(`::notice title=Suscripción::${s.attributes.productId} · ${s.attributes.state}`);
+          const cr = await get(`/v1/apps/${app}/betaFeedbackCrashSubmissions?limit=3&sort=-createdDate`);
+          for (const c of cr.data ?? []) {
+            console.log(`::notice title=Fallo TestFlight::${c.attributes.createdDate} · ${c.attributes.deviceModel} · iOS ${c.attributes.osVersion} · ${c.attributes.comment ?? ''}`);
+            const log = await get(`/v1/betaFeedbackCrashSubmissions/${c.id}/crashLog`);
+            const t = String(log.data?.attributes?.logText ?? '');
+            for (let i = 0; i < Math.min(t.length, 30000); i += 3400) console.log(`::notice title=Registro ${i / 3400}::${t.slice(i, i + 3400).replace(/\r?\n/g, ' ⏎ ')}`);
+          }
           JS
           node e.mjs
