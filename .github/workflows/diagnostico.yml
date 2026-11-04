@@ -47,7 +47,7 @@ jobs:
       - name: Funciones publicadas
         run: |
           curl -sS "https://api.supabase.com/v1/projects/$REF/functions" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" > f.json
-          echo "::notice title=Funciones::$(jq -c '[.[] | {slug, version, updated_at}] | sort_by(.slug)' f.json | head -c 3400)"
+          echo "::notice title=Funciones::$(jq -c '[.[] | {slug, version, verify_jwt}] | sort_by(.slug)' f.json | head -c 3400)"
 
       - name: Recetas dulces
         run: |
