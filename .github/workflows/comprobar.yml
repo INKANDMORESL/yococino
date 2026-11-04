@@ -50,6 +50,14 @@ jobs:
           grep -v '^\s*$' salida.txt | tail -n 12 | while IFS= read -r l; do echo "::error title=TypeScript::$l"; done
           exit 1
 
+      - name: Reglas de los hooks de React
+        run: |
+          npm install --no-save --no-audit --no-fund eslint@9.39.1 eslint-plugin-react-hooks@5.2.0 typescript-eslint@8.46.2 > /dev/null 2>&1
+          npx eslint -c eslint.hooks.config.mjs app src > salida.txt 2>&1 && { cat salida.txt; exit 0; }
+          cat salida.txt
+          echo "::error title=Hooks::$(grep -E 'error' salida.txt | head -n 5 | tr '\n' ' ' | cut -c1-900)"
+          exit 1
+
       - name: Generar la versión web de prueba
         run: npx expo export --platform web
 

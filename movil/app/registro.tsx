@@ -26,6 +26,8 @@ export default function Registro() {
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<'email' | 'google' | 'apple' | null>(null);
   const [enviadoA, setEnviadoA] = useState<string | null>(null);
+  // Todos los useState van antes de los «return» de abajo: si no, la app se cierra al entrar la sesión.
+  const [errorArriba, setErrorArriba] = useState(false);
   const { x, sacudir } = useSacudida();
 
   if (sesion) return <Redirect href="/inicio" />;
@@ -34,7 +36,6 @@ export default function Registro() {
 
   // donde: 'arriba' = justo debajo de Google y Apple (si no, el aviso quedaba fuera de la pantalla
   // y parecía que los botones no hacían nada).
-  const [errorArriba, setErrorArriba] = useState(false);
   const fallo = (m: string, donde: 'arriba' | 'abajo' = 'abajo') => {
     setError(m);
     setErrorArriba(donde === 'arriba');
