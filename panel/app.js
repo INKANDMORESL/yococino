@@ -218,6 +218,10 @@
         <button class="boton" id="dar">Guardar</button>
         <button class="boton peligro" id="quitar">Quitar</button></div>
       <div id="resultado"></div>
+      <h2>Prueba gratis</h2>
+      <p class="muted peq">Deja la cuenta con la prueba terminada y sin suscripción, como un cliente al que se le ha acabado. Útil para la cuenta de revisión de Apple.</p>
+      <button class="boton linea" id="terminar">Terminar la prueba</button>
+      <div id="resultado-prueba"></div>
       <h2>Mensajes</h2>
       <button class="boton suave" id="ver-mensajes">Abrir conversación</button>
       <p class="muted peq" style="margin-top:20px">Por privacidad, el panel no muestra datos de salud (alergias, condiciones, peso o medidas).</p>
@@ -236,6 +240,15 @@
       }
     };
     velo.querySelector('#dar').onclick = () => guardar(velo.querySelector('#hasta').value);
+    velo.querySelector('#terminar').onclick = async () => {
+      const r = velo.querySelector('#resultado-prueba');
+      try {
+        await pedir('terminarPrueba', { user_id: c.id });
+        r.innerHTML = '<div class="aviso ok">Prueba terminada. Al abrir la app, le saldrá la pantalla de suscripción.</div>';
+      } catch (e) {
+        r.innerHTML = `<div class="aviso error">${esc(e.message)}</div>`;
+      }
+    };
     velo.querySelectorAll('[data-regalo]').forEach((b) => (b.onclick = () => {
       const v = b.dataset.regalo;
       const d = new Date();

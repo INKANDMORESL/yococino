@@ -243,6 +243,21 @@ const acciones: Record<string, (admin: Cliente, d: Datos, yo: string) => Promise
     return { ok: true };
   },
 
+  // Deja a un cliente con la prueba gratis terminada y sin suscripción (por ejemplo, la cuenta de revisión
+  // de Apple «con la suscripción caducada», para que vean el flujo de compra).
+  async terminarPrueba(admin, d) {
+    const id = String(d.user_id ?? '');
+    if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error('Cliente no válido');
+    const { data: esAdmin } = await admin.from('admins').select('user_id').eq('user_id', id).maybeSingle();
+    if (esAdmin) throw new Error('Los administradores siempre tienen premium: usa otra cuenta.');
+    const hace = new Date(Date.now() - 10 * 86400000).toISOString().slice(0, 10);
+    const { error } = await admin.from('pruebas').upsert({ user_id: id, inicio: hace });
+    if (error) throw error;
+    const { error: e2 } = await admin.from('suscripciones').update({ activa_hasta: new Date(Date.now() - 86400000).toISOString(), updated_at: new Date().toISOString() }).eq('user_id', id);
+    if (e2) throw e2;
+    return { ok: true };
+  },
+
   // Personas que han dado permiso para recibir novedades y promociones (para enviarles emails o pasarlas a Mailchimp).
   async promociones(admin) {
     const { data, error } = await admin

@@ -7,6 +7,8 @@ Cambios ya hechos y comprobados, pendientes de llegar a los móviles:
 - Receta: no se pierde lo marcado (ingredientes y pasos) ni los temporizadores al salir o abrir otra receta.
 - Temporizador: el aviso de «¡Tiempo!» suena y se ve también con la app abierta en otra pantalla o receta.
 - Inicio: apartado «🍰 Dale un toque dulce a tu vida» (2 dulces y «Ver todas»); aviso de dulce en la ficha.
+- Registro: si faltan las casillas, el aviso sale justo debajo de Google y Apple (en la revisión de Apple parecía que los botones no hacían nada porque el aviso quedaba fuera de la pantalla).
+- Email de confirmación: el enlace va a https://yococino.app/confirmar.html (funciona en cualquier dispositivo y ofrece abrir la app). Requiere esa dirección en Supabase → Authentication → URL Configuration → Redirect URLs.
 - Paquete react-native-safe-area-context actualizado a ~5.11.1 (pieza nativa: necesita versión nueva, no OTA).
 
 Al lanzarla:

@@ -28,6 +28,9 @@ interface Auth {
 const Ctx = createContext<Auth | null>(null);
 
 const urlVuelta = () => Linking.createURL('auth');
+// Enlace del email de confirmación: en el móvil va a una página de la web que funciona en cualquier
+// dispositivo (si se abre en el ordenador, el enlace directo a la app no hace nada) y ofrece abrir la app.
+const urlConfirmar = () => (Platform.OS === 'web' ? urlVuelta() : 'https://yococino.app/confirmar.html');
 
 // Traduce los errores de Supabase a mensajes claros.
 export function mensajeError(e: unknown): string {
@@ -82,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sesion,
       cargando,
       async registrarConEmail(email, contrasena) {
-        const { data, error } = await supabase.auth.signUp({ email, password: contrasena, options: { emailRedirectTo: urlVuelta() } });
+        const { data, error } = await supabase.auth.signUp({ email, password: contrasena, options: { emailRedirectTo: urlConfirmar() } });
         if (error) throw error;
         // Supabase no devuelve error si el email ya existe; lo detecta por las identidades vacías.
         if (data.user && data.user.identities?.length === 0) throw new Error('already registered');

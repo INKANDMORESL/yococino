@@ -32,18 +32,25 @@ export default function Registro() {
   // Sin encuesta válida no hay registro: vuelve al principio.
   if (evaluar(encuesta).tipo !== 'ok' || !encuesta.objetivo) return <Redirect href="/" />;
 
-  const fallo = (m: string) => {
+  // donde: 'arriba' = justo debajo de Google y Apple (si no, el aviso quedaba fuera de la pantalla
+  // y parecía que los botones no hacían nada).
+  const [errorArriba, setErrorArriba] = useState(false);
+  const fallo = (m: string, donde: 'arriba' | 'abajo' = 'abajo') => {
     setError(m);
+    setErrorArriba(donde === 'arriba');
     sacudir();
   };
 
-  const comprobarPermisos = (): boolean => {
-    if (!consentimiento) {
-      fallo('Para preparar tu menú necesitamos tu permiso para usar tus datos de salud.');
-      return false;
-    }
-    if (!condiciones) {
-      fallo('Acepta las condiciones de uso y la política de privacidad para continuar.');
+  const comprobarPermisos = (donde: 'arriba' | 'abajo' = 'abajo'): boolean => {
+    if (!consentimiento || !condiciones) {
+      fallo(
+        donde === 'arriba'
+          ? 'Antes de continuar, marca abajo las casillas de permiso de tus datos de salud y de las condiciones de uso.'
+          : !consentimiento
+            ? 'Para preparar tu menú necesitamos tu permiso para usar tus datos de salud.'
+            : 'Acepta las condiciones de uso y la política de privacidad para continuar.',
+        donde,
+      );
       return false;
     }
     return true;
@@ -51,13 +58,13 @@ export default function Registro() {
 
   const conGoogle = async () => {
     setError(null);
-    if (!comprobarPermisos()) return;
+    if (!comprobarPermisos('arriba')) return;
     setOcupado('google');
     try {
       await dejarEncuestaPendiente(encuesta, consentimiento, promociones);
       await entrarConGoogle();
     } catch (e) {
-      fallo(mensajeError(e));
+      fallo(mensajeError(e), 'arriba');
     } finally {
       setOcupado(null);
     }
@@ -112,17 +119,22 @@ export default function Registro() {
           <Aparecer retraso={100}>
             <Boton texto="Continuar con Google" variante="google" icono="G" cargando={ocupado === 'google'} desactivado={ocupado === 'email'} onPress={conGoogle} />
                         <BotonApple
-              onError={(e) => fallo(mensajeError(e))}
+              onError={(e) => fallo(mensajeError(e), 'arriba')}
               desactivado={ocupado !== null}
               alEmpezar={() => setOcupado('apple')}
               alTerminar={() => setOcupado(null)}
               antes={async () => {
                 setError(null);
-                if (!comprobarPermisos()) return false;
+                if (!comprobarPermisos('arriba')) return false;
                 await dejarEncuestaPendiente(encuesta, consentimiento, promociones);
                 return true;
               }}
             />
+            {error && errorArriba ? (
+              <View style={{ marginTop: space.md }}>
+                <Aviso texto={error} tono="rosa" x={x} />
+              </View>
+            ) : null}
           </Aparecer>
 
           <Aparecer retraso={160}>
@@ -173,7 +185,7 @@ export default function Registro() {
             <InfoProteccionDatos />
           </Aparecer>
 
-          {error ? <Aviso texto={error} tono="rosa" x={x} /> : null}
+          {error && !errorArriba ? <Aviso texto={error} tono="rosa" x={x} /> : null}
         </ScrollView>
 
         <View style={s.pie}>

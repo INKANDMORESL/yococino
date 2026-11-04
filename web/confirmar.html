@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Cuenta activada · Yococino</title>
+  <link rel="icon" href="favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="estilo.css?v=4">
+  <style>
+    .confirmar { max-width: 520px; margin: 0 auto; padding: 56px 20px 72px; text-align: center; }
+    .confirmar .icono { font-size: 64px; line-height: 1; }
+    .confirmar .boton-app { display: inline-block; margin-top: 18px; padding: 16px 28px; border-radius: 999px; background: #4D6B3C; color: #fff; font-weight: 700; text-decoration: none; }
+    .confirmar .peq { font-size: 15px; opacity: .8; margin-top: 18px; }
+  </style>
+</head>
+<body>
+  <header><div class="contenedor"><a class="marca" href="index.html"><img src="icono.png" alt=""><span><span class="yo">yo</span><span class="cocino">cocino</span></span></a></div></header>
+  <main class="confirmar">
+    <div id="ok">
+      <div class="icono">✅</div>
+      <h1>Tu cuenta está activada</h1>
+      <p>Ya está todo listo. Vuelve a la app de Yococino y entra con tu email y tu contraseña.</p>
+      <a class="boton-app" id="abrir" href="yococino://entrar">Abrir Yococino</a>
+      <p class="peq">Si has abierto este enlace en otro dispositivo, no pasa nada: abre la app en tu móvil y pulsa «Entrar».</p>
+    </div>
+    <div id="fallo" hidden>
+      <div class="icono">⏳</div>
+      <h1>Este enlace ya no vale</h1>
+      <p>Puede que ya lo hayas usado o que haya caducado. Si ya confirmaste tu cuenta, entra en la app con tu email y tu contraseña. Si no, vuelve a crear la cuenta en la app y te enviaremos otro enlace.</p>
+      <a class="boton-app" href="yococino://entrar">Abrir Yococino</a>
+    </div>
+  </main>
+  <script>
+    // Supabase activa la cuenta antes de llegar aquí y añade ?code=… (o un error). En el mismo móvil,
+    // «Abrir Yococino» lleva ese código a la app para entrar sin escribir nada.
+    (function () {
+      var q = new URLSearchParams(location.search);
+      var h = new URLSearchParams(location.hash.slice(1));
+      if (q.get('error') || h.get('error') || q.get('error_description') || h.get('error_description')) {
+        document.getElementById('ok').hidden = true;
+        document.getElementById('fallo').hidden = false;
+        return;
+      }
+      var code = q.get('code');
+      if (code) document.getElementById('abrir').href = 'yococino://auth?code=' + encodeURIComponent(code);
+    })();
+  </script>
+</body>
+</html>
