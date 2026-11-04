@@ -49,6 +49,11 @@ jobs:
           curl -sS "https://api.supabase.com/v1/projects/$REF/functions" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" > f.json
           echo "::notice title=Funciones::$(jq -c '[.[] | {slug, version, verify_jwt}] | sort_by(.slug)' f.json | head -c 3400)"
 
+      - name: Secretos guardados (solo nombres)
+        run: |
+          curl -sS "https://api.supabase.com/v1/projects/$REF/secrets" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" > s.json
+          echo "::notice title=Secretos::$(jq -c '[.[]?.name] | sort' s.json 2>/dev/null || head -c 300 s.json)"
+
       - name: Recetas dulces
         run: |
           Q="select json_build_object('dulces', (select count(*) from public.recetas where dulce), 'visibles', (select count(*) from public.recetas where dulce and not oculta and privada_de is null and not solo_especial and imagen is not null), 'en_menu_futuro', (select count(*) from public.comidas c join public.recetas r on r.id = c.receta_id where r.dulce and c.fecha >= current_date), 'lista', (select json_agg(tipo_comida || ' | ' || nombre order by tipo_comida, nombre) from public.recetas where dulce and privada_de is null))"
