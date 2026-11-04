@@ -111,7 +111,8 @@ alternativas: 3 ingredientes comunes en España que sustituyan bien a «${origin
   const tipo = receta.tipo_comida as TipoComida;
   if ((await planDe(admin, user.id)).estado === 'caducada') return respuestaSuscripcion();
 
-  // ¿Alguien ya pidió este mismo cambio en esta receta? Se reutiliza sin gastar IA (si es apta para esta persona).
+  // ¿Esta persona ya pidió este mismo cambio en esta receta? Se reutiliza sin gastar IA. Las recetas con un
+  // ingrediente cambiado son solo de quien las pidió (privada_de): nunca se ofrecen a nadie más.
   const claveOriginal = normalizar(original.nombre);
   const clavePor = normalizar(por);
   let nueva: RecetaGuardada | null = null;
@@ -123,8 +124,8 @@ alternativas: 3 ingredientes comunes en España que sustituyan bien a «${origin
     .eq('por', clavePor)
     .maybeSingle();
   if (variante) {
-    const { data: hecha } = await admin.from('recetas').select(`${COLUMNAS_RECETA}, oculta`).eq('id', variante.nueva_id).maybeSingle();
-    if (hecha && !hecha.oculta && esApta(hecha as unknown as RecetaGuardada, restr)) nueva = hecha as unknown as RecetaGuardada;
+    const { data: hecha } = await admin.from('recetas').select(`${COLUMNAS_RECETA}, privada_de`).eq('id', variante.nueva_id).maybeSingle();
+    if (hecha && hecha.privada_de === user.id && esApta(hecha as unknown as RecetaGuardada, restr)) nueva = hecha as unknown as RecetaGuardada;
   }
 
   if (!nueva) {
@@ -149,6 +150,8 @@ ${pasos}
 
 Cambia «${original.nombre}» por «${por}». Ajusta todo lo necesario para que quede bien con el ingrediente nuevo: su cantidad, el tiempo y la forma de cocción, el orden de los pasos, los consejos, los alérgenos y la nutrición. Mantén el resto de la receta igual. Pon al plato un nombre corto que refleje el cambio. Escribe la receta como una receta normal: no menciones en ningún sitio (consejos, sustituciones, descripción ni pasos) el cambio pedido, la receta original ni ningún problema o aviso.`,
       mesDe(comida?.fecha ?? hoy),
+      true,
+      user.id,
     );
     if (!nueva) return fallo(502, 'ia', 'No hemos podido adaptar la receta con ese ingrediente. Prueba con otro.', 'sin receta apta');
     await apuntarRecetaNueva(admin, user.id);

@@ -8,6 +8,7 @@
 // - Alergias e intolerancias: etiqueta de la IA + revisión propia de ingredientes. Ante la duda, se descarta.
 // - A la IA no se le envían datos personales: solo energía por comida, objetivo y restricciones.
 // - Nunca se escriben datos de salud en los registros (logs).
+import { platoVetado, REGLA_VETADOS } from '../_shared/vetados.ts';
 import { recetasDenunciadas } from '../_shared/denuncias.ts';
 import { describirRestricciones, restriccionesDe } from '../_shared/alergenos.ts';
 import { ErrorIA, pedirJSON } from '../_shared/claude.ts';
@@ -224,7 +225,8 @@ ${
     conAirfryer
       ? '- Tiene airfryer: incluye 2 o 3 almuerzos o cenas a la semana que se hagan en airfryer (marcados «airfryer» en el catálogo). No más, para que haya variedad.\n'
       : ''
-  }${regla ? `- ${regla}\n` : ''}- Devuelve exactamente las comidas pedidas para cada día. Sin consejos médicos.`;
+  }${regla ? `- ${regla}\n` : ''}${REGLA_VETADOS}
+- Devuelve exactamente las comidas pedidas para cada día. Sin consejos médicos.`;
 
   // Recetas ya usadas cerca: no se repiten al elegir del catálogo sin IA, y van al final de lo que se enseña a la IA.
   const usadas = new Set(filasExistentes.map((e) => e.receta_id).filter((x): x is number => x !== null));
@@ -307,7 +309,7 @@ ${lineasCatalogo}`;
       if (!huecosDe(dia.fecha).some((o) => comidas[o].tipo === tipo)) continue;
       if (c.receta_id && porId.get(c.receta_id)?.tipo_comida === tipo) {
         porTipo.set(tipo, { recetaId: c.receta_id });
-      } else if (texto(c.plato, 80)) {
+      } else if (texto(c.plato, 80) && !platoVetado(c.plato as string)) {
         const clave = `${tipo}|${normalizar(c.plato as string)}`;
         if (!nuevas.has(clave)) nuevas.set(clave, { plato: texto(c.plato, 80), descripcion: texto(c.descripcion, 200), tipo });
         porTipo.set(tipo, { clave });

@@ -2,6 +2,7 @@
 // Las recetas son para una ración estándar; cada persona tiene su factor en comidas.factor.
 import { REGLA_COCCION } from './coccion.ts';
 import { esDulce, REGLA_DULCE, REGLA_SIN_AZUCAR } from './dulces.ts';
+import { platoVetado, REGLA_VETADOS } from './vetados.ts';
 import { ALERGENOS_UE, describirRestricciones, motivosNoApta, type Restricciones } from './alergenos.ts';
 import { ErrorIA, pedirJSON } from './claude.ts';
 import type { Cliente } from './http.ts';
@@ -185,7 +186,7 @@ export async function cargarCatalogo(admin: Cliente, tipos: TipoComida[], nivel:
   if (error) throw error;
   const porTipo = new Map<TipoComida, RecetaGuardada[]>();
   for (const r of (data ?? []) as RecetaGuardada[]) {
-    if (excluir?.has(r.id)) continue;
+    if (excluir?.has(r.id) || platoVetado(r.nombre)) continue;
     if (!esApta(r, restr)) continue;
     if (mes && frutasFueraDeTemporada([r.nombre, ...(r.ingredientes ?? []).map((i) => i.nombre)], mes).length) continue;
     const lista = porTipo.get(r.tipo_comida) ?? [];
@@ -209,6 +210,7 @@ Reglas:
 - Pasos: entre 2 y 7, cortos, en imperativo, uno por acción. En tomas sencillas bastan 2 o 3.
 ${REGLA_COCCION}
 ${libre === 'dulce' ? REGLA_DULCE : libre ? '' : REGLA_SIN_AZUCAR}
+${REGLA_VETADOS}
 - 1 o 2 consejos prácticos y 1 o 2 sustituciones saludables con la misma función. Frases cortas.
 - Descripción: una sola frase corta.
 - Nutrición por ración, estimada con criterio.
@@ -292,6 +294,8 @@ export async function guardarReceta(
         ...(opciones.esperaFoto ? { oculta: true, espera_foto: true } : {}),
         // Especiales de temporada: nunca en el menú.
         ...(opciones.soloEspecial ? { solo_especial: true } : {}),
+        // Gachas y porridge: no se quieren en Yococino; si la IA lo escribe igualmente, queda oculto.
+        ...(platoVetado(nombre) ? { oculta: true } : {}),
         // Dulces y repostería: nunca en el menú diario (ver dulces.ts).
         dulce: esDulce({ nombre, tipo_comida: tipo, ingredientes }),
         ...(opciones.avisos ? { avisos: opciones.avisos } : {}),
@@ -359,6 +363,7 @@ export async function crearReceta(
   extra = '',
   mes: number | null = null,
   conFoto = true,
+  privadaDe: string | null = null, // receta solo para esa persona (cambios de ingrediente): no se ofrece a nadie más
 ): Promise<RecetaGuardada | null> {
   if ((await cupoRecetas(admin)).quedan <= 0) throw new ErrorCupo();
   let mensaje = mensajeReceta(plato, descripcion, tipo, extra);
@@ -392,7 +397,7 @@ export async function crearReceta(
       continue;
     }
     if (motivos.length === 0) {
-      const guardada = await guardarReceta(admin, r, tipo, restr, modelo);
+      const guardada = await guardarReceta(admin, r, tipo, restr, modelo, privadaDe ? { privadaDe } : {});
       // El plato nuevo sale ya con su foto (si ya existía una receta igual con foto, no se repite).
       if (conFoto) {
         const { data: f } = await admin.from('recetas').select('imagen').eq('id', guardada.id).maybeSingle();

@@ -22,7 +22,8 @@ async function especiales(req: Request): Promise<Response> {
   const hoy = hoyEspana();
   const { data: perfil } = await admin.from('profiles').select('alergias, no_me_gusta, aparatos').eq('id', user.id).maybeSingle();
   const restr = restriccionesDe((perfil?.alergias as string[] | null) ?? [], (perfil?.no_me_gusta as string[] | null) ?? [], perfil?.aparatos);
-  const limite = Math.max(1, Math.min(60, Number(cuerpo.limite) || 60));
+  const tope = cuerpo.clave === 'dulce' ? 300 : 60;
+  const limite = Math.max(1, Math.min(tope, Number(cuerpo.limite) || tope));
 
   if (cuerpo.clave === DULCE.clave) {
     const { data, error } = await admin

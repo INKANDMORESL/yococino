@@ -8,6 +8,7 @@
 // - fotos: pone en marcha la cola de fotos (aligerar-fotos), que hace las que faltan de una en una.
 // - estado: recoge los lotes de recetas terminados y enseña cómo van.
 // Respeta el cupo global de recetas del mes, revisa alergias igual que siempre y no cobra nada a ningún cliente.
+import { platoVetado, REGLA_VETADOS } from '../_shared/vetados.ts';
 import { LISTA_DULCES } from '../_shared/dulces.ts';
 import { restriccionesDe } from '../_shared/alergenos.ts';
 import { crearLote, estadoLote, leerJSON, pedirJSON, resultadosLote } from '../_shared/claude.ts';
@@ -96,7 +97,8 @@ async function ideasNuevas(admin: Cliente, cantidad: number, mes: number): Promi
       sistema: `Eres dietista-nutricionista y cocinero de cocina casera española y mediterránea. Propones platos para un recetario de una app de menús saludables para adultos.
 Reglas: platos caseros, equilibrados y apetecibles, con productos de temporada en España (fruta de temporada: ${frutasDelMes(mes).join(', ')}); variedad de legumbres, pescado, verdura, huevo, carne blanca y cereales integrales; pocos ultraprocesados.
 Mezcla niveles (sobre todo fácil). Alrededor de 1 de cada 6 platos debe ser en versión sin gluten y 1 de cada 6 sin lactosa (variante), y en ese caso el nombre lo dice.
-No repitas ninguno de los platos que ya existen. Nombres cortos, sin cantidades.`,
+No repitas ninguno de los platos que ya existen. Nombres cortos, sin cantidades.
+${REGLA_VETADOS}`,
       mensaje: `Propón exactamente ${pedir} platos nuevos. Reparto por tipo de comida: ${reparto}.
 
 Platos que ya existen (no los repitas):
@@ -106,7 +108,7 @@ ${[...ideas.map((i) => i.plato), ...filas.slice(0, 400).map((f) => f.nombre)].jo
     });
     for (const i of r.platos ?? []) {
       const clave = normalizar(texto(i.plato, 80));
-      if (!clave || !TIPOS.includes(i.tipo_comida) || vistos.has(clave)) continue;
+      if (!clave || !TIPOS.includes(i.tipo_comida) || vistos.has(clave) || platoVetado(i.plato)) continue;
       vistos.add(clave);
       ideas.push({ ...i, plato: texto(i.plato, 80), descripcion: texto(i.descripcion, 200), nivel: (['facil', 'medio', 'elaborado'] as const).includes(i.nivel) ? i.nivel : 'facil' });
     }

@@ -1,7 +1,7 @@
 // Todas las recetas del especial de temporada. No entran en el menú: son para cuando apetezca algo de la época.
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BarraPestanasSuelta } from '../src/components/BarraPestanas';
 import { Aparecer, Aviso } from '../src/components';
@@ -20,6 +20,7 @@ function EspecialPantallaContenido() {
   const [especial, setEspecial] = useState<Especial | null>(null);
   const [recetas, setRecetas] = useState<RecetaEspecial[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [buscar, setBuscar] = useState('');
 
   useEffect(() => {
     cargarEspecial(typeof clave === 'string' ? clave : undefined)
@@ -29,6 +30,15 @@ function EspecialPantallaContenido() {
       })
       .catch((e) => setError(e instanceof ErrorMenu ? e.message : 'No hemos podido cargar las recetas.'));
   }, [clave]);
+
+  // Buscador: por nombre y descripción, sin tildes ni mayúsculas.
+  const sinTildes = (t: string) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const palabras = sinTildes(buscar).split(/\s+/).filter(Boolean);
+  const visibles = (recetas ?? []).filter((r) => {
+    if (!palabras.length) return true;
+    const texto = sinTildes(`${r.nombre} ${r.descripcion ?? ''}`);
+    return palabras.every((p) => texto.includes(p));
+  });
 
   return (
     <SafeAreaView style={s.pantalla} edges={['top']}>
@@ -47,8 +57,22 @@ function EspecialPantallaContenido() {
         {error ? <Aviso tono="rosa" texto={error} /> : null}
         {!recetas && !error ? <ActivityIndicator color={colors.olive} style={{ marginTop: space.xl }} /> : null}
         {recetas && !recetas.length ? <Text style={type.body}>Estamos preparando estas recetas. Vuelve en unas horas.</Text> : null}
+        {recetas && recetas.length > 6 ? (
+          <TextInput
+            value={buscar}
+            onChangeText={setBuscar}
+            placeholder={clave === 'dulce' ? 'Busca un dulce: bizcocho, manzana, chocolate…' : 'Busca una receta o un ingrediente'}
+            placeholderTextColor={colors.muted}
+            style={s.buscador}
+            returnKeyType="search"
+            autoCorrect={false}
+            clearButtonMode="while-editing"
+            accessibilityLabel="Buscar receta"
+          />
+        ) : null}
+        {recetas && recetas.length > 0 && visibles.length === 0 ? <Text style={type.body}>No hay ninguna con «{buscar.trim()}». Prueba con otra palabra.</Text> : null}
         <View style={{ gap: space.md }}>
-          {(recetas ?? []).map((r) => {
+          {visibles.map((r) => {
             const t = TIPOS[r.tipo_comida as TipoComida] ?? TIPOS.otro;
             return (
               <Pressable
@@ -91,4 +115,5 @@ const s = StyleSheet.create({
   foto: { width: 84, height: 84, borderRadius: radius.md, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   nombre: { fontSize: 16, fontWeight: '700', color: colors.ink },
   aviso: { fontSize: 12, color: colors.rose },
+  buscador: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.line, paddingHorizontal: space.lg, paddingVertical: 14, fontSize: 16, color: colors.ink },
 });
