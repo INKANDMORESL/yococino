@@ -99,7 +99,7 @@ jobs:
         run: |
           # Se nombran todas las funciones: sin nombres, algunas versiones del CLI no publican nada y dan «éxito».
           FUNCIONES=$(cd supabase/functions && ls -d */ | tr -d '/' | grep -v '^_' | grep -v '^pruebas$' | tr '\n' ' ')
-          supabase functions deploy $FUNCIONES --project-ref "$REF" --use-api 2>&1 | tee salida.txt || {
+          supabase functions deploy $FUNCIONES --project-ref "$REF" --use-api --yes 2>&1 | tee salida.txt || {
             echo "::error title=Funciones::$(grep -v '^\s*$' salida.txt | tail -n 6 | tr '\n' ' ' | cut -c1-800)"
             exit 1
           }
