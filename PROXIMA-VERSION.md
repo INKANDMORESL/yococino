@@ -1,6 +1,9 @@
 # Próxima versión de la app (Android e iPhone)
 
-Lanzarla cuando Apple y Google hayan aprobado la 1.0 (no antes: cualquier cambio reinicia la revisión).
+Estado (4 nov 2026): Android 1.0 publicada en Google Play (sin estos cambios). iPhone 1.0 enviada otra vez a
+revisión con una compilación que YA lleva todos estos cambios.
+Plan del dueño: cuando Apple apruebe el iPhone, subir la actualización de Android con estos cambios (las dos
+quedan iguales). No antes.
 Nada de actualizaciones rápidas (OTA) mientras haya una versión en revisión: llegarían también a los revisores.
 
 Cambios ya hechos y comprobados, pendientes de llegar a los móviles:
