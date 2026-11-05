@@ -349,7 +349,20 @@ const acciones: Record<string, (admin: Cliente, d: Datos, yo: string) => Promise
   // Todas las recetas (de 1.000 en 1.000), con filtros por toma, ingrediente principal (carne, pescado…)
   // y estado, y paginadas de 100 en 100. Las privadas de clientes (cambios de ingrediente, redes) solo con su filtro.
   async recetas(admin, d) {
-    const filas: Record<string, unknown>[] = [];
+    interface FilaReceta {
+      id: number;
+      nombre: string;
+      tipo_comida: string;
+      oculta: boolean;
+      dulce: boolean;
+      solo_especial: boolean;
+      privada_de: string | null;
+      aparatos: string[] | null;
+      nota_airfryer: string | null;
+      ingredientes: { nombre: string }[] | null;
+      [otro: string]: unknown;
+    }
+    const filas: FilaReceta[] = [];
     for (let desde = 0; desde < 50000; desde += 1000) {
       const { data, error } = await admin
         .from('recetas')
@@ -357,13 +370,13 @@ const acciones: Record<string, (admin: Cliente, d: Datos, yo: string) => Promise
         .order('created_at', { ascending: false })
         .range(desde, desde + 999);
       if (error) throw error;
-      filas.push(...(data ?? []));
+      filas.push(...((data ?? []) as unknown as FilaReceta[]));
       if (!data || data.length < 1000) break;
     }
     const sinTildes = (t: string) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const palabras = sinTildes(String(d.buscar ?? '').trim()).split(/\s+/).filter(Boolean);
     const estado = String(d.estado ?? 'visibles');
-    const conCat = filas.map((r) => ({ ...r, categorias: categoriasDe(r as never).categorias as string[] }));
+    const conCat = filas.map((r) => ({ ...r, categorias: categoriasDe(r).categorias as string[] }));
     const deEstado = conCat.filter((r) => {
       if (estado === 'privadas') return !!r.privada_de;
       if (r.privada_de) return false;
@@ -375,7 +388,7 @@ const acciones: Record<string, (admin: Cliente, d: Datos, yo: string) => Promise
     });
     const porTexto = deEstado.filter((r) => {
       if (!palabras.length) return true;
-      const t = sinTildes(`${r.nombre} ${((r.ingredientes as { nombre: string }[]) ?? []).map((i) => i.nombre).join(' ')}`);
+      const t = sinTildes(`${r.nombre} ${(r.ingredientes ?? []).map((i) => i.nombre).join(' ')}`);
       return palabras.every((p) => t.includes(p));
     });
     // Recuentos para los botones de filtro (con el estado y la búsqueda ya aplicados).
@@ -384,7 +397,7 @@ const acciones: Record<string, (admin: Cliente, d: Datos, yo: string) => Promise
     const tipo = d.tipo ? String(d.tipo) : '';
     const cat = d.categoria ? String(d.categoria) : '';
     for (const r of porTexto) {
-      if (!cat || r.categorias.includes(cat)) cuentaTipo[r.tipo_comida as string] = (cuentaTipo[r.tipo_comida as string] ?? 0) + 1;
+      if (!cat || r.categorias.includes(cat)) cuentaTipo[r.tipo_comida] = (cuentaTipo[r.tipo_comida] ?? 0) + 1;
       if (!tipo || r.tipo_comida === tipo) for (const c of r.categorias) cuentaCat[c] = (cuentaCat[c] ?? 0) + 1;
     }
     const lista = porTexto.filter((r) => (!tipo || r.tipo_comida === tipo) && (!cat || r.categorias.includes(cat)));
