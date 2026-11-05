@@ -1,0 +1,7 @@
+# Que el navegador pregunte siempre por la página del panel: así al publicar se ve la versión nueva
+# (app.js y estilo.css llevan ?v= y sí se pueden guardar).
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|js)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
