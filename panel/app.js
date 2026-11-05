@@ -347,22 +347,42 @@
       </ul></div>`);
   };
 
-  V.recetas = async (buscar = '') => {
-    const lista = await pedir('recetas', { buscar });
+  const CATS = { carne: '🥩 Carne', pescado: '🐟 Pescado', marisco: '🦐 Marisco', huevos: '🥚 Huevos', legumbres: '🫘 Legumbres', vegetal: '🥦 Vegetal', pasta_arroz: '🍝 Pasta y arroz', airfryer: '🍟 Airfryer' };
+  const ESTADOS = { visibles: 'Visibles', ocultas: 'Ocultas', dulces: '🍰 Dulces', especiales: '🎄 Especiales', todas: 'Todas', privadas: 'Privadas de clientes' };
+  V.recetas = async (filtro) => {
+    const f = { buscar: '', tipo: '', categoria: '', estado: 'visibles', pagina: 1, ...(typeof filtro === 'object' && filtro ? filtro : { buscar: filtro || '' }) };
+    const r = await pedir('recetas', f);
+    const ir = (cambios) => cargarSeccion('recetas', { ...f, pagina: 1, ...cambios });
+    const chip = (activo, texto, datos) => `<button type="button" class="boton ${activo ? 'suave' : 'linea'} chip" ${datos}>${texto}</button>`;
+    const totalTipos = Object.values(r.cuentaTipo).reduce((a, b) => a + b, 0);
     marco('recetas', `
-      <div class="fila entre"><div><h1>Recetas</h1><p class="sub">${lista.length} recetas${buscar ? ' encontradas' : ' (las 300 más recientes)'}. Si una receta no te gusta, ocúltala y no volverá a salir en menús nuevos.</p></div>
-      <form id="f-buscar" class="fila"><input type="search" name="q" placeholder="Buscar receta" value="${esc(buscar)}"><button class="boton suave">Buscar</button></form></div>
+      <div class="fila entre"><div><h1>Recetas</h1><p class="sub">${r.total} de ${r.todas} recetas. Si una receta no te gusta, ocúltala y no volverá a salir en menús nuevos.</p></div>
+      <form id="f-buscar" class="fila"><input type="search" name="q" placeholder="Buscar por nombre o ingrediente" value="${esc(f.buscar)}"><button class="boton suave">Buscar</button></form></div>
+      <div class="chips">${Object.entries(ESTADOS).map(([k, v]) => chip(f.estado === k, v, `data-estado="${k}"`)).join('')}</div>
+      <div class="chips">${chip(!f.tipo, `Todas las tomas (${totalTipos})`, 'data-tipo=""')}${Object.entries(TIPOS).filter(([k]) => r.cuentaTipo[k]).map(([k, v]) => chip(f.tipo === k, `${v} (${r.cuentaTipo[k]})`, `data-tipo="${k}"`)).join('')}</div>
+      <div class="chips">${chip(!f.categoria, 'Cualquier ingrediente', 'data-categoria=""')}${Object.entries(CATS).filter(([k]) => r.cuentaCat[k] || f.categoria === k).map(([k, v]) => chip(f.categoria === k, `${v} (${r.cuentaCat[k] || 0})`, `data-categoria="${k}"`)).join('')}</div>
       <table><thead><tr><th></th><th>Receta</th><th>Tipo</th><th>Kcal</th><th>Creada</th><th></th></tr></thead><tbody>
-      ${lista.map((r) => `<tr class="clic" data-id="${r.id}"><td>${r.imagen_mini || r.imagen ? `<img class="mini" src="${esc(r.imagen_mini || r.imagen)}" alt="">` : '<div class="mini"></div>'}</td><td><b>${esc(r.nombre)}</b>${r.oculta ? ' <span class="etiqueta e-caducada">oculta</span>' : ''}</td><td>${esc(TIPOS[r.tipo_comida] || r.tipo_comida)}</td><td>${r.kcal ?? '—'}</td><td>${fecha(r.created_at)}</td><td><button class="boton ${r.oculta ? 'suave' : 'linea'}" data-ocultar="${r.id}" data-valor="${r.oculta ? '0' : '1'}">${r.oculta ? 'Mostrar' : 'Ocultar'}</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">Sin resultados.</td></tr>'}
-      </tbody></table>`);
+      ${r.recetas.map((x) => `<tr class="clic" data-id="${x.id}"><td>${x.imagen_mini || x.imagen ? `<img class="mini" src="${esc(x.imagen_mini || x.imagen)}" alt="" loading="lazy">` : '<div class="mini"></div>'}</td><td><b>${esc(x.nombre)}</b>${x.oculta ? ' <span class="etiqueta e-caducada">oculta</span>' : ''}${x.espera_foto ? ' <span class="etiqueta e-gris">esperando foto</span>' : ''}${x.dulce ? ' <span class="etiqueta e-gris">🍰 dulce</span>' : ''}${x.solo_especial ? ' <span class="etiqueta e-gris">🎄 especial</span>' : ''}${x.privada ? ' <span class="etiqueta e-gris">privada</span>' : ''}<div class="muted peq">${(x.categorias || []).map((c) => CATS[c] || c).join(' · ')}</div></td><td>${esc(TIPOS[x.tipo_comida] || x.tipo_comida)}</td><td>${x.kcal ?? '—'}</td><td>${fecha(x.created_at)}</td><td>${x.privada ? '' : `<button class="boton ${x.oculta ? 'suave' : 'linea'}" data-ocultar="${x.id}" data-valor="${x.oculta ? '0' : '1'}">${x.oculta ? 'Mostrar' : 'Ocultar'}</button>`}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">Sin resultados.</td></tr>'}
+      </tbody></table>
+      ${r.paginas > 1 ? `<div class="fila" style="justify-content:center;gap:12px;margin-top:16px">
+        <button class="boton linea" id="anterior" ${r.pagina <= 1 ? 'disabled' : ''}>← Anteriores</button>
+        <span class="muted">Página ${r.pagina} de ${r.paginas}</span>
+        <button class="boton linea" id="siguiente" ${r.pagina >= r.paginas ? 'disabled' : ''}>Siguientes →</button></div>` : ''}`);
     document.getElementById('f-buscar').onsubmit = (ev) => {
       ev.preventDefault();
-      cargarSeccion('recetas', new FormData(ev.target).get('q'));
+      ir({ buscar: String(new FormData(ev.target).get('q') || '') });
     };
+    document.querySelectorAll('[data-estado]').forEach((b) => (b.onclick = () => ir({ estado: b.dataset.estado })));
+    document.querySelectorAll('[data-tipo]').forEach((b) => (b.onclick = () => ir({ tipo: b.dataset.tipo })));
+    document.querySelectorAll('[data-categoria]').forEach((b) => (b.onclick = () => ir({ categoria: b.dataset.categoria })));
+    const ant = document.getElementById('anterior');
+    if (ant) ant.onclick = () => cargarSeccion('recetas', { ...f, pagina: r.pagina - 1 });
+    const sig = document.getElementById('siguiente');
+    if (sig) sig.onclick = () => cargarSeccion('recetas', { ...f, pagina: r.pagina + 1 });
     document.querySelectorAll('[data-ocultar]').forEach((b) => (b.onclick = async (ev) => {
       ev.stopPropagation();
       await pedir('ocultar_receta', { id: Number(b.dataset.ocultar), oculta: b.dataset.valor === '1' });
-      cargarSeccion('recetas', buscar);
+      cargarSeccion('recetas', { ...f, pagina: r.pagina });
     }));
     document.querySelectorAll('tr[data-id]').forEach((tr) => (tr.onclick = () => fichaReceta(Number(tr.dataset.id))));
   };

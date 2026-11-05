@@ -2,6 +2,7 @@
 // Nunca devuelve datos de salud (alergias, condiciones, peso, medidas): no hacen falta para gestionar.
 import { crearClientes, fallo, hoyEspana, responder, servir, sumarDias, type Cliente } from '../_shared/http.ts';
 import { cupoRecetas } from '../_shared/recetas.ts';
+import { categoriasDe } from '../_shared/categorias.ts';
 
 const EUR_POR_USD = Number(Deno.env.get('EUR_POR_USD')) || 0.9;
 const eur = (usd: number) => Math.round(usd * EUR_POR_USD * 100) / 100;
@@ -345,14 +346,60 @@ const acciones: Record<string, (admin: Cliente, d: Datos, yo: string) => Promise
     return (data ?? []).map((s) => ({ ...s, email: emails.get(s.user_id as string) ?? '' }));
   },
 
+  // Todas las recetas (de 1.000 en 1.000), con filtros por toma, ingrediente principal (carne, pescado…)
+  // y estado, y paginadas de 100 en 100. Las privadas de clientes (cambios de ingrediente, redes) solo con su filtro.
   async recetas(admin, d) {
-    const buscar = String(d.buscar ?? '').trim();
-    let q = admin.from('recetas').select('id, nombre, tipo_comida, nivel, kcal, imagen_mini, imagen, oculta, created_at, modelo');
-    if (buscar) q = q.ilike('nombre', `%${buscar.replace(/[%_]/g, '')}%`);
-    if (d.tipo) q = q.eq('tipo_comida', String(d.tipo));
-    const { data, error } = await q.order('created_at', { ascending: false }).limit(300);
-    if (error) throw error;
-    return data ?? [];
+    const filas: Record<string, unknown>[] = [];
+    for (let desde = 0; desde < 50000; desde += 1000) {
+      const { data, error } = await admin
+        .from('recetas')
+        .select('id, nombre, tipo_comida, nivel, kcal, imagen_mini, imagen, oculta, created_at, dulce, solo_especial, privada_de, espera_foto, aparatos, nota_airfryer, ingredientes(nombre)')
+        .order('created_at', { ascending: false })
+        .range(desde, desde + 999);
+      if (error) throw error;
+      filas.push(...(data ?? []));
+      if (!data || data.length < 1000) break;
+    }
+    const sinTildes = (t: string) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const palabras = sinTildes(String(d.buscar ?? '').trim()).split(/\s+/).filter(Boolean);
+    const estado = String(d.estado ?? 'visibles');
+    const conCat = filas.map((r) => ({ ...r, categorias: categoriasDe(r as never).categorias as string[] }));
+    const deEstado = conCat.filter((r) => {
+      if (estado === 'privadas') return !!r.privada_de;
+      if (r.privada_de) return false;
+      if (estado === 'todas') return true;
+      if (estado === 'ocultas') return !!r.oculta;
+      if (estado === 'dulces') return !!r.dulce && !r.oculta;
+      if (estado === 'especiales') return !!r.solo_especial && !r.oculta;
+      return !r.oculta; // visibles
+    });
+    const porTexto = deEstado.filter((r) => {
+      if (!palabras.length) return true;
+      const t = sinTildes(`${r.nombre} ${((r.ingredientes as { nombre: string }[]) ?? []).map((i) => i.nombre).join(' ')}`);
+      return palabras.every((p) => t.includes(p));
+    });
+    // Recuentos para los botones de filtro (con el estado y la búsqueda ya aplicados).
+    const cuentaTipo: Record<string, number> = {};
+    const cuentaCat: Record<string, number> = {};
+    const tipo = d.tipo ? String(d.tipo) : '';
+    const cat = d.categoria ? String(d.categoria) : '';
+    for (const r of porTexto) {
+      if (!cat || r.categorias.includes(cat)) cuentaTipo[r.tipo_comida as string] = (cuentaTipo[r.tipo_comida as string] ?? 0) + 1;
+      if (!tipo || r.tipo_comida === tipo) for (const c of r.categorias) cuentaCat[c] = (cuentaCat[c] ?? 0) + 1;
+    }
+    const lista = porTexto.filter((r) => (!tipo || r.tipo_comida === tipo) && (!cat || r.categorias.includes(cat)));
+    const porPagina = 100;
+    const paginas = Math.max(1, Math.ceil(lista.length / porPagina));
+    const pagina = Math.min(paginas, Math.max(1, Number(d.pagina) || 1));
+    return {
+      total: lista.length,
+      todas: filas.filter((r) => !r.privada_de).length,
+      pagina,
+      paginas,
+      cuentaTipo,
+      cuentaCat,
+      recetas: lista.slice((pagina - 1) * porPagina, pagina * porPagina).map(({ ingredientes: _i, aparatos: _a, nota_airfryer: _n, privada_de, ...r }) => ({ ...r, privada: !!privada_de })),
+    };
   },
 
   async receta(admin, d) {
