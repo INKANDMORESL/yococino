@@ -73,7 +73,7 @@ jobs:
             # La contraseña va por variable de entorno (así no da problemas si lleva comas o símbolos).
             if LFTP_PASSWORD="$4" lftp --env-password -u "$(echo "$3" | tr -d '[:space:]')" "$proto://$host" \
                  -e "$ajustes mirror -R --verbose=1 $1 ${5:-.}; bye" > salida-$6.txt 2>&1; then
-              echo "::notice title=IONOS $6::Publicada."
+              echo "::notice title=IONOS $6::Publicada. $(grep -oE 'Transferring file `[^`\x27]*' salida-$6.txt | sed 's/Transferring file .//' | tr '\n' ' ' | cut -c1-900)"
             else
               cat salida-$6.txt
               tail -n 6 salida-$6.txt | while IFS= read -r l; do echo "::error title=IONOS $6::$l"; done
