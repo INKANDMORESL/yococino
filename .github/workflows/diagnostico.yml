@@ -55,6 +55,7 @@ jobs:
           echo "::notice title=Secretos::$(jq -c '[.[]?.name] | sort' s.json 2>/dev/null || head -c 300 s.json)"
 
       - name: Recetas de la web
+        continue-on-error: true
         run: |
           Q="select json_agg(x order by f) from (select b.publicada_el as f, b.publicada_el || ' | ' || b.slug || ' | ' || r.nombre as x from public.blog_recetas b join public.recetas r on r.id = b.receta_id) t"
           jq -n --arg q "$Q" '{query: $q, read_only: true}' > b.json
@@ -62,6 +63,7 @@ jobs:
           for n in 0 1 2 3 4 5; do t=$(tail -c +$((n*3400+1)) br.txt | head -c 3400 | tr '\n' ' '); [ -n "$t" ] && echo "::notice title=Web $n::$t"; done
 
       - name: Panel y web en línea
+        continue-on-error: true
         run: |
           for u in "https://admin.yococino.app/" "https://admin.yococino.app/index.html?v=8" "https://admin.yococino.app/app.js?v=7" "https://yococino.app/"; do
             r=$(curl -sS -o cuerpo.txt -w '%{http_code} %{content_type}' -m 20 "$u" 2>&1 | tr '\n' ' ')
