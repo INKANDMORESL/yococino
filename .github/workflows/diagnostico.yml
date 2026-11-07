@@ -61,6 +61,13 @@ jobs:
           curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @b.json > br.txt
           for n in 0 1 2 3 4 5; do t=$(tail -c +$((n*3400+1)) br.txt | head -c 3400 | tr '\n' ' '); [ -n "$t" ] && echo "::notice title=Web $n::$t"; done
 
+      - name: Panel y web en línea
+        run: |
+          for u in "https://admin.yococino.app/" "https://admin.yococino.app/index.html?v=8" "https://admin.yococino.app/app.js?v=7" "https://yococino.app/"; do
+            r=$(curl -sS -o cuerpo.txt -w '%{http_code} %{content_type}' -m 20 "$u" 2>&1 | tr '\n' ' ')
+            echo "::notice title=$u::$r · $(grep -o 'app.js?v=[0-9]*' cuerpo.txt | head -1) $(grep -c 'const CATS' cuerpo.txt) $(head -c 200 cuerpo.txt | tr '\n' ' ')"
+          done
+
       - name: Recetas dulces
         run: |
           Q="select json_build_object('dulces', (select count(*) from public.recetas where dulce), 'visibles', (select count(*) from public.recetas where dulce and not oculta and privada_de is null and not solo_especial and imagen is not null), 'en_menu_futuro', (select count(*) from public.comidas c join public.recetas r on r.id = c.receta_id where r.dulce and c.fecha >= current_date), 'lista', (select json_agg(tipo_comida || ' | ' || nombre order by tipo_comida, nombre) from public.recetas where dulce and privada_de is null))"
