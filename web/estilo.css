@@ -113,7 +113,7 @@ footer a { color: #fff; text-decoration: none; margin-right: 18px; }
 .recetas-rejilla { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
 .receta-tarjeta { background: var(--surface); border-radius: 24px; overflow: hidden; box-shadow: var(--shadow); text-decoration: none; color: var(--ink); display: flex; flex-direction: column; transition: transform .15s; }
 .receta-tarjeta:hover { transform: translateY(-2px); }
-.receta-tarjeta img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--leaf-2); }
+.receta-tarjeta img { width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; background: var(--leaf-2); }
 .receta-tarjeta .cuerpo { padding: 16px 18px 18px; display: grid; gap: 6px; }
 .receta-tarjeta .tipo { color: var(--olive); font-weight: 700; font-size: 13px; text-transform: capitalize; }
 .receta-tarjeta h3 { font-size: 19px; }
@@ -253,3 +253,23 @@ header.con-sombra { box-shadow: 0 6px 24px rgba(29,42,35,.08); }
 .tienda span { display: flex; flex-direction: column; font-weight: 700; font-size: 19px; line-height: 1.1; }
 .tienda small { font-weight: 500; font-size: 11px; opacity: .85; }
 .portada .nota a { color: inherit; }
+
+/* Recetas de la portada: carrusel horizontal (2 por pantalla en el móvil, 4 en el ordenador) */
+.carrusel { position: relative; }
+.recetas-carrusel { display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 3 * 18px) / 4); gap: 18px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; padding: 4px 2px 18px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.recetas-carrusel::-webkit-scrollbar { display: none; }
+.recetas-carrusel .receta-tarjeta { scroll-snap-align: start; }
+.carrusel-flecha { position: absolute; top: 38%; z-index: 2; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--surface); box-shadow: var(--shadow); font-size: 28px; line-height: 1; color: var(--ink); cursor: pointer; }
+.carrusel-flecha.izq { left: -22px; }
+.carrusel-flecha.der { right: -22px; }
+.carrusel-flecha[disabled] { opacity: 0; pointer-events: none; }
+.desliza { display: none; text-align: center; color: var(--muted); font-size: 13px; margin: 0; }
+@media (max-width: 900px) {
+  .recetas-carrusel { grid-auto-columns: calc((100% - 12px) / 2); gap: 12px; }
+  .recetas-carrusel .receta-tarjeta .cuerpo { padding: 12px; gap: 4px; }
+  .recetas-carrusel .receta-tarjeta h3 { font-size: 15px; }
+  .recetas-carrusel .receta-tarjeta .datos, .recetas-carrusel .receta-tarjeta .tipo { font-size: 12px; }
+  .recetas-carrusel .receta-tarjeta p { display: none; }
+  .carrusel-flecha { display: none; }
+  .desliza { display: block; }
+}

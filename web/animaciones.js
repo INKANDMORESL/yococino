@@ -48,3 +48,23 @@
     });
   }
 })();
+
+// Carrusel de recetas de la portada: flechas en el ordenador (en el móvil se desliza con el dedo).
+(function () {
+  document.querySelectorAll('.carrusel').forEach(function (c) {
+    var pista = c.querySelector('.recetas-carrusel');
+    var izq = c.querySelector('.izq');
+    var der = c.querySelector('.der');
+    if (!pista || !izq || !der) return;
+    var paso = function () { return pista.clientWidth; };
+    var ver = function () {
+      izq.disabled = pista.scrollLeft < 8;
+      der.disabled = pista.scrollLeft + pista.clientWidth > pista.scrollWidth - 8;
+    };
+    izq.addEventListener('click', function () { pista.scrollBy({ left: -paso(), behavior: 'smooth' }); });
+    der.addEventListener('click', function () { pista.scrollBy({ left: paso(), behavior: 'smooth' }); });
+    pista.addEventListener('scroll', ver, { passive: true });
+    window.addEventListener('resize', ver);
+    ver();
+  });
+})();

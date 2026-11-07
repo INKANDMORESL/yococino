@@ -212,9 +212,9 @@ async function listar(admin: Cliente) {
     .order('created_at', { ascending: false })
     .limit(30);
   const destacadas = [
-    ...articulos.slice(0, 6).map((a) => ({ ...a.receta, slug: a.slug })),
+    ...articulos.slice(0, 10).map((a) => ({ ...a.receta, slug: a.slug })),
     ...((conFoto ?? []) as unknown as Receta[]).filter((r) => !porId.has(r.id)).map((r) => ({ ...publica(r), slug: null })),
-  ].slice(0, 6);
+  ].slice(0, 10);
   return { articulos, destacadas };
 }
 

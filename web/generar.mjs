@@ -79,14 +79,14 @@ const pagina = ({ titulo, descripcion, url, imagen, raiz, cuerpo, datos }) => `<
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="${raiz}estilo.css?v=5">
+  <link rel="stylesheet" href="${raiz}estilo.css?v=6">
   ${datos ? `<script type="application/ld+json">${JSON.stringify(datos).replace(/</g, '\\u003c')}</script>` : ''}
 </head>
 <body>
 ${cabecera(raiz)}
   <main>${cuerpo}</main>
 ${pie(raiz)}
-  <script src="${raiz}animaciones.js?v=1" defer></script>
+  <script src="${raiz}animaciones.js?v=2" defer></script>
   <script src="${raiz}tiendas.js?v=1" defer></script>
   <script src="${raiz}cookies.js?v=1" data-raiz="${raiz}"></script>
 </body>
@@ -94,8 +94,8 @@ ${pie(raiz)}
 `;
 
 const tarjeta = (r, raiz) => {
-  const enlace = r.slug ? `${raiz}recetas/${r.slug}.html` : ENLACE_APP;
-  return `<a class="receta-tarjeta" href="${esc(enlace)}">
+  const enlace = r.slug ? `${raiz}recetas/${r.slug}.html` : `${raiz}index.html#descargar`;
+  return `<a class="receta-tarjeta" href="${esc(enlace)}"${r.slug ? '' : ' data-app'}>
           <img src="${esc(r.imagen_mini || r.imagen)}" alt="${esc(r.nombre)}" loading="lazy" width="400" height="300">
           <div class="cuerpo"><span class="tipo">${esc(r.tipo)}</span><h3>${esc(r.nombre)}</h3>
           <span class="datos">${[r.minutos ? `${r.minutos} min` : null, NIVEL[r.nivel], r.kcal ? `${r.kcal} kcal` : null].filter(Boolean).join(' · ')}</span></div>
@@ -210,9 +210,14 @@ function portada(plantilla, destacadas) {
     ? `<section id="recetas">
       <div class="contenedor">
         <div class="titulo"><span class="antetitulo">Recetas</span><h2>Conoce nuestras recetas</h2><p>Caseras, de temporada y pensadas para tu día a día. Así son algunos de los platos de tu menú.</p></div>
-        <div class="recetas-rejilla">
-        ${destacadas.map((r) => tarjeta(r, '')).join('\n        ')}
+        <div class="carrusel">
+          <button class="carrusel-flecha izq" type="button" aria-label="Recetas anteriores">‹</button>
+          <div class="recetas-carrusel" tabindex="0" aria-label="Recetas destacadas">
+          ${destacadas.slice(0, 10).map((r) => tarjeta(r, '')).join('\n          ')}
+          </div>
+          <button class="carrusel-flecha der" type="button" aria-label="Más recetas">›</button>
         </div>
+        <p class="desliza">Desliza para ver más →</p>
         <p class="ver-todas"><a class="boton claro" href="recetas/">Ver todas las recetas</a></p>
       </div>
     </section>`
