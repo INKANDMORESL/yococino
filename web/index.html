@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Yococino · Tu menú del mes, hecho para ti</title>
+  <meta name="apple-itunes-app" content="app-id=6828504877">
   <meta name="description" content="Yococino prepara tu menú de todo el mes según tu objetivo, tus gustos y tus alergias, con recetas paso a paso y la lista de la compra para toda la casa. Prueba gratis 7 días.">
   <meta property="og:title" content="Yococino · Tu menú del mes, hecho para ti">
   <meta property="og:description" content="Menú de 30 días, recetas paso a paso y lista de la compra automática. Prueba gratis 7 días.">
@@ -16,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="estilo.css?v=4">
+  <link rel="stylesheet" href="estilo.css?v=5">
   <!--DATOS_ESTRUCTURADOS-->
 </head>
 <body>
@@ -29,7 +30,7 @@
         <a href="#peques">Peques</a>
         <a href="recetas/">Recetas</a>
         <a href="#precios">Precios</a>
-        <a class="boton" href="https://yococino.expo.app">Pruébala gratis</a>
+        <a class="boton" href="#descargar" data-app>Descárgala gratis</a>
       </nav>
     </div>
   </header>
@@ -42,11 +43,11 @@
           <span class="antetitulo">Menús caseros · Recetas paso a paso · Lista de la compra</span>
           <h1>Tu menú del mes, <em>hecho para ti</em>.</h1>
           <p class="sub">Yococino prepara lo que vas a comer cada día según tu objetivo, tus gustos y tus alergias. Con recetas paso a paso y la lista de la compra para toda la casa. Sin complicarte.</p>
-          <div class="acciones">
-            <a class="boton" href="https://yococino.expo.app">Empieza gratis 7 días</a>
-            <a class="boton claro" href="#como">Ver cómo funciona</a>
+          <div class="tiendas">
+            <a class="tienda" href="https://apps.apple.com/es/app/id6828504877" target="_blank" rel="noopener" aria-label="Descargar en el App Store"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.7-1-2.7-4.1zM13.9 5c.7-.9 1.2-2 1.1-3.2-1 0-2.3.7-3 1.6-.7.8-1.3 2-1.1 3.1 1.1.1 2.3-.6 3-1.5z"/></svg><span><small>Descárgala en el</small>App Store</span></a>
+            <a class="tienda" href="https://play.google.com/store/apps/details?id=app.yococino" target="_blank" rel="noopener" aria-label="Disponible en Google Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.6 2.3c-.3.3-.4.7-.4 1.2v17c0 .5.1.9.4 1.2l9.5-9.7-9.5-9.7zm10.6 10.8 2.6 2.7-10.6 6.1c-.4.2-.8.3-1.1.2l9.1-9zm0-2.2L5.1 1.9c.3-.1.7 0 1.1.2l10.6 6.1-2.6 2.7zm3.9-1.8 2.9 1.7c.9.5.9 1.9 0 2.4l-2.9 1.7-2.8-2.9 2.8-2.9z"/></svg><span><small>Disponible en</small>Google Play</span></a>
           </div>
-          <p class="nota">Muy pronto en App Store y Google Play. Mientras tanto, úsala desde el navegador del móvil.</p>
+          <p class="nota">Pruébala gratis 7 días. ¿Sin móvil a mano? <a href="https://yococino.expo.app">Úsala desde el navegador</a> · <a href="#como">Ver cómo funciona</a></p>
         </div>
         <div class="movil flota" aria-hidden="true">
           <div class="pantalla">
@@ -129,7 +130,7 @@
 
         <div class="peques-precio aparece">
           <div><b>Complemento Peques: 10 € al año o 1 € al mes</b><span>Se añade a tu suscripción. La lista de la compra ya cuenta a los peques que comen en casa.</span></div>
-          <a class="boton" href="https://yococino.expo.app">Probar con mis peques</a>
+          <a class="boton" href="#descargar" data-app>Probar con mis peques</a>
         </div>
       </div>
     </section>
@@ -157,6 +158,16 @@
           <li><span>🩺</span><div><b>Cuando toca, a un profesional.</b> En situaciones como embarazo, diabetes o enfermedades renales o de tiroides, te recomendamos que te acompañe un dietista-nutricionista o tu médico.</div></li>
           <li><span>🔒</span><div><b>Tus datos, protegidos.</b> Se guardan en servidores de la Unión Europea y nunca los vendemos.</div></li>
         </ul>
+      </div>
+    </section>
+
+    <section id="descargar" class="descargar">
+      <div class="contenedor">
+        <div class="titulo"><span class="antetitulo">Descarga Yococino</span><h2>Tu menú del mes, en tu móvil</h2><p>Gratis 7 días en iPhone y Android. Sin tarjeta para probarla.</p></div>
+        <div class="tiendas">
+            <a class="tienda" href="https://apps.apple.com/es/app/id6828504877" target="_blank" rel="noopener" aria-label="Descargar en el App Store"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.4 12.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.6 3.2 2.6 1.3-.1 1.8-.8 3.3-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.1-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-2.7-1-2.7-4.1zM13.9 5c.7-.9 1.2-2 1.1-3.2-1 0-2.3.7-3 1.6-.7.8-1.3 2-1.1 3.1 1.1.1 2.3-.6 3-1.5z"/></svg><span><small>Descárgala en el</small>App Store</span></a>
+            <a class="tienda" href="https://play.google.com/store/apps/details?id=app.yococino" target="_blank" rel="noopener" aria-label="Disponible en Google Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.6 2.3c-.3.3-.4.7-.4 1.2v17c0 .5.1.9.4 1.2l9.5-9.7-9.5-9.7zm10.6 10.8 2.6 2.7-10.6 6.1c-.4.2-.8.3-1.1.2l9.1-9zm0-2.2L5.1 1.9c.3-.1.7 0 1.1.2l10.6 6.1-2.6 2.7zm3.9-1.8 2.9 1.7c.9.5.9 1.9 0 2.4l-2.9 1.7-2.8-2.9 2.8-2.9z"/></svg><span><small>Disponible en</small>Google Play</span></a>
+          </div>
       </div>
     </section>
 
@@ -226,6 +237,7 @@
     </div>
   </footer>
   <script src="animaciones.js?v=1" defer></script>
+  <script src="tiendas.js?v=1" defer></script>
   <script src="cookies.js?v=1" data-raiz=""></script>
 </body>
 </html>

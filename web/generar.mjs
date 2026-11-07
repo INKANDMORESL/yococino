@@ -39,7 +39,7 @@ const cabecera = (raiz) => `
         <a href="${raiz}#peques">Peques</a>
         <a href="${raiz}recetas/">Recetas</a>
         <a href="${raiz}#precios">Precios</a>
-        <a class="boton" href="${ENLACE_APP}">Pruébala gratis</a>
+        <a class="boton" href="${raiz}index.html#descargar" data-app>Pruébala gratis</a>
       </nav>
     </div>
   </header>`;
@@ -66,6 +66,7 @@ const pagina = ({ titulo, descripcion, url, imagen, raiz, cuerpo, datos }) => `<
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${esc(titulo)}</title>
   <meta name="description" content="${esc(descripcion)}">
+  <meta name="apple-itunes-app" content="app-id=6828504877">
   <link rel="canonical" href="${esc(url)}">
   <meta property="og:type" content="article">
   <meta property="og:title" content="${esc(titulo)}">
@@ -78,7 +79,7 @@ const pagina = ({ titulo, descripcion, url, imagen, raiz, cuerpo, datos }) => `<
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="${raiz}estilo.css?v=4">
+  <link rel="stylesheet" href="${raiz}estilo.css?v=5">
   ${datos ? `<script type="application/ld+json">${JSON.stringify(datos).replace(/</g, '\\u003c')}</script>` : ''}
 </head>
 <body>
@@ -86,6 +87,7 @@ ${cabecera(raiz)}
   <main>${cuerpo}</main>
 ${pie(raiz)}
   <script src="${raiz}animaciones.js?v=1" defer></script>
+  <script src="${raiz}tiendas.js?v=1" defer></script>
   <script src="${raiz}cookies.js?v=1" data-raiz="${raiz}"></script>
 </body>
 </html>
@@ -150,7 +152,7 @@ function paginaReceta(a) {
         <p class="borroso" aria-hidden="true">Continúa la preparación con el siguiente paso, controlando el tiempo y el punto de cocción hasta que quede perfecto para servir.</p>
         <h3>Faltan ${quedan} ${quedan === 1 ? 'paso' : 'pasos'} para terminarla</h3>
         <p>Sigue la receta completa en Yococino, con temporizadores, modo cocinar y las cantidades para ti.</p>
-        <a class="boton" href="${ENLACE_APP}">Ver la receta completa gratis</a>
+        <a class="boton" href="../index.html#descargar" data-app>Ver la receta completa gratis</a>
       </div>` : ''}
 
       ${(c.beneficios || []).length ? `<h2>Por qué es una buena opción</h2><ul>${c.beneficios.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>` : ''}
@@ -162,7 +164,7 @@ function paginaReceta(a) {
       <div class="cta">
         <h2 style="margin:0;color:#fff">Tu menú de todo el mes, con recetas como esta</h2>
         <p>Yococino prepara lo que vas a comer cada día según tu objetivo, tus gustos y tus alergias, con la lista de la compra hecha. Pruébala gratis 7 días.</p>
-        <a class="boton" href="${ENLACE_APP}">Empezar gratis</a>
+        <a class="boton" href="../index.html#descargar" data-app>Empezar gratis</a>
       </div>
       <p class="peq muted">Publicada el ${fechaLarga(a.publicada_el)}.</p>
     </article>`;
@@ -176,13 +178,13 @@ function paginaListado(articulos) {
         <nav class="migas" aria-label="Estás en"><a href="../">Inicio</a> › Recetas</nav>
         <div class="titulo" style="text-align:left;margin:0 0 32px;max-width:none">
           <h1 style="font-size:clamp(34px,5vw,52px)">Recetas caseras y saludables</h1>
-          <p>Platos mediterráneos, fáciles y de temporada. Cada día, una receta nueva. En la app tienes cientos más, con tu menú de todo el mes.</p>
+          <p>Platos mediterráneos, fáciles y de temporada. Cada día, una receta nueva. En la app tienes más de 2.000, con tu menú de todo el mes.</p>
         </div>
         ${articulos.length ? `<div class="recetas-rejilla">${articulos.map((a) => tarjeta({ ...a.receta, slug: a.slug }, '../')).join('')}</div>` : '<p>Muy pronto, nuestras primeras recetas.</p>'}
         <div class="cta">
           <h2 style="margin:0;color:#fff">¿Quieres tu menú hecho cada día?</h2>
           <p>Prueba Yococino gratis 7 días: menú, recetas paso a paso y lista de la compra.</p>
-          <a class="boton" href="${ENLACE_APP}">Empezar gratis</a>
+          <a class="boton" href="../index.html#descargar" data-app>Empezar gratis</a>
         </div>
       </div>
     </section>`;
@@ -224,6 +226,8 @@ function portada(plantilla, destacadas) {
       name: 'Yococino',
       applicationCategory: 'LifestyleApplication',
       operatingSystem: 'iOS, Android, Web',
+      downloadUrl: ['https://apps.apple.com/es/app/id6828504877', 'https://play.google.com/store/apps/details?id=app.yococino'],
+      sameAs: ['https://apps.apple.com/es/app/id6828504877', 'https://play.google.com/store/apps/details?id=app.yococino', 'https://www.instagram.com/yococino.app/'],
       description: 'Menú personalizado de 30 días, recetas paso a paso y lista de la compra automática.',
       offers: [
         { '@type': 'Offer', name: 'Mensual', price: '5.99', priceCurrency: 'EUR' },

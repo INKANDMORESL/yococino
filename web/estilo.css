@@ -243,3 +243,13 @@ header.con-sombra { box-shadow: 0 6px 24px rgba(29,42,35,.08); }
 .legal table { width: 100%; border-collapse: collapse; font-size: 15px; display: block; overflow-x: auto; }
 .legal th, .legal td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .legal th { background: var(--leaf-2); }
+
+/* Botones de las tiendas */
+.tiendas { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+.descargar .tiendas { justify-content: center; }
+.tienda { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px 10px 16px; border-radius: 14px; background: #1E1E1C; color: #fff; text-decoration: none; transition: transform .15s; min-width: 190px; }
+.tienda:hover { transform: translateY(-2px); }
+.tienda svg { width: 26px; height: 26px; flex: none; }
+.tienda span { display: flex; flex-direction: column; font-weight: 700; font-size: 19px; line-height: 1.1; }
+.tienda small { font-weight: 500; font-size: 11px; opacity: .85; }
+.portada .nota a { color: inherit; }
