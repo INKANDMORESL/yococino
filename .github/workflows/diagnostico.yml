@@ -54,6 +54,13 @@ jobs:
           curl -sS "https://api.supabase.com/v1/projects/$REF/secrets" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" > s.json
           echo "::notice title=Secretos::$(jq -c '[.[]?.name] | sort' s.json 2>/dev/null || head -c 300 s.json)"
 
+      - name: Recetas de la web
+        run: |
+          Q="select json_agg(x order by f) from (select b.publicada_el as f, b.publicada_el || ' | ' || b.slug || ' | ' || r.nombre as x from public.blog_recetas b join public.recetas r on r.id = b.receta_id) t"
+          jq -n --arg q "$Q" '{query: $q, read_only: true}' > b.json
+          curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @b.json > br.txt
+          for n in 0 1 2 3 4 5; do t=$(tail -c +$((n*3400+1)) br.txt | head -c 3400 | tr '\n' ' '); [ -n "$t" ] && echo "::notice title=Web $n::$t"; done
+
       - name: Recetas dulces
         run: |
           Q="select json_build_object('dulces', (select count(*) from public.recetas where dulce), 'visibles', (select count(*) from public.recetas where dulce and not oculta and privada_de is null and not solo_especial and imagen is not null), 'en_menu_futuro', (select count(*) from public.comidas c join public.recetas r on r.id = c.receta_id where r.dulce and c.fecha >= current_date), 'lista', (select json_agg(tipo_comida || ' | ' || nombre order by tipo_comida, nombre) from public.recetas where dulce and privada_de is null))"
