@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "tipo": "voz",
+      "nombre": "disponible-leda",
+      "modelo": "gemini-3.8-flash-tts",
+      "voz": "Leda",
+      "texto": "# AUDIO PROFILE: Lucía\n## Friendly home cook from Madrid\n\n## THE SCENE: A bright kitchen in Madrid, Spain\nLucía is chatting with a close friend at home while cooking, relaxed and smiling.\n\n### DIRECTOR'S NOTES\nStyle: Natural, warm and conversational, like talking to a friend. Not an advert, not a radio presenter.\nAccent: Castilian Spanish exactly as spoken in Madrid, Spain (European Spanish, with the Spanish \"c\"/\"z\" sound). No Latin American accent at all.\nPacing: Flowing and continuous, one sentence straight into the next with only very short pauses.\n\n#### TRANSCRIPT\n[excited, warm] ¡Yococino ya está disponible en App Store y Google Play! [friendly] Te prepara el menú de todo el mes, a tu gusto. Recetas caseras, paso a paso y con temporizador. Y la lista de la compra, hecha. [curious] ¿Has visto una receta en TikTok? Dale a compartir, elige Yococino… [smiling] y ya la tienes en tus recetas. [upbeat] Descárgala y pruébala gratis siete días."
+    },
+    {
+      "tipo": "voz",
+      "nombre": "disponible-aoede",
+      "modelo": "gemini-3.8-flash-tts",
+      "voz": "Aoede",
+      "texto": "# AUDIO PROFILE: Lucía\n## Friendly home cook from Madrid\n\n## THE SCENE: A bright kitchen in Madrid, Spain\nLucía is chatting with a close friend at home while cooking, relaxed and smiling.\n\n### DIRECTOR'S NOTES\nStyle: Natural, warm and conversational, like talking to a friend. Not an advert, not a radio presenter.\nAccent: Castilian Spanish exactly as spoken in Madrid, Spain (European Spanish, with the Spanish \"c\"/\"z\" sound). No Latin American accent at all.\nPacing: Flowing and continuous, one sentence straight into the next with only very short pauses.\n\n#### TRANSCRIPT\n[excited, warm] ¡Yococino ya está disponible en App Store y Google Play! [friendly] Te prepara el menú de todo el mes, a tu gusto. Recetas caseras, paso a paso y con temporizador. Y la lista de la compra, hecha. [curious] ¿Has visto una receta en TikTok? Dale a compartir, elige Yococino… [smiling] y ya la tienes en tus recetas. [upbeat] Descárgala y pruébala gratis siete días."
+    }
+  ]
+}
