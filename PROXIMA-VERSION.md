@@ -13,6 +13,7 @@ Cambios ya hechos y comprobados, pendientes de llegar a los móviles:
 - Registro: si faltan las casillas, el aviso sale justo debajo de Google y Apple (en la revisión de Apple parecía que los botones no hacían nada porque el aviso quedaba fuera de la pantalla).
 - Email de confirmación: el enlace va a https://yococino.app/confirmar.html (funciona en cualquier dispositivo y ofrece abrir la app). Requiere esa dirección en Supabase → Authentication → URL Configuration → Redirect URLs.
 - Dulces y especiales («Ver todas»): buscador por nombre (sin tildes).
+- iPhone: idioma de la app = español (CFBundleDevelopmentRegion / CFBundleLocalizations en app.json). La 1.0 sale en el App Store como «Inglés».
 - Paquete react-native-safe-area-context actualizado a ~5.11.1 (pieza nativa: necesita versión nueva, no OTA).
 
 Al lanzarla:
