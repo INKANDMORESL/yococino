@@ -122,23 +122,32 @@ async function publicar(admin: Cliente) {
   return { publicada: hechasAhora.length > 0, receta: hechasAhora.join(', '), cantidad: hechasAhora.length };
 }
 
-// Ir variando entre carne y pescado (había demasiado pescado seguido): la siguiente receta es del grupo
-// que menos ha salido en las 6 últimas (empate: carne). Si no queda de ese grupo, la siguiente que haya.
-const grupoDe = (r: Pick<Receta, 'nombre' | 'ingredientes'>): 'carne' | 'pescado' | 'otro' => {
+// Ir variando entre carne, pescado y legumbres (había demasiado pescado seguido): la siguiente receta es del
+// grupo que menos ha salido en las 6 últimas (empate: carne, luego legumbres, luego pescado). Si no queda de
+// ese grupo, el siguiente que haya.
+type Grupo = 'carne' | 'pescado' | 'legumbres' | 'otro';
+const ORDEN_GRUPOS: Grupo[] = ['carne', 'legumbres', 'pescado'];
+const grupoDe = (r: Pick<Receta, 'nombre' | 'ingredientes'>): Grupo => {
   const c = categoriasDe(r).categorias;
-  return c.includes('carne') ? 'carne' : c.includes('pescado') || c.includes('marisco') ? 'pescado' : 'otro';
+  if (c.includes('carne')) return 'carne';
+  if (c.includes('pescado') || c.includes('marisco')) return 'pescado';
+  return c.includes('legumbres') ? 'legumbres' : 'otro';
 };
 
 async function variar(admin: Cliente, lista: Receta[], cuantas: number, ultimasIds: number[]): Promise<Receta[]> {
   const { data: ultimas } = ultimasIds.length ? await admin.from('recetas').select('id, nombre, ingredientes(nombre)').in('id', ultimasIds) : { data: [] };
-  const cuenta = { carne: 0, pescado: 0, otro: 0 };
+  const cuenta: Record<Grupo, number> = { carne: 0, pescado: 0, legumbres: 0, otro: 0 };
   for (const u of (ultimas ?? []) as unknown as Receta[]) cuenta[grupoDe(u)]++;
   const restantes = [...lista];
   const elegidas: Receta[] = [];
   while (elegidas.length < cuantas && restantes.length) {
-    const toca = cuenta.carne <= cuenta.pescado ? 'carne' : 'pescado';
-    let i = restantes.findIndex((r) => grupoDe(r) === toca);
-    if (i < 0) i = restantes.findIndex((r) => grupoDe(r) !== 'pescado');
+    // Grupos de menos a más salidos (a igualdad, en el orden de ORDEN_GRUPOS); se coge el primero que tenga receta.
+    const turno = [...ORDEN_GRUPOS].sort((a, b) => cuenta[a] - cuenta[b] || ORDEN_GRUPOS.indexOf(a) - ORDEN_GRUPOS.indexOf(b));
+    let i = -1;
+    for (const g of turno) {
+      i = restantes.findIndex((r) => grupoDe(r) === g);
+      if (i >= 0) break;
+    }
     if (i < 0) i = 0;
     const [r] = restantes.splice(i, 1);
     elegidas.push(r);
