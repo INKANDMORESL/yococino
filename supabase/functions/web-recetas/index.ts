@@ -8,6 +8,7 @@ import { pedirJSON } from '../_shared/claude.ts';
 import { crearClientes, hoyEspana, responder, servir, type Cliente } from '../_shared/http.ts';
 import { normalizar } from '../_shared/texto.ts';
 import { enParalelo } from '../_shared/recetas.ts';
+import { categoriasDe } from '../_shared/categorias.ts';
 
 const MODELO_WEB = Deno.env.get('MODELO_WEB') || 'claude-haiku-5-5';
 const PASOS_VISIBLES = 3;
@@ -88,7 +89,7 @@ const PRINCIPALES = ['almuerzo', 'cena'];
 
 async function publicar(admin: Cliente) {
   const hoy = hoyEspana();
-  const { data: hechas } = await admin.from('blog_recetas').select('receta_id, publicada_el').limit(5000);
+  const { data: hechas } = await admin.from('blog_recetas').select('receta_id, publicada_el, created_at').order('created_at', { ascending: false }).limit(5000);
   const yaPublicadas = new Set((hechas ?? []).map((h) => h.receta_id as number));
   const total = yaPublicadas.size;
   const hoyHay = (hechas ?? []).some((h) => h.publicada_el === hoy);
@@ -108,7 +109,7 @@ async function publicar(admin: Cliente) {
   const lista = conFoto.length >= cuantas ? conFoto : [...conFoto, ...libres.filter((r) => !r.imagen)];
   if (!lista.length) return { publicada: false, motivo: 'no hay recetas sin publicar' };
   // Solo comidas y cenas: los desayunos, medias mañanas y meriendas no se publican en la web.
-  const elegidas = lista.slice(0, cuantas);
+  const elegidas = await variar(admin, lista, cuantas, (hechas ?? []).slice(0, 6).map((h) => h.receta_id as number));
   const hechasAhora: string[] = [];
   await enParalelo(elegidas, 5, async (r) => {
     try {
@@ -119,6 +120,31 @@ async function publicar(admin: Cliente) {
     }
   });
   return { publicada: hechasAhora.length > 0, receta: hechasAhora.join(', '), cantidad: hechasAhora.length };
+}
+
+// Ir variando entre carne y pescado (había demasiado pescado seguido): la siguiente receta es del grupo
+// que menos ha salido en las 6 últimas (empate: carne). Si no queda de ese grupo, la siguiente que haya.
+const grupoDe = (r: Pick<Receta, 'nombre' | 'ingredientes'>): 'carne' | 'pescado' | 'otro' => {
+  const c = categoriasDe(r).categorias;
+  return c.includes('carne') ? 'carne' : c.includes('pescado') || c.includes('marisco') ? 'pescado' : 'otro';
+};
+
+async function variar(admin: Cliente, lista: Receta[], cuantas: number, ultimasIds: number[]): Promise<Receta[]> {
+  const { data: ultimas } = ultimasIds.length ? await admin.from('recetas').select('id, nombre, ingredientes(nombre)').in('id', ultimasIds) : { data: [] };
+  const cuenta = { carne: 0, pescado: 0, otro: 0 };
+  for (const u of (ultimas ?? []) as unknown as Receta[]) cuenta[grupoDe(u)]++;
+  const restantes = [...lista];
+  const elegidas: Receta[] = [];
+  while (elegidas.length < cuantas && restantes.length) {
+    const toca = cuenta.carne <= cuenta.pescado ? 'carne' : 'pescado';
+    let i = restantes.findIndex((r) => grupoDe(r) === toca);
+    if (i < 0) i = restantes.findIndex((r) => grupoDe(r) !== 'pescado');
+    if (i < 0) i = 0;
+    const [r] = restantes.splice(i, 1);
+    elegidas.push(r);
+    cuenta[grupoDe(r)]++;
+  }
+  return elegidas;
 }
 
 async function escribir(admin: Cliente, r: Receta, hoy: string) {
