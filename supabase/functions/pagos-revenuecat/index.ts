@@ -27,6 +27,53 @@ interface Evento {
   expiration_reason?: string | null;
 }
 
+// Correo al dueño con cada movimiento importante (con Resend: secretos RESEND_API_KEY y AVISOS_EMAIL; opcional
+// AVISOS_REMITENTE, por defecto onboarding@resend.dev, que solo puede escribir al email de la cuenta de Resend).
+// Las renovaciones no avisan (se ven en Facturación del panel). Si falla, no impide guardar la suscripción.
+const AVISOS: Record<string, string> = {
+  INITIAL_PURCHASE: '🎉 Nueva suscripción',
+  PRODUCT_CHANGE: '🔁 Cambio de plan',
+  CANCELLATION: '👋 Cancela la renovación',
+  UNCANCELLATION: '🙌 Vuelve a renovar',
+  BILLING_ISSUE: '⚠️ Problema con el cobro',
+};
+const nombrePlan = (p: string | null | undefined) =>
+  !p ? '—' : /peques/i.test(p) ? (/year/i.test(p) ? 'Premium + Peques anual' : 'Premium + Peques mensual') : /year/i.test(p) ? 'Premium anual' : /mes/i.test(p) ? 'Premium mensual' : p;
+
+async function avisarPorCorreo(admin: ReturnType<typeof crearClientes>['admin'], e: Evento, userId: string | null) {
+  const clave = Deno.env.get('RESEND_API_KEY');
+  const para = Deno.env.get('AVISOS_EMAIL');
+  const reembolso = Number(e.price_in_purchased_currency ?? 0) < 0 || e.cancel_reason === 'CUSTOMER_SUPPORT';
+  const titulo = reembolso ? '💸 Reembolso' : AVISOS[String(e.type)];
+  if (!clave || !para || !titulo) return;
+  try {
+    let email = '';
+    if (userId) {
+      const { data } = await admin.auth.admin.getUserById(userId);
+      email = data?.user?.email ?? '';
+    }
+    const prueba = e.environment === 'SANDBOX';
+    const importe = e.price_in_purchased_currency != null ? `${Number(e.price_in_purchased_currency).toFixed(2).replace('.', ',')} ${e.currency ?? ''}` : '—';
+    const tienda = e.store === 'APP_STORE' ? 'App Store' : e.store === 'PLAY_STORE' ? 'Google Play' : (e.store ?? '—');
+    const plan = nombrePlan((e.type === 'PRODUCT_CHANGE' && e.new_product_id) || e.product_id);
+    const asunto = `${prueba ? '[Prueba] ' : ''}${titulo}: ${plan}`;
+    const filas = [['Cliente', email || '—'], ['Plan', plan], ['Importe', importe], ['Tienda', tienda], ['Cuándo', new Date(Number(e.event_timestamp_ms) || Date.now()).toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })]];
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    const html = `<div style="font-family:system-ui,sans-serif;font-size:15px;color:#1E1E1C">
+      <h2 style="margin:0 0 12px">${esc(titulo)}${prueba ? ' <small style="color:#888">(compra de prueba)</small>' : ''}</h2>
+      <table style="border-collapse:collapse">${filas.map(([k, v]) => `<tr><td style="padding:4px 16px 4px 0;color:#666">${k}</td><td style="padding:4px 0"><b>${esc(String(v))}</b></td></tr>`).join('')}</table>
+      <p style="margin-top:16px"><a href="https://admin.yococino.app">Ver Facturación en el panel</a></p></div>`;
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${clave}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: Deno.env.get('AVISOS_REMITENTE') || 'Yococino <onboarding@resend.dev>', to: para.split(',').map((x) => x.trim()).filter(Boolean), subject: asunto, html }),
+    });
+    if (!r.ok) console.error('pagos-revenuecat: el correo de aviso no salió:', r.status, (await r.text()).slice(0, 200));
+  } catch (err) {
+    console.error('pagos-revenuecat: el correo de aviso no salió:', err instanceof Error ? err.message : String(err));
+  }
+}
+
 // Apunta el aviso en pagos_eventos (para Facturación del panel). Si falla, no impide guardar la suscripción.
 async function apuntarEvento(admin: ReturnType<typeof crearClientes>['admin'], e: Evento, userId: string | null) {
   if (!e.id || !e.type) return;
@@ -140,6 +187,7 @@ async function pagos(req: Request): Promise<Response> {
   const userId = candidatos[0];
   const { admin } = crearClientes(req);
   await apuntarEvento(admin, e, userId ?? null);
+  await avisarPorCorreo(admin, e, userId ?? null);
   if (!userId) return responder({ ok: true, ignorado: 'sin_usuario' });
 
   // Lo más fiable: preguntar a RevenueCat qué tiene ahora mismo.
