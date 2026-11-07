@@ -401,6 +401,8 @@ const acciones: Record<string, (admin: Cliente, d: Datos, yo: string) => Promise
       if (!tipo || r.tipo_comida === tipo) for (const c of r.categorias) cuentaCat[c] = (cuentaCat[c] ?? 0) + 1;
     }
     const lista = porTexto.filter((r) => (!tipo || r.tipo_comida === tipo) && (!cat || r.categorias.includes(cat)));
+    // Panel antiguo guardado en la caché del navegador (no manda «estado»): espera una lista simple.
+    if (d.estado === undefined) return lista.slice(0, 300).map(({ ingredientes: _i, aparatos: _a, nota_airfryer: _n, ...r }) => r);
     const porPagina = 100;
     const paginas = Math.max(1, Math.ceil(lista.length / porPagina));
     const pagina = Math.min(paginas, Math.max(1, Number(d.pagina) || 1));
