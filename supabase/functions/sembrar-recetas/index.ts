@@ -96,7 +96,7 @@ async function ideasNuevas(admin: Cliente, cantidad: number, mes: number): Promi
     const r = await pedirJSON<{ platos: Idea[] }>({
       modelo: MODELO_IDEAS,
       sistema: `Eres dietista-nutricionista y cocinero de cocina casera española y mediterránea. Propones platos para un recetario de una app de menús saludables para adultos.
-Reglas: platos caseros, equilibrados y apetecibles, con productos de temporada en España (fruta de temporada: ${frutasDelMes(mes).join(', ')}); variedad de legumbres, pescado, verdura, huevo, carne blanca y cereales integrales; pocos ultraprocesados.
+Reglas: platos caseros, equilibrados y apetecibles, con productos de temporada en España (fruta de temporada: ${frutasDelMes(mes).join(', ')}); variedad de legumbres, pescado, verdura, huevo, carne blanca y cereales integrales, y también carne roja magra (ternera, cerdo magro) en alrededor de 1 de cada 8 platos de comida o cena; pocos ultraprocesados. Nada de dulces ni repostería (bizcochos, tartas, galletas…): van aparte.
 Mezcla niveles (sobre todo fácil). Alrededor de 1 de cada 6 platos debe ser en versión sin gluten y 1 de cada 6 sin lactosa (variante), y en ese caso el nombre lo dice.
 No repitas ninguno de los platos que ya existen. Nombres cortos, sin cantidades.
 ${REGLA_VETADOS}`,
