@@ -14,7 +14,7 @@ TEXTOS = [
     ('Recetas caseras', 'que apetecen', 'De temporada, sanas y con todos sus datos.'),
     ('Paso a paso,', 'con temporizador', 'Modo cocinar: la pantalla no se apaga.'),
     ('La compra,', 'hecha sola', 'Para todos los de casa, con las cantidades sumadas.'),
-    ('Más de 400 recetas', 'para elegir', 'Filtra por carne, pescado, legumbres… y guarda las de TikTok.'),
+    ('Más de 2.000 recetas', 'para elegir', 'Filtra por carne, pescado, legumbres… y guarda las de TikTok.'),
 ]
 FONDOS = ['#4D6B3C', '#F4ECDE', '#4D6B3C', '#F4ECDE', '#4D6B3C', '#F4ECDE']
 OSCURO = '#4D6B3C'
