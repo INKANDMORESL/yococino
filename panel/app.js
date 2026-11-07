@@ -348,7 +348,7 @@
   };
 
   const CATS = { carne: '🥩 Carne', pescado: '🐟 Pescado', marisco: '🦐 Marisco', huevos: '🥚 Huevos', legumbres: '🫘 Legumbres', vegetal: '🥦 Vegetal', pasta_arroz: '🍝 Pasta y arroz', airfryer: '🍟 Airfryer' };
-  const ESTADOS = { visibles: 'Visibles', ocultas: 'Ocultas', dulces: '🍰 Dulces', especiales: '🎄 Especiales', todas: 'Todas', privadas: 'Privadas de clientes' };
+  const ESTADOS_RECETA = { visibles: 'Visibles', ocultas: 'Ocultas', dulces: '🍰 Dulces', especiales: '🎄 Especiales', todas: 'Todas', privadas: 'Privadas de clientes' };
   V.recetas = async (filtro) => {
     const f = { buscar: '', tipo: '', categoria: '', estado: 'visibles', pagina: 1, ...(typeof filtro === 'object' && filtro ? filtro : { buscar: filtro || '' }) };
     const r = await pedir('recetas', f);
@@ -358,7 +358,7 @@
     marco('recetas', `
       <div class="fila entre"><div><h1>Recetas</h1><p class="sub">${r.total} de ${r.todas} recetas. Si una receta no te gusta, ocúltala y no volverá a salir en menús nuevos.</p></div>
       <form id="f-buscar" class="fila"><input type="search" name="q" placeholder="Buscar por nombre o ingrediente" value="${esc(f.buscar)}"><button class="boton suave">Buscar</button></form></div>
-      <div class="chips">${Object.entries(ESTADOS).map(([k, v]) => chip(f.estado === k, v, `data-estado="${k}"`)).join('')}</div>
+      <div class="chips">${Object.entries(ESTADOS_RECETA).map(([k, v]) => chip(f.estado === k, v, `data-estado="${k}"`)).join('')}</div>
       <div class="chips">${chip(!f.tipo, `Todas las tomas (${totalTipos})`, 'data-tipo=""')}${Object.entries(TIPOS).filter(([k]) => r.cuentaTipo[k]).map(([k, v]) => chip(f.tipo === k, `${v} (${r.cuentaTipo[k]})`, `data-tipo="${k}"`)).join('')}</div>
       <div class="chips">${chip(!f.categoria, 'Cualquier ingrediente', 'data-categoria=""')}${Object.entries(CATS).filter(([k]) => r.cuentaCat[k] || f.categoria === k).map(([k, v]) => chip(f.categoria === k, `${v} (${r.cuentaCat[k] || 0})`, `data-categoria="${k}"`)).join('')}</div>
       <table><thead><tr><th></th><th>Receta</th><th>Tipo</th><th>Kcal</th><th>Creada</th><th></th></tr></thead><tbody>

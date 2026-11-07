@@ -50,6 +50,11 @@ jobs:
           grep -v '^\s*$' salida.txt | tail -n 12 | while IFS= read -r l; do echo "::error title=TypeScript::$l"; done
           exit 1
 
+      - name: JavaScript del panel y de la web
+        working-directory: .
+        run: |
+          for f in panel/*.js web/*.js; do node --check "$f" || { echo "::error title=JavaScript::$f tiene un error y no cargaría"; exit 1; }; done
+
       - name: Reglas de los hooks de React
         run: |
           mkdir -p /tmp/lint && cd /tmp/lint && npm init -y > /dev/null && npm install --no-audit --no-fund eslint@9 eslint-plugin-react-hooks@5 typescript-eslint@8 typescript@5 > i.txt 2>&1 || { tail -n 15 i.txt; echo "::error title=Hooks::No se pudo instalar ESLint"; exit 1; }
