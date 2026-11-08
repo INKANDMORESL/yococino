@@ -80,6 +80,18 @@ jobs:
           curl -sS "https://api.supabase.com/v1/projects/$REF" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" | jq -c '{status, region, organization_id}' > p.txt
           echo "::notice title=Proyecto::$(cat p.txt)"
 
+      - name: Menús de los clientes nuevos (sin datos personales)
+        continue-on-error: true
+        run: |
+          Q="select json_agg(x) from (select left(u.id::text, 8) as id, to_char(u.created_at at time zone 'Europe/Madrid', 'DD HH24:MI') as alta, (select json_agg(to_char(i.created_at at time zone 'Europe/Madrid', 'HH24:MI:SS') || ' ' || round(i.coste_usd, 4) order by i.created_at) from public.usos_ia i where i.user_id = u.id and i.tipo = 'menu') as menus, (select json_build_object('dias', count(distinct fecha), 'desde', min(fecha), 'hasta', max(fecha), 'comidas', count(*)) from public.comidas c where c.user_id = u.id) as comidas from auth.users u where u.created_at > now() - interval '36 hours' order by u.created_at desc limit 5) x"
+          jq -n --arg q "$Q" '{query: $q, read_only: true}' > m.json
+          curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @m.json > mr.txt
+          for n in 0 1 2 3 4 5; do t=$(tail -c +$((n*3400+1)) mr.txt | head -c 3400 | tr '\n' ' '); [ -n "$t" ] && echo "::notice title=Menus $n::$t"; done
+          Q2="select json_agg(funcion || ' | ' || tipo || ' | ' || left(mensaje, 160) || ' | ' || to_char(created_at at time zone 'Europe/Madrid', 'HH24:MI')) from public.errores_servidor where created_at > now() - interval '12 hours'"
+          jq -n --arg q "$Q2" '{query: $q, read_only: true}' > e.json
+          curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @e.json > er.txt
+          echo "::notice title=Errores 12h::$(head -c 3400 er.txt | tr '\n' ' ')"
+
       - name: Recetas dulces
         run: |
           Q="select json_build_object('dulces', (select count(*) from public.recetas where dulce), 'visibles', (select count(*) from public.recetas where dulce and not oculta and privada_de is null and not solo_especial and imagen is not null), 'en_menu_futuro', (select count(*) from public.comidas c join public.recetas r on r.id = c.receta_id where r.dulce and c.fecha >= current_date), 'lista', (select json_agg(tipo_comida || ' | ' || nombre order by tipo_comida, nombre) from public.recetas where dulce and privada_de is null))"
