@@ -110,9 +110,24 @@ export interface RecetaResumen {
   aviso?: string | null; // «Tiene alto contenido en azúcar.»
 }
 
-// Recetario: solo devuelve recetas aptas para la persona.
-export const buscarRecetas = (texto: string, tipo: string | null, categoria: string | null = null, sub: string | null = null) =>
-  llamar<{ recetas: RecetaResumen[] }>('buscar-recetas', { texto, tipo, categoria, sub }, 'No hemos podido buscar recetas.').then((r) => r.recetas);
+// Recetario: solo devuelve recetas aptas para la persona, por páginas («siguiente» = desde dónde seguir; null = no hay más).
+export const buscarRecetas = (
+  texto: string,
+  tipo: string | null,
+  categoria: string | null = null,
+  sub: string | null = null,
+  desde = 0,
+  cuantas = 20,
+) =>
+  llamar<{ recetas: RecetaResumen[]; siguiente?: number | null }>(
+    'buscar-recetas',
+    { texto, tipo, categoria, sub, desde, cuantas },
+    'No hemos podido buscar recetas.',
+  ).then((r) => ({ recetas: r.recetas, siguiente: r.siguiente ?? null }));
+
+// Portada del recetario: 5 recetas de cada tipo de comida, distintas cada día.
+export const filasRecetas = () =>
+  llamar<{ filas: Record<string, RecetaResumen[]> }>('buscar-recetas', { filas: true }, 'No hemos podido cargar las recetas.').then((r) => r.filas);
 
 // Pone una receta en un día y una comida del menú.
 export const asignarReceta = (recetaId: number, fecha: string, tipoComida: string) =>

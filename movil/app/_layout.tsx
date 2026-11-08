@@ -35,6 +35,7 @@ export default function Layout() {
             <Stack.Screen name="receta/[id]" options={{ animation: 'fade', animationDuration: 150 }} />
             <Stack.Screen name="menu" options={{ animation: 'fade', animationDuration: 150 }} />
             <Stack.Screen name="especial" options={{ animation: 'fade', animationDuration: 150 }} />
+            <Stack.Screen name="recetario" options={{ animation: 'fade', animationDuration: 150 }} />
             <Stack.Screen name="cocinar" options={{ animation: 'slide_from_bottom' }} />
             <Stack.Screen name="tutorial" options={{ animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="suscripcion" options={{ animation: 'slide_from_bottom' }} />
