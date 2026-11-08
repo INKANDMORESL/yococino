@@ -81,7 +81,8 @@ def hacer(i, W, H, carpeta):
     img.save(carpeta / f'captura-{i + 1}.png')
 
 
-for i in range(6):
+if __name__ == '__main__':
+  for i in range(6):
     hacer(i, 1080, 1920, RAIZ / 'google-play')
     hacer(i, 1290, 2796, RAIZ / 'app-store')
-print('ok')
+  print('ok')
