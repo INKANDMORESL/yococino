@@ -452,6 +452,44 @@ const acciones: Record<string, (admin: Cliente, d: Datos, yo: string) => Promise
     return { meses, top };
   },
 
+  // En qué ha gastado IA un cliente (último año): por función, por mes y últimos usos.
+  async gastoCliente(admin, d) {
+    const id = String(d.user_id ?? '');
+    if (!/^[0-9a-f-]{36}$/.test(id)) return { por_tipo: [], meses: [], ultimos: [], total_eur: 0 };
+    const desde = new Date(Date.now() - 365 * 86_400_000).toISOString();
+    const { data, error } = await admin
+      .from('usos_ia')
+      .select('tipo, coste_usd, created_at')
+      .eq('user_id', id)
+      .gte('created_at', desde)
+      .order('created_at', { ascending: false })
+      .limit(20000);
+    if (error) throw error;
+    const filas = data ?? [];
+    const porTipo = new Map<string, { usd: number; veces: number; gratis: number }>();
+    const porMes = new Map<string, number>();
+    let total = 0;
+    for (const f of filas) {
+      const usd = Number(f.coste_usd);
+      const t = porTipo.get(f.tipo as string) ?? { usd: 0, veces: 0, gratis: 0 };
+      t.veces++;
+      if (usd > 0) t.usd += usd;
+      else t.gratis++;
+      porTipo.set(f.tipo as string, t);
+      const mes = String(f.created_at).slice(0, 7);
+      porMes.set(mes, (porMes.get(mes) ?? 0) + usd);
+      total += usd;
+    }
+    return {
+      total_eur: eur(total),
+      por_tipo: [...porTipo.entries()]
+        .sort(([, a], [, b]) => b.usd - a.usd)
+        .map(([tipo, t]) => ({ tipo, eur: eur(t.usd), veces: t.veces, gratis: t.gratis })),
+      meses: [...porMes.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([mes, usd]) => ({ mes, eur: eur(usd) })),
+      ultimos: filas.slice(0, 30).map((f) => ({ tipo: f.tipo, eur: eur(Number(f.coste_usd)), fecha: f.created_at })),
+    };
+  },
+
   async ajustes(admin) {
     const [planesA, recetasA, nutricion] = await Promise.all([
       admin.from('ajustes_planes').select('*').eq('id', 1).maybeSingle(),

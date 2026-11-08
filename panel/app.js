@@ -188,6 +188,40 @@
     };
   };
 
+  // Nombre de cada uso de la IA (tabla usos_ia).
+  const NOMBRES_GASTO = {
+    menu: 'Preparar el menú',
+    cambiar: 'Cambiar un plato',
+    cocinar: 'Cocina con lo que tienes',
+    ingrediente: 'Cambiar un ingrediente',
+    peques: 'Versión Peques',
+    foto: 'Fotos de platos',
+    importar: 'Guardar receta de TikTok',
+    preferencias: 'Cómo te gusta comer',
+    equivalente: 'Equivalente en la compra',
+  };
+
+  async function cargarGastoCliente(caja, id) {
+    try {
+      const g = await pedir('gastoCliente', { user_id: id });
+      if (!g.por_tipo.length) {
+        caja.innerHTML = '<p class="muted peq">Este cliente aún no ha usado la IA en el último año.</p>';
+        return;
+      }
+      const nombre = (t) => esc(NOMBRES_GASTO[t] || t);
+      caja.innerHTML = `
+        <p class="peq">Total del último año: <b>${euros(g.total_eur)}</b> de 9,00 €.</p>
+        <table><thead><tr><th>En qué</th><th>Veces</th><th>Gasto</th></tr></thead><tbody>
+        ${g.por_tipo.map((t) => `<tr><td>${nombre(t.tipo)}</td><td>${t.veces}${t.gratis ? ` <span class="muted peq">(${t.gratis} sin coste)</span>` : ''}</td><td>${euros(t.eur)}</td></tr>`).join('')}
+        </tbody></table>
+        <p class="peq" style="margin-top:10px"><b>Por mes:</b> ${g.meses.map((m) => `${esc(m.mes)}: ${euros(m.eur)}`).join(' · ')}</p>
+        <details style="margin-top:8px"><summary class="peq" style="cursor:pointer">Últimos usos</summary>
+        <table><tbody>${g.ultimos.map((u) => `<tr><td class="peq">${new Date(u.fecha).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}</td><td class="peq">${nombre(u.tipo)}</td><td class="peq">${euros(u.eur)}</td></tr>`).join('')}</tbody></table></details>`;
+    } catch (e) {
+      caja.innerHTML = `<div class="aviso error">${esc(e.message)}</div>`;
+    }
+  }
+
   function fichaCliente(c) {
     const velo = document.createElement('div');
     velo.className = 'velo';
@@ -206,6 +240,8 @@
         <dt>Gasto IA este mes</dt><dd>${euros(c.gasto_mes_eur)}</dd>
         <dt>Gasto IA en el año</dt><dd>${euros(c.gasto_ano_eur)} de 9,00 €</dd>
       </dl>
+      <h2>En qué ha gastado IA</h2>
+      <div id="gasto-ia"><p class="muted peq">Cargando…</p></div>
       <h2>Regalar o cambiar la suscripción</h2>
       <p class="muted peq">Para un amigo, un probador o alguien que te paga por otro medio. No pasa por las tiendas ni se le cobra nada.</p>
       <div class="fila" style="margin-bottom:10px">
@@ -227,6 +263,7 @@
       <p class="muted peq" style="margin-top:20px">Por privacidad, el panel no muestra datos de salud (alergias, condiciones, peso o medidas).</p>
     </div>`;
     document.body.appendChild(velo);
+    cargarGastoCliente(velo.querySelector('#gasto-ia'), c.id);
     const cerrar = () => velo.remove();
     velo.onclick = (ev) => ev.target === velo && cerrar();
     velo.querySelector('#cerrar').onclick = cerrar;
@@ -406,7 +443,7 @@
 
   V.gastos = async () => {
     const g = await pedir('gastos');
-    const NOMBRES = { menu: 'Menú', cambiar: 'Plato nuevo', cocinar: 'Cocina con lo que tienes', ingrediente: 'Cambiar ingrediente', peques: 'Peques', foto: 'Fotos' };
+    const NOMBRES = NOMBRES_GASTO;
     marco('gastos', `
       <h1>Gastos de IA</h1><p class="sub">Lo que cuesta la IA (Claude) y las fotos (Google), por mes. Cada cliente tiene un máximo de 9 € al año. La carga inicial del recetario no aparece aquí.</p>
       <table><thead><tr><th>Mes</th><th>Total</th><th>Detalle</th></tr></thead><tbody>
