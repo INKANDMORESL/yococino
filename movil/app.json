@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "backgroundColor": "#FBFAF6",
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "app.yococino",
       "icon": "./assets/icon.png",
       "usesAppleSignIn": true,
@@ -19,7 +19,8 @@
           "es"
         ],
         "CFBundleAllowMixedLocalizations": true
-      }
+      },
+      "requireFullScreen": true
     },
     "android": {
       "package": "app.yococino",

@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { EncuestaProvider } from '../src/features/encuesta/store';
 import { Arranque } from '../src/components/Arranque';
+import { Marco } from '../src/components/Marco';
 import { AuthProvider, useAuth } from '../src/lib/auth';
 import { colors } from '../src/theme';
 
@@ -18,6 +19,7 @@ export default function Layout() {
       <AuthProvider>
         <EncuestaProvider>
           <StatusBar style="dark" />
+          <Marco>
           <Stack
             screenOptions={{
               headerShown: false,
@@ -37,6 +39,7 @@ export default function Layout() {
             <Stack.Screen name="tutorial" options={{ animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="suscripcion" options={{ animation: 'slide_from_bottom' }} />
           </Stack>
+          </Marco>
           <AnimacionArranque />
         </EncuestaProvider>
       </AuthProvider>

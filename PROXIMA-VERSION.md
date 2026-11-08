@@ -2,7 +2,7 @@
 
 Versión 1.1.0 lanzada el 8/11/2026 (Android e iPhone) con todo lo que había aquí: receta que no pierde lo marcado,
 alarma que suena con la app abierta, apartado de dulces y su buscador, aviso de las casillas en el registro,
-enlace de confirmación por la web, idioma español en iPhone y paquete de pantalla actualizado.
+enlace de confirmación por la web, idioma español en iPhone, paquete de pantalla actualizado y versión para tablet (columna centrada; iPad activado).
 
 Pendiente para la siguiente versión:
 - (nada todavía)
