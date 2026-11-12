@@ -1,3 +1,4 @@
 [
-  { "fecha": "2026-11-10", "receta": 200, "nombre": "Cordero al chilindrón", "grupo": "carne", "metricool": 422841218 }
+  {"fecha":  "2026-11-10", "receta":  200, "nombre":  "Cordero al chilindrón", "grupo":  "carne", "metricool":  422841218},
+  {"fecha":  "2026-11-12", "receta":  81, "nombre":  "Potaje de garbanzos con calabaza y acelgas", "grupo":  "legumbres", "metricool":  425453855}
 ]
