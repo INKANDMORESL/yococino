@@ -80,6 +80,14 @@ jobs:
           curl -sS "https://api.supabase.com/v1/projects/$REF" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" | jq -c '{status, region, organization_id}' > p.txt
           echo "::notice title=Proyecto::$(cat p.txt)"
 
+      - name: Menús de los clientes con suscripción
+        continue-on-error: true
+        run: |
+          Q="select json_agg(x) from (select left(p.id::text, 8) as id, (select e.estado from public.estado_plan(p.id) e) as plan, to_char(u.last_sign_in_at at time zone 'Europe/Madrid', 'DD/MM HH24:MI') as ultimo_acceso, (select max(fecha) from public.comidas c where c.user_id = p.id) as menu_hasta, (select count(distinct fecha) from public.comidas c where c.user_id = p.id and c.fecha >= current_date) as dias_desde_hoy, (select to_char(max(i.created_at) at time zone 'Europe/Madrid', 'DD/MM HH24:MI') from public.usos_ia i where i.user_id = p.id and i.tipo = 'menu') as ultimo_menu, (select s.producto from public.suscripciones s where s.user_id = p.id) as producto, exists(select 1 from public.admins a where a.user_id = p.id) as admin from public.profiles p join auth.users u on u.id = p.id where p.encuesta_completada_at is not null) x"
+          jq -n --arg q "$Q" '{query: $q, read_only: true}' > s.json
+          curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @s.json > sr.txt
+          for n in 0 1 2 3; do t=$(tail -c +$((n*3400+1)) sr.txt | head -c 3400 | tr '\n' ' '); [ -n "$t" ] && echo "::notice title=Suscritos $n::$t"; done
+
       - name: Menús de los clientes nuevos (sin datos personales)
         continue-on-error: true
         run: |
