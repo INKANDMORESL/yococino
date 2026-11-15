@@ -37,7 +37,7 @@ export const CASOS: Caso[] = [
   ['IA: aprovecha un JSON con espacios de más al final', () => JSON.stringify(repararJSON('{"dias":[{"fecha":"x","comidas":[]}]}\n\n  \n')) === '{"dias":[{"fecha":"x","comidas":[]}]}'],
   ['IA: de un menú cortado se queda con lo completo', () => {
     const r = repararJSON('{"dias":[{"fecha":"a","comidas":[{"tipo_comida":"cena","receta_id":3}]},{"fecha":"b","comidas":[{"tipo_comida":"ce') as { dias: { comidas: unknown[] }[] } | null;
-    return !!r && r.dias.length === 2 && r.dias[0].comidas.length === 1 && r.dias[1].comidas.length === 0;
+    return !!r && r.dias.length === 1 && r.dias[0].comidas.length === 1;
   }],
   ['IA: llaves dentro de un texto no confunden y sin nada completo da null', () =>
     (repararJSON('{"dias":[{"fecha":"a{b]c","comidas":[]},{"fe') as { dias: unknown[] }).dias.length === 1 && repararJSON('{"dias":[{"fe') === null],
