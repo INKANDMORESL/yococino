@@ -11,7 +11,7 @@ import { equivalentesDe } from './equivalentes.ts';
 import { estacionDe, pegaConEstacion, temperaturaPlato } from './estacion.ts';
 import { llevaIngredienteDuro } from './coccion.ts';
 import { esDulce, LISTA_DULCES } from './dulces.ts';
-import { repararJSON } from './claude.ts';
+import { repararJSON } from './json.ts';
 import { avisosNutricion, embedDe, extraerUrl, normalizarUrl, plataformaDe, textoAvisos, urlPermitida } from './importar_reglas.ts';
 
 type Caso = [string, () => boolean];
