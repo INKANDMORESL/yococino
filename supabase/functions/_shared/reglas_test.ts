@@ -11,6 +11,7 @@ import { equivalentesDe } from './equivalentes.ts';
 import { estacionDe, pegaConEstacion, temperaturaPlato } from './estacion.ts';
 import { llevaIngredienteDuro } from './coccion.ts';
 import { esDulce, LISTA_DULCES } from './dulces.ts';
+import { repararJSON } from './claude.ts';
 import { avisosNutricion, embedDe, extraerUrl, normalizarUrl, plataformaDe, textoAvisos, urlPermitida } from './importar_reglas.ts';
 
 type Caso = [string, () => boolean];
@@ -33,6 +34,13 @@ export const CASOS: Caso[] = [
     embedDe('https://www.tiktok.com/@cocina/video/7300000000000000000') === 'https://www.tiktok.com/embed/v2/7300000000000000000' &&
     embedDe('https://www.instagram.com/reel/Cabc123/') === 'https://www.instagram.com/reel/Cabc123/embed' &&
     embedDe('https://blog.com/receta') === null],
+  ['IA: aprovecha un JSON con espacios de más al final', () => JSON.stringify(repararJSON('{"dias":[{"fecha":"x","comidas":[]}]}\n\n  \n')) === '{"dias":[{"fecha":"x","comidas":[]}]}'],
+  ['IA: de un menú cortado se queda con lo completo', () => {
+    const r = repararJSON('{"dias":[{"fecha":"a","comidas":[{"tipo_comida":"cena","receta_id":3}]},{"fecha":"b","comidas":[{"tipo_comida":"ce') as { dias: { comidas: unknown[] }[] } | null;
+    return !!r && r.dias.length === 2 && r.dias[0].comidas.length === 1 && r.dias[1].comidas.length === 0;
+  }],
+  ['IA: llaves dentro de un texto no confunden y sin nada completo da null', () =>
+    (repararJSON('{"dias":[{"fecha":"a{b]c","comidas":[]},{"fe') as { dias: unknown[] }).dias.length === 1 && repararJSON('{"dias":[{"fe') === null],
   ['importar: receta equilibrada sin avisos', () => avisosNutricion({ kcal: 550, grasas: 15, grasas_saturadas: 3, azucares: 8, sal: 1 }).length === 0],
   ['categoría: pollo al horno es carne y pollo', () => { const c = categoriasDe({ nombre: 'Pollo al horno con patatas' }); return c.categorias.includes('carne') && c.sub.includes('pollo') && !c.categorias.includes('vegetal'); }],
   ['categoría: lomo de salmón es pescado azul, no cerdo', () => { const c = categoriasDe({ nombre: 'Lomo de salmón a la plancha' }); return c.sub.includes('azul') && !c.sub.includes('cerdo'); }],
@@ -180,5 +188,6 @@ if (denoGlobal) {
     });
   }
 }
+
 
 

@@ -303,6 +303,7 @@ ${lineasCatalogo}`;
           mensaje: mensajeMenu,
           esquema: esquemaMenu(tipos),
           maxTokens: 8000,
+          aprovecharCortada: true,
         });
 
   // 5. Resolver cada comida: receta del catálogo, receta existente con el mismo nombre o receta nueva.

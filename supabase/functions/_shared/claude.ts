@@ -26,6 +26,8 @@ export interface PeticionJSON {
   timeoutMs?: number;
   // Imagen opcional (por ejemplo, la portada de una publicación), por su dirección pública.
   imagenUrl?: string | null;
+  // Si la respuesta se corta por largo, aprovechar lo que llegó completo (p. ej. los días del menú ya escritos).
+  aprovecharCortada?: boolean;
 }
 
 // Cuerpo de la petición a Claude (sirve igual para una llamada normal y para un lote).
@@ -41,6 +43,54 @@ export const parametros = (o: PeticionJSON) => ({
   ],
   output_config: { format: { type: 'json_schema', schema: o.esquema } },
 });
+
+// deno-lint-ignore no-explicit-any
+const textoDe = (datos: any): string =>
+  (datos?.content ?? [])
+    .filter((b: { type: string }) => b.type === 'text')
+    .map((b: { text: string }) => b.text)
+    .join('');
+
+// Arregla un JSON cortado: quita lo que sobra al final (espacios) o se queda con lo último que se cerró completo
+// dentro de una lista y cierra lo que falte. Devuelve null si no se puede aprovechar nada.
+export function repararJSON(texto: string): unknown | null {
+  const t = texto.trimEnd();
+  try {
+    return JSON.parse(t);
+  } catch {
+    // sigue
+  }
+  const pila: string[] = [];
+  let enCadena = false;
+  let escape = false;
+  let corte = -1;
+  let cierre: string[] = [];
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i];
+    if (enCadena) {
+      if (escape) escape = false;
+      else if (ch === '\\') escape = true;
+      else if (ch === '"') enCadena = false;
+      continue;
+    }
+    if (ch === '"') enCadena = true;
+    else if (ch === '{') pila.push('}');
+    else if (ch === '[') pila.push(']');
+    else if (ch === '}' || ch === ']') {
+      pila.pop();
+      if (pila.at(-1) === ']') {
+        corte = i + 1;
+        cierre = [...pila].reverse();
+      }
+    }
+  }
+  if (corte < 0) return null;
+  try {
+    return JSON.parse(t.slice(0, corte) + cierre.join(''));
+  } catch {
+    return null;
+  }
+}
 
 // Saca el JSON de una respuesta de Claude.
 // deno-lint-ignore no-explicit-any
@@ -95,7 +145,15 @@ export async function pedirJSON<T>(opciones: PeticionJSON): Promise<T> {
         noConfigurada: res.status === 401 || res.status === 403 || sinSaldo,
       });
     }
-    if (datos?.stop_reason === 'max_tokens') throw new ErrorIA('La respuesta de la IA quedó cortada.', { reintentable: true });
+    if (datos?.stop_reason === 'max_tokens') {
+      const cortada = textoDe(datos);
+      if (opciones.aprovecharCortada) {
+        const arreglada = repararJSON(cortada);
+        if (arreglada !== null) return arreglada as T;
+      }
+      // El final de lo que llegó ayuda a saber por qué se cortó (sin datos personales: solo platos).
+      throw new ErrorIA(`La respuesta de la IA quedó cortada (final: ${JSON.stringify(cortada.slice(-50))}).`, { reintentable: true });
+    }
     if (datos?.stop_reason === 'refusal') throw new ErrorIA('La IA no quiso responder a esta petición.', { reintentable: true });
 
     return leerJSON<T>(datos);
