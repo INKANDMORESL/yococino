@@ -2,8 +2,8 @@
 project_id = "yococino"
 
 [functions.preparar-menu]
-# La plataforma comprueba que quien llama ha iniciado sesión; la función lo vuelve a comprobar.
-verify_jwt = true
+# La función comprueba la sesión ella misma (o la clave interna de tareas para la reposición nocturna desde GitHub).
+verify_jwt = false
 
 [functions.borrar-cuenta]
 verify_jwt = true

@@ -1,0 +1,46 @@
+# Reposición nocturna de los menús: a quien le falten días (no ha abierto la app o la cerró a medias), se le
+# prepara el menú en el servidor para que siempre tenga sus 30 días por delante (en la prueba gratis, sus 7 días;
+# las pruebas terminadas no gastan nada). Usa la clave interna de tareas (cabecera x-tarea) con preparar-menu.
+name: Menús de los clientes
+
+on:
+  schedule:
+    - cron: '23 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  menus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      URL: ${{ vars.SUPABASE_URL }}
+    steps:
+      - name: Completar menús
+        run: |
+          sql() { jq -n --arg q "$1" '{query: $q, read_only: true}' > q.json; curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @q.json; }
+          CLAVE=$(sql "select clave_tareas from public.ajustes_internos where id = 1" | jq -r '.[0].clave_tareas // empty')
+          [ -n "$CLAVE" ] || { echo "::error title=Menús::No se pudo leer la clave interna."; exit 1; }
+          echo "::add-mask::$CLAVE"
+          # Personas con la encuesta hecha a las que les faltan días (hoy + 29 en Madrid).
+          sql "select json_agg(p.id) as ids from public.profiles p where p.encuesta_completada_at is not null and coalesce((select max(c.fecha) from public.comidas c where c.user_id = p.id), date '2000-01-01') < (now() at time zone 'Europe/Madrid')::date + 29" > ids.json
+          IDS=$(jq -r '.[0].ids // [] | .[]' ids.json)
+          completos=0; caducadas=0; fallos=0; total=0
+          for ID in $IDS; do
+            total=$((total+1))
+            for vuelta in $(seq 1 15); do
+              CODIGO=$(curl -sS -o r.json -w '%{http_code}' -X POST "$URL/functions/v1/preparar-menu" -H "x-tarea: $CLAVE" -H 'Content-Type: application/json' --data "{\"user_id\":\"$ID\",\"dias\":3}" --max-time 150) || CODIGO=000
+              if [ "$CODIGO" != "200" ]; then
+                # Bloqueados por seguridad (sin consentimiento, profesional…) o sin encuesta: no es un fallo.
+                COD=$(jq -r '.codigo // .error // empty' r.json 2>/dev/null)
+                case "$COD" in menor|profesional|sin_consentimiento|sin_encuesta) ;; *) fallos=$((fallos+1)); echo "${ID:0:8}: HTTP $CODIGO $(head -c 200 r.json)";; esac
+                break
+              fi
+              if [ "$(jq -r '.plan // empty' r.json)" = "caducada" ]; then caducadas=$((caducadas+1)); break; fi
+              if [ "$(jq -r '.pendientes' r.json)" = "0" ]; then completos=$((completos+1)); break; fi
+            done
+          done
+          RES="Revisados $total: completos $completos, prueba terminada $caducadas, con fallo $fallos."
+          echo "$RES"
+          if [ "$fallos" -gt 0 ]; then echo "::warning title=Menús::$RES"; else echo "::notice title=Menús::$RES"; fi

@@ -99,11 +99,21 @@ const esquemaMenu = (tipos: TipoComida[]) => ({
 
 async function preparar(req: Request): Promise<Response> {
   const { usuario, admin } = crearClientes(req);
-  const { data: auth } = await usuario.auth.getUser();
-  const user = auth?.user;
+  const cuerpo = (await req.json().catch(() => ({}))) as { dias?: number; user_id?: string };
+  // Reposición nocturna desde GitHub (clave interna, cabecera x-tarea): se prepara el menú de esa persona aunque no
+  // abra la app, para que siempre tenga sus 30 días por delante. Si no, la persona que llama con su sesión.
+  let user: { id: string } | null = null;
+  const claveTarea = req.headers.get('x-tarea') ?? '';
+  if (claveTarea.length >= 32 && /^[0-9a-f-]{36}$/.test(String(cuerpo.user_id ?? ''))) {
+    const { data } = await admin.from('ajustes_internos').select('clave_tareas').eq('id', 1).maybeSingle();
+    if (data?.clave_tareas && data.clave_tareas === claveTarea) user = { id: String(cuerpo.user_id) };
+  }
+  if (!user) {
+    const { data: auth } = await usuario.auth.getUser();
+    user = auth?.user ?? null;
+  }
   if (!user) return fallo(401, 'no_autenticado', 'Vuelve a entrar en tu cuenta.');
 
-  const cuerpo = (await req.json().catch(() => ({}))) as { dias?: number };
   const diasPedidos = Math.max(1, Math.min(MAX_DIAS_POR_LLAMADA, Math.round(Number(cuerpo.dias) || 2)));
   const hoy = hoyEspana();
 
