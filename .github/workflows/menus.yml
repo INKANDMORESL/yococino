@@ -29,12 +29,17 @@ jobs:
           completos=0; caducadas=0; fallos=0; total=0
           for ID in $IDS; do
             total=$((total+1))
-            for vuelta in $(seq 1 15); do
-              CODIGO=$(curl -sS -o r.json -w '%{http_code}' -X POST "$URL/functions/v1/preparar-menu" -H "x-tarea: $CLAVE" -H 'Content-Type: application/json' --data "{\"user_id\":\"$ID\",\"dias\":3}" --max-time 150) || CODIGO=000
+            dias=2; reintentos=0
+            for vuelta in $(seq 1 25); do
+              CODIGO=$(curl -sS -o r.json -w '%{http_code}' -X POST "$URL/functions/v1/preparar-menu" -H "x-tarea: $CLAVE" -H 'Content-Type: application/json' --data "{\"user_id\":\"$ID\",\"dias\":$dias}" --max-time 150) || CODIGO=000
               if [ "$CODIGO" != "200" ]; then
                 # Bloqueados por seguridad (sin consentimiento, profesional…) o sin encuesta: no es un fallo.
                 COD=$(jq -r '.codigo // .error // empty' r.json 2>/dev/null)
-                case "$COD" in menor|profesional|sin_consentimiento|sin_encuesta) ;; *) fallos=$((fallos+1)); echo "${ID:0:8}: HTTP $CODIGO $(head -c 200 r.json)";; esac
+                case "$COD" in menor|profesional|sin_consentimiento|sin_encuesta) break;; esac
+                # Si la IA falla (respuesta cortada, saturada…), se reintenta con 1 día, hasta 3 veces.
+                reintentos=$((reintentos+1)); dias=1
+                if [ "$reintentos" -le 3 ]; then sleep 5; continue; fi
+                fallos=$((fallos+1)); echo "${ID:0:8}: HTTP $CODIGO $(head -c 200 r.json)"
                 break
               fi
               if [ "$(jq -r '.plan // empty' r.json)" = "caducada" ]; then caducadas=$((caducadas+1)); break; fi
