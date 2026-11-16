@@ -1,5 +1,30 @@
 [
-  { "fecha": "2026-11-10", "receta": 200, "nombre": "Cordero al chilindrón", "grupo": "carne", "metricool": 422841218 },
-  { "fecha": "2026-11-12", "receta": 81, "nombre": "Potaje de garbanzos con calabaza y acelgas", "grupo": "legumbres", "metricool": 425453855 },
-  { "fecha": "2026-11-14", "receta": 161, "nombre": "Fideuá", "grupo": "pescado", "metricool": 427865720 }
+  {
+    "fecha": "2026-11-10",
+    "receta": 200,
+    "nombre": "Cordero al chilindrón",
+    "grupo": "carne",
+    "metricool": 422841218
+  },
+  {
+    "fecha": "2026-11-12",
+    "receta": 81,
+    "nombre": "Potaje de garbanzos con calabaza y acelgas",
+    "grupo": "legumbres",
+    "metricool": 425453855
+  },
+  {
+    "fecha": "2026-11-14",
+    "receta": 161,
+    "nombre": "Fideuá",
+    "grupo": "pescado",
+    "metricool": 427865720
+  },
+  {
+    "fecha": "2026-11-16",
+    "receta": 856,
+    "nombre": "Albóndigas de ternera en salsa de tomate con arroz",
+    "grupo": "carne",
+    "metricool": 429803928
+  }
 ]
