@@ -26,5 +26,12 @@
     "nombre": "Albóndigas de ternera en salsa de tomate con arroz",
     "grupo": "carne",
     "metricool": 429803928
+  },
+  {
+    "fecha": "2026-11-18",
+    "receta": 67,
+    "nombre": "Lentejas beluga con setas y pimientos asados",
+    "grupo": "legumbres",
+    "metricool": 432591081
   }
 ]
