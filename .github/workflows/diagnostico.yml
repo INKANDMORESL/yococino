@@ -80,6 +80,14 @@ jobs:
           curl -sS "https://api.supabase.com/v1/projects/$REF" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" | jq -c '{status, region, organization_id}' > p.txt
           echo "::notice title=Proyecto::$(cat p.txt)"
 
+      - name: Cuentas de administrador
+        continue-on-error: true
+        run: |
+          Q="select json_agg(json_build_object('email', u.email, 'proveedor', u.raw_app_meta_data->>'provider')) from public.admins a join auth.users u on u.id = a.user_id"
+          jq -n --arg q "$Q" '{query: $q, read_only: true}' > a.json
+          curl -sS -X POST "https://api.supabase.com/v1/projects/$REF/database/query" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data @a.json > ar.txt
+          echo "::notice title=Admins::$(head -c 1500 ar.txt | tr '\n' ' ')"
+
       - name: Menús de los clientes con suscripción
         continue-on-error: true
         run: |
