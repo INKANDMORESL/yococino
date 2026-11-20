@@ -33,5 +33,12 @@
     "nombre": "Lentejas beluga con setas y pimientos asados",
     "grupo": "legumbres",
     "metricool": 432591081
+  },
+  {
+    "fecha": "2026-11-20",
+    "receta": 225,
+    "nombre": "Suquet de peix",
+    "grupo": "pescado",
+    "metricool": 435325973
   }
 ]
