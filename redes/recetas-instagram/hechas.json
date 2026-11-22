@@ -40,5 +40,12 @@
     "nombre": "Suquet de peix",
     "grupo": "pescado",
     "metricool": 435325973
+  },
+  {
+    "fecha": "2026-11-22",
+    "receta": 212,
+    "nombre": "Fricandó",
+    "grupo": "carne",
+    "metricool": 437407834
   }
 ]
