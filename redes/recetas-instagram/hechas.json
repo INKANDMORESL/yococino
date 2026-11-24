@@ -47,5 +47,12 @@
     "nombre": "Fricandó",
     "grupo": "carne",
     "metricool": 437407834
+  },
+  {
+    "fecha": "2026-11-24",
+    "receta": 30,
+    "nombre": "Potaje de lentejas rojas con calabaza y zanahoria",
+    "grupo": "legumbres",
+    "metricool": 440019290
   }
 ]
