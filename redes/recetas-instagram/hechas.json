@@ -54,5 +54,12 @@
     "nombre": "Potaje de lentejas rojas con calabaza y zanahoria",
     "grupo": "legumbres",
     "metricool": 440019290
+  },
+  {
+    "fecha": "2026-11-26",
+    "receta": 213,
+    "nombre": "Croquetas caseras de jamón",
+    "grupo": "carne",
+    "metricool": 442864590
   }
 ]
