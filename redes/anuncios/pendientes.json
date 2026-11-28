@@ -1,5 +1,53 @@
 {
-  "hoy": "2026-11-27",
-  "pendientes": [],
+  "hoy": "2026-11-28",
+  "pendientes": [
+    {
+      "id": "pre_navidad-2026",
+      "clave": "pre_navidad",
+      "titulo": "Se acerca la Navidad",
+      "emoji": "🎄",
+      "descripcion": "Dulces caseros y entrantes para ir preparando las fiestas.",
+      "desde": "2026-12-01",
+      "hasta": "2026-12-23",
+      "publicar": "2026-12-01",
+      "recetas": [
+        {
+          "id": 1238,
+          "nombre": "Brochetas de langostino y piña con arroz",
+          "descripcion": "Langostinos jugosos con piña caramelizada a la plancha, un entrante de fiesta que también hace una cena ligera.",
+          "tipo_comida": "cena",
+          "imagen": "https://xgzcbtfmrcqcmubioeuz.supabase.co/storage/v1/object/public/fotos/recetas/1238.jpg"
+        },
+        {
+          "id": 1065,
+          "nombre": "Brochetas de langostino y piña",
+          "descripcion": "Langostinos dorados con piña caramelizada y un toque de limón y pimentón, un entrante de fiesta que sale en un momento.",
+          "tipo_comida": "cena",
+          "imagen": "https://xgzcbtfmrcqcmubioeuz.supabase.co/storage/v1/object/public/fotos/recetas/1065.jpg"
+        },
+        {
+          "id": 1063,
+          "nombre": "Crema de marisco ligera",
+          "descripcion": "Una crema sedosa de gambas y mejillones, perfecta para abrir la cena de Navidad sin pasarte.",
+          "tipo_comida": "cena",
+          "imagen": "https://xgzcbtfmrcqcmubioeuz.supabase.co/storage/v1/object/public/fotos/recetas/1063.jpg"
+        },
+        {
+          "id": 1057,
+          "nombre": "Paté de champiñones",
+          "descripcion": "Un paté cremoso y aromático con nueces para untar en tostadas y estrenar las fiestas.",
+          "tipo_comida": "cena",
+          "imagen": "https://xgzcbtfmrcqcmubioeuz.supabase.co/storage/v1/object/public/fotos/recetas/1057.jpg"
+        },
+        {
+          "id": 1066,
+          "nombre": "Canapés de salmón ahumado y aguacate",
+          "descripcion": "Tostas crujientes con aguacate cremoso y salmón ahumado, un entrante navideño que se prepara en un momento.",
+          "tipo_comida": "cena",
+          "imagen": "https://xgzcbtfmrcqcmubioeuz.supabase.co/storage/v1/object/public/fotos/recetas/1066.jpg"
+        }
+      ]
+    }
+  ],
   "sin_receta": []
 }
