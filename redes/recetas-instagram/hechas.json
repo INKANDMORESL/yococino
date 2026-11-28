@@ -61,5 +61,12 @@
     "nombre": "Croquetas caseras de jamón",
     "grupo": "carne",
     "metricool": 442864590
+  },
+  {
+    "fecha": "2026-11-28",
+    "receta": 153,
+    "nombre": "Paella de marisco",
+    "grupo": "pescado",
+    "metricool": 445285146
   }
 ]
